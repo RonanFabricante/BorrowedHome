@@ -42,7 +42,7 @@ export default async function MessagesPage({
     <div className="min-h-screen">
       <Nav />
       <main className="container mx-auto px-4 py-8">
-        <MessagesThread bookingId={params.id} userId={user.id} />
+        <MessagesThread bookingId={id} userId={user.id} />
       </main>
     </div>
   );
