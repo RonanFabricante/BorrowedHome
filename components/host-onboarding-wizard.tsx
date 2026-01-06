@@ -15,7 +15,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select } from "@/components/ui/select";
 import { SpaceType, NoiseTolerance } from "@/lib/types";
-import { ChefHat, UtensilsCrossed, Home, Trees } from "lucide-react";
+import { ChefHat, UtensilsCrossed, Home, Trees, Upload, X } from "lucide-react";
+import Image from "next/image";
 
 const spaceOptions: { value: SpaceType; label: string; icon: any }[] = [
   { value: "KITCHEN", label: "Kitchen", icon: ChefHat },
@@ -58,11 +59,19 @@ const onboardingSchema = z.object({
 
 type OnboardingFormData = z.infer<typeof onboardingSchema>;
 
+type PhotoUpload = {
+  file: File;
+  preview: string;
+  spaceType: SpaceType;
+};
+
 export function HostOnboardingWizard() {
   const router = useRouter();
   const supabase = createClient();
   const [step, setStep] = useState(1);
   const [error, setError] = useState<string | null>(null);
+  const [photos, setPhotos] = useState<PhotoUpload[]>([]);
+  const [uploading, setUploading] = useState(false);
 
   const form = useForm<OnboardingFormData>({
     resolver: zodResolver(onboardingSchema),
@@ -77,6 +86,26 @@ export function HostOnboardingWizard() {
       max_guests: 10,
     },
   });
+
+  // Photo upload handlers
+  const handlePhotoUpload = (files: FileList | null, spaceType: SpaceType) => {
+    if (!files) return;
+    
+    Array.from(files).forEach((file) => {
+      if (file.type.startsWith("image/")) {
+        const preview = URL.createObjectURL(file);
+        setPhotos((prev) => [...prev, { file, preview, spaceType }]);
+      }
+    });
+  };
+
+  const removePhoto = (index: number) => {
+    setPhotos((prev) => {
+      const photo = prev[index];
+      URL.revokeObjectURL(photo.preview);
+      return prev.filter((_, i) => i !== index);
+    });
+  };
 
   const createListing = useMutation({
     mutationFn: async (data: OnboardingFormData) => {
@@ -125,6 +154,53 @@ export function HostOnboardingWizard() {
 
       if (listingError) throw listingError;
 
+      // Upload photos to Supabase Storage
+      if (photos.length > 0) {
+        setUploading(true);
+        const photoRecords = [];
+
+        for (let i = 0; i < photos.length; i++) {
+          const photo = photos[i];
+          const fileExt = photo.file.name.split(".").pop();
+          const fileName = `${listing.id}/${photo.spaceType}-${Date.now()}-${i}.${fileExt}`;
+          const storagePath = fileName;
+
+          // Upload to Supabase Storage
+          const { error: uploadError } = await supabase.storage
+            .from("listing-photos")
+            .upload(storagePath, photo.file, {
+              cacheControl: "3600",
+              upsert: false,
+            });
+
+          if (uploadError) {
+            console.error("Photo upload error:", uploadError);
+            continue; // Skip this photo but continue with others
+          }
+
+          // Create photo record
+          photoRecords.push({
+            listing_id: listing.id,
+            storage_path: storagePath,
+            sort_order: i,
+          });
+        }
+
+        // Insert photo records
+        if (photoRecords.length > 0) {
+          const { error: photosError } = await supabase
+            .from("listing_photos")
+            .insert(photoRecords);
+
+          if (photosError) {
+            console.error("Photo record error:", photosError);
+            // Don't throw - listing is already created
+          }
+        }
+
+        setUploading(false);
+      }
+
       // Create spaces
       const spaces = data.spaces.map((space) => ({
         listing_id: listing.id,
@@ -164,6 +240,7 @@ export function HostOnboardingWizard() {
     },
     onError: (err: any) => {
       setError(err.message || "Failed to create listing");
+      setUploading(false);
     },
   });
 
@@ -460,6 +537,83 @@ export function HostOnboardingWizard() {
     </div>
   );
 
+  // Step 6: Photos
+  const renderStep6 = () => {
+    const selectedSpaces = form.watch("spaces");
+    
+    return (
+      <div className="space-y-6">
+        <h2 className="text-2xl font-bold mb-4">Upload Photos</h2>
+        <p className="text-muted-foreground mb-6">
+          Add photos for each space. These will be visible to guests browsing your listing.
+        </p>
+
+        {selectedSpaces.map((spaceType) => {
+          const spaceOption = spaceOptions.find((opt) => opt.value === spaceType);
+          const Icon = spaceOption?.icon;
+          const spacePhotos = photos.filter((p) => p.spaceType === spaceType);
+
+          return (
+            <div key={spaceType} className="space-y-3">
+              <div className="flex items-center gap-2">
+                {Icon && <Icon className="h-5 w-5" />}
+                <Label className="text-base font-semibold">
+                  {spaceOption?.label} Photos
+                </Label>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                {spacePhotos.map((photo, index) => {
+                  const globalIndex = photos.findIndex((p) => p === photo);
+                  return (
+                    <div
+                      key={index}
+                      className="relative aspect-square rounded-lg overflow-hidden border border-border bg-muted"
+                    >
+                      <Image
+                        src={photo.preview}
+                        alt={`${spaceOption?.label} ${index + 1}`}
+                        fill
+                        className="object-cover"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removePhoto(globalIndex)}
+                        className="absolute top-2 right-2 p-1 bg-destructive text-destructive-foreground rounded-full hover:bg-destructive/90"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  );
+                })}
+
+                <label className="aspect-square rounded-lg border-2 border-dashed border-border bg-muted hover:bg-muted/80 cursor-pointer flex flex-col items-center justify-center gap-2 transition-colors">
+                  <Upload className="h-6 w-6 text-muted-foreground" />
+                  <span className="text-xs text-muted-foreground text-center px-2">
+                    Add Photo
+                  </span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    className="hidden"
+                    onChange={(e) => handlePhotoUpload(e.target.files, spaceType)}
+                  />
+                </label>
+              </div>
+            </div>
+          );
+        })}
+
+        {selectedSpaces.length === 0 && (
+          <p className="text-sm text-muted-foreground">
+            Please select spaces in Step 1 before uploading photos.
+          </p>
+        )}
+      </div>
+    );
+  };
+
   // Step 5: Pricing
   const renderStep5 = () => (
     <div className="space-y-4">
@@ -541,7 +695,7 @@ export function HostOnboardingWizard() {
         <CardHeader>
           <CardTitle>Create Your Listing</CardTitle>
           <p className="text-sm text-muted-foreground">
-            Step {step} of 5
+            Step {step} of 6
           </p>
         </CardHeader>
         <CardContent>
@@ -557,6 +711,7 @@ export function HostOnboardingWizard() {
             {step === 3 && renderStep3()}
             {step === 4 && renderStep4()}
             {step === 5 && renderStep5()}
+            {step === 6 && renderStep6()}
 
             <div className="flex gap-4 mt-8">
               {step > 1 && (
@@ -568,7 +723,7 @@ export function HostOnboardingWizard() {
                   Previous
                 </Button>
               )}
-              {step < 5 ? (
+              {step < 6 ? (
                 <Button
                   type="button"
                   onClick={() => {
@@ -582,6 +737,8 @@ export function HostOnboardingWizard() {
                         ? ["availability"]
                         : step === 4
                         ? ["noise_tolerance"]
+                        : step === 5
+                        ? ["hourly_rate", "half_day_rate", "full_day_rate"]
                         : [];
                     
                     form.trigger(fields).then((isValid) => {
@@ -595,10 +752,14 @@ export function HostOnboardingWizard() {
               ) : (
                 <Button
                   type="submit"
-                  disabled={createListing.isPending}
+                  disabled={createListing.isPending || uploading}
                   className="ml-auto"
                 >
-                  {createListing.isPending ? "Creating..." : "Create Listing"}
+                  {uploading
+                    ? "Uploading photos..."
+                    : createListing.isPending
+                    ? "Creating..."
+                    : "Create Listing"}
                 </Button>
               )}
             </div>
