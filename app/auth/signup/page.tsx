@@ -9,6 +9,7 @@ import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import Link from "next/link";
 
@@ -16,6 +17,9 @@ const signupSchema = z.object({
   fullName: z.string().min(2, "Name must be at least 2 characters"),
   email: z.string().email("Invalid email address"),
   password: z.string().min(6, "Password must be at least 6 characters"),
+  acceptedTerms: z.boolean().refine((val) => val === true, {
+    message: "You must agree to the Terms & Conditions",
+  }),
 });
 
 type SignupFormData = z.infer<typeof signupSchema>;
@@ -29,9 +33,14 @@ export default function SignupPage() {
   const {
     register,
     handleSubmit,
+    watch,
+    setValue,
     formState: { errors },
   } = useForm<SignupFormData>({
     resolver: zodResolver(signupSchema),
+    defaultValues: {
+      acceptedTerms: false,
+    },
   });
 
   const onSubmit = async (data: SignupFormData) => {
@@ -122,6 +131,32 @@ export default function SignupPage() {
                 </p>
               )}
             </div>
+            <div className="flex items-start gap-2">
+              <Checkbox
+                id="acceptedTerms"
+                checked={watch("acceptedTerms")}
+                onChange={(e) =>
+                  setValue("acceptedTerms", e.target.checked)
+                }
+              />
+              <Label htmlFor="acceptedTerms" className="cursor-pointer text-sm leading-tight">
+                I agree to the{" "}
+                <Link
+                  href="/terms"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary hover:underline"
+                >
+                  BorrowedHome Terms & Conditions
+                </Link>
+                {" "}and acknowledge that BorrowedHome is a marketplace only.
+              </Label>
+            </div>
+            {errors.acceptedTerms && (
+              <p className="text-sm text-destructive">
+                {errors.acceptedTerms.message}
+              </p>
+            )}
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? "Creating account..." : "Sign Up"}
             </Button>
