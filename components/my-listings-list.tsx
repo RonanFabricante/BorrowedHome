@@ -12,7 +12,7 @@ export function MyListingsList({ listings }: { listings: any[] }) {
     return (
       <div className="text-center py-12">
         <p className="text-muted-foreground mb-4">
-          You don't have any listings yet.
+          You don&apos;t have any listings yet.
         </p>
         <Button asChild>
           <Link href="/host/onboard">Create Your First Listing</Link>

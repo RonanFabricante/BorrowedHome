@@ -12,7 +12,7 @@ export function MyBookingsList({ bookings }: { bookings: any[] }) {
   if (bookings.length === 0) {
     return (
       <div className="text-center py-12">
-        <p className="text-muted-foreground mb-4">You don't have any bookings yet.</p>
+        <p className="text-muted-foreground mb-4">You don&apos;t have any bookings yet.</p>
         <Button asChild>
           <Link href="/listings">Browse Homes</Link>
         </Button>
