@@ -83,6 +83,22 @@ export function HostOnboardingWizard() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
+      // Ensure profile exists before creating listing
+      const { error: profileError } = await supabase
+        .from("profiles")
+        .upsert({
+          id: user.id,
+          full_name: user.user_metadata?.full_name || user.email?.split("@")[0] || "User",
+          is_guest: true,
+          is_host: false,
+        }, {
+          onConflict: "id"
+        });
+
+      if (profileError) {
+        throw new Error(`Failed to ensure profile exists: ${profileError.message}`);
+      }
+
       // Create listing
       const { data: listing, error: listingError } = await supabase
         .from("listings")
