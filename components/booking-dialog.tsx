@@ -286,8 +286,8 @@ export function BookingDialog({
             <Checkbox
               id="acceptedRules"
               checked={watch("acceptedRules")}
-              onCheckedChange={(checked) =>
-                setValue("acceptedRules", checked === true)
+              onChange={(e) =>
+                setValue("acceptedRules", e.target.checked)
               }
             />
             <Label htmlFor="acceptedRules" className="cursor-pointer">

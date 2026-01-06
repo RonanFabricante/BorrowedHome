@@ -309,9 +309,9 @@ export function HostOnboardingWizard() {
               <div className="w-24">
                 <Checkbox
                   checked={!!dayAvail}
-                  onCheckedChange={(checked) => {
+                  onChange={(e) => {
                     const current = form.getValues("availability");
-                    if (checked) {
+                    if (e.target.checked) {
                       form.setValue("availability", [
                         ...current,
                         { day_of_week: index, start_time: "09:00", end_time: "21:00" },
@@ -388,8 +388,8 @@ export function HostOnboardingWizard() {
           <Checkbox
             id="host_present"
             checked={form.watch("host_present")}
-            onCheckedChange={(checked) =>
-              form.setValue("host_present", checked === true)
+            onChange={(e) =>
+              form.setValue("host_present", e.target.checked)
             }
           />
           <Label htmlFor="host_present" className="cursor-pointer">
@@ -400,8 +400,8 @@ export function HostOnboardingWizard() {
           <Checkbox
             id="cooking_allowed"
             checked={form.watch("cooking_allowed")}
-            onCheckedChange={(checked) =>
-              form.setValue("cooking_allowed", checked === true)
+            onChange={(e) =>
+              form.setValue("cooking_allowed", e.target.checked)
             }
           />
           <Label htmlFor="cooking_allowed" className="cursor-pointer">
@@ -412,8 +412,8 @@ export function HostOnboardingWizard() {
           <Checkbox
             id="alcohol_allowed"
             checked={form.watch("alcohol_allowed")}
-            onCheckedChange={(checked) =>
-              form.setValue("alcohol_allowed", checked === true)
+            onChange={(e) =>
+              form.setValue("alcohol_allowed", e.target.checked)
             }
           />
           <Label htmlFor="alcohol_allowed" className="cursor-pointer">
