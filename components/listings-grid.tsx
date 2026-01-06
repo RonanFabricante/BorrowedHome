@@ -5,14 +5,14 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Listing } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils";
-import { Kitchen, UtensilsCrossed, Sofa, TreePine } from "lucide-react";
+import { ChefHat, UtensilsCrossed, Home, Trees } from "lucide-react";
 import Image from "next/image";
 
 const spaceIcons = {
-  KITCHEN: Kitchen,
+  KITCHEN: ChefHat,
   DINING: UtensilsCrossed,
-  LIVING: Sofa,
-  GARDEN: TreePine,
+  LIVING: Home,
+  GARDEN: Trees,
 };
 
 export function ListingsGrid({ listings }: { listings: Listing[] }) {

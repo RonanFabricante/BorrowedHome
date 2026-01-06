@@ -6,15 +6,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatCurrency, formatTime } from "@/lib/utils";
-import { Kitchen, UtensilsCrossed, Sofa, TreePine, Check } from "lucide-react";
+import { ChefHat, UtensilsCrossed, Home, Trees, Check } from "lucide-react";
 import Image from "next/image";
 import { BookingDialog } from "@/components/booking-dialog";
 
 const spaceIcons = {
-  KITCHEN: Kitchen,
+  KITCHEN: ChefHat,
   DINING: UtensilsCrossed,
-  LIVING: Sofa,
-  GARDEN: TreePine,
+  LIVING: Home,
+  GARDEN: Trees,
 };
 
 const spaceLabels = {

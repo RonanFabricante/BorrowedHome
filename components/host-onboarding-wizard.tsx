@@ -15,13 +15,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select } from "@/components/ui/select";
 import { SpaceType, NoiseTolerance } from "@/lib/types";
-import { Kitchen, UtensilsCrossed, Sofa, TreePine } from "lucide-react";
+import { ChefHat, UtensilsCrossed, Home, Trees } from "lucide-react";
 
 const spaceOptions: { value: SpaceType; label: string; icon: any }[] = [
-  { value: "KITCHEN", label: "Kitchen", icon: Kitchen },
+  { value: "KITCHEN", label: "Kitchen", icon: ChefHat },
   { value: "DINING", label: "Dining Room", icon: UtensilsCrossed },
-  { value: "LIVING", label: "Living Room", icon: Sofa },
-  { value: "GARDEN", label: "Garden/Pool", icon: TreePine },
+  { value: "LIVING", label: "Living Room", icon: Home },
+  { value: "GARDEN", label: "Garden/Pool", icon: Trees },
 ];
 
 const onboardingSchema = z.object({
