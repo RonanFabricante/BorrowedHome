@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { formatCurrency, formatTime } from "@/lib/utils";
 import { ChefHat, UtensilsCrossed, Home, Trees, Check } from "lucide-react";
 import Image from "next/image";
+import Link from "next/link";
 import { BookingDialog } from "@/components/booking-dialog";
 
 const spaceIcons = {
@@ -36,6 +37,7 @@ export function ListingDetail({
 
   const photos = listing.photos?.sort((a, b) => a.sort_order - b.sort_order) || [];
   const currentPhoto = photos[selectedPhotoIndex];
+  const isHost = userId === listing.host_id;
 
   const rules = [
     listing.cooking_allowed && "Cooking allowed",
@@ -48,9 +50,17 @@ export function ListingDetail({
   return (
     <div className="max-w-6xl mx-auto">
       <div className="mb-6">
-        <div className="flex gap-2 mb-2">
-          <Badge>Day use only</Badge>
-          {listing.host_present && <Badge variant="secondary">Host present</Badge>}
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex gap-2">
+            <Badge>Day use only</Badge>
+            {listing.host_present && <Badge variant="secondary">Host present</Badge>}
+            {!listing.published && isHost && <Badge variant="outline">Draft</Badge>}
+          </div>
+          {isHost && (
+            <Button variant="outline" asChild>
+              <Link href={`/listings/${listing.id}/edit`}>Edit Listing</Link>
+            </Button>
+          )}
         </div>
         <h1 className="text-4xl font-bold mb-2">{listing.title}</h1>
         <p className="text-muted-foreground">{listing.location_text}</p>

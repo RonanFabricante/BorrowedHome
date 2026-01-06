@@ -10,8 +10,24 @@ export default async function ListingDetailPage({
 }) {
   const { id } = await params;
   const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
 
-  const { data: listing } = await supabase
+  // First check if listing exists and get host_id
+  const { data: listingCheck } = await supabase
+    .from("listings")
+    .select("host_id, published")
+    .eq("id", id)
+    .single();
+
+  if (!listingCheck) {
+    notFound();
+  }
+
+  // Check if user is the host
+  const isHost = user?.id === listingCheck.host_id;
+
+  // Build query - hosts can see their own listings (published or not), others only published
+  let query = supabase
     .from("listings")
     .select(`
       *,
@@ -20,16 +36,19 @@ export default async function ListingDetailPage({
       listing_availability(*),
       profiles!listings_host_id_fkey(id, full_name)
     `)
-    .eq("id", id)
-    .eq("published", true)
-    .single();
+    .eq("id", id);
+
+  if (!isHost) {
+    query = query.eq("published", true);
+  }
+
+  const { data: listing } = await query.single();
 
   if (!listing) {
     notFound();
   }
 
   // Get public URLs for photos
-  const { data: { user } } = await supabase.auth.getUser();
   const photosWithUrls = await Promise.all(
     (listing.listing_photos || []).map(async (photo: any) => {
       const { data } = await supabase.storage
