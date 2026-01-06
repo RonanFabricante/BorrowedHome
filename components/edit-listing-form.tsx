@@ -14,7 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select } from "@/components/ui/select";
-import { Listing, SpaceType, NoiseTolerance } from "@/lib/types";
+import { Listing, ListingPhoto, SpaceType, NoiseTolerance } from "@/lib/types";
 import { ChefHat, UtensilsCrossed, Home, Trees, Upload, X } from "lucide-react";
 import Image from "next/image";
 
@@ -62,7 +62,7 @@ export function EditListingForm({ listing }: { listing: any }) {
   const supabase = createClient();
   const [error, setError] = useState<string | null>(null);
   const [photos, setPhotos] = useState<PhotoUpload[]>([]);
-  const [existingPhotos, setExistingPhotos] = useState(listing.photos || []);
+  const [existingPhotos, setExistingPhotos] = useState<(ListingPhoto & { url?: string })[]>(listing.photos || []);
   const [uploading, setUploading] = useState(false);
 
   const form = useForm<EditFormData>({
@@ -114,7 +114,7 @@ export function EditListingForm({ listing }: { listing: any }) {
     await supabase.from("listing_photos").delete().eq("id", photoId);
     
     // Update local state
-    setExistingPhotos((prev) => prev.filter((p) => p.id !== photoId));
+    setExistingPhotos((prev: (ListingPhoto & { url?: string })[]) => prev.filter((p) => p.id !== photoId));
   };
 
   const updateListing = useMutation({
