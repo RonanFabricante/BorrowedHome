@@ -24,6 +24,12 @@ const bookingSchema = z.object({
   acceptedRules: z.boolean().refine((val) => val === true, {
     message: "You must accept the house rules",
   }),
+  guest_ack_toilet_access: z.boolean().refine((val) => val === true, {
+    message: "You must acknowledge the toilet access policy",
+  }),
+  guest_ack_consumables_policy: z.boolean().refine((val) => val === true, {
+    message: "You must acknowledge the consumables policy",
+  }),
 });
 
 type BookingFormData = z.infer<typeof bookingSchema>;
@@ -50,6 +56,8 @@ export function BookingDialog({
     defaultValues: {
       guestsCount: 1,
       acceptedRules: false,
+      guest_ack_toilet_access: false,
+      guest_ack_consumables_policy: false,
     },
   });
 
@@ -163,6 +171,9 @@ export function BookingDialog({
           end_at: end.toISOString(),
           status: "PENDING",
           accepted_rules_at: new Date().toISOString(),
+          guest_ack_toilet_access: data.guest_ack_toilet_access,
+          guest_ack_consumables_policy: data.guest_ack_consumables_policy,
+          ack_version: "2026-01-08", // Policy version for auditing
           guests_count: data.guestsCount,
           total_amount: priceBreakdown.total,
           platform_fee_amount: priceBreakdown.fee,
@@ -294,6 +305,67 @@ export function BookingDialog({
               <p className="text-sm whitespace-pre-wrap">{listing.additional_instructions}</p>
             </div>
           )}
+
+          {/* Toilet Access Acknowledgement */}
+          <div className="border-l-4 border-amber-200 bg-amber-50 p-4 rounded">
+            <div className="flex items-start gap-2 mb-2">
+              <Checkbox
+                id="guest_ack_toilet_access"
+                checked={watch("guest_ack_toilet_access")}
+                onChange={(e) =>
+                  setValue("guest_ack_toilet_access", e.target.checked)
+                }
+              />
+              <Label htmlFor="guest_ack_toilet_access" className="cursor-pointer text-sm">
+                I understand the toilet access for this space is:{" "}
+                <span className="font-semibold">
+                  {listing.toilet_access === "shared" && "Shared bathroom"}
+                  {listing.toilet_access === "private" && "Private bathroom"}
+                  {listing.toilet_access === "limited" && "Limited access"}
+                  {listing.toilet_access === "none" && "No toilet access"}
+                </span>
+                {listing.toilet_access_notes && (
+                  <span className="block mt-1 text-xs text-muted-foreground">
+                    ({listing.toilet_access_notes})
+                  </span>
+                )}
+              </Label>
+            </div>
+            {errors.guest_ack_toilet_access && (
+              <p className="text-sm text-destructive mt-1">
+                {errors.guest_ack_toilet_access.message}
+              </p>
+            )}
+          </div>
+
+          {/* Consumables Policy Acknowledgement */}
+          <div className="border-l-4 border-amber-200 bg-amber-50 p-4 rounded">
+            <div className="flex items-start gap-2 mb-2">
+              <Checkbox
+                id="guest_ack_consumables_policy"
+                checked={watch("guest_ack_consumables_policy")}
+                onChange={(e) =>
+                  setValue("guest_ack_consumables_policy", e.target.checked)
+                }
+              />
+              <Label htmlFor="guest_ack_consumables_policy" className="cursor-pointer text-sm">
+                I understand personal consumables/perishables (groceries, ingredients, toilet paper, hygiene items) are not included unless stated, and I will bring what I need.
+              </Label>
+            </div>
+            {errors.guest_ack_consumables_policy && (
+              <p className="text-sm text-destructive mt-1">
+                {errors.guest_ack_consumables_policy.message}
+              </p>
+            )}
+            <div className="mt-2 text-xs text-muted-foreground">
+              <p className="font-semibold mb-1">Supplies provided:</p>
+              <ul className="list-disc list-inside space-y-0.5">
+                <li>Toilet paper: {listing.provides_toilet_paper ? "Yes" : "No (bring your own)"}</li>
+                <li>Pantry staples: {listing.provides_pantry_staples ? "Yes" : "No"}</li>
+                <li>Groceries/ingredients: {listing.provides_groceries ? "Yes" : "No"}</li>
+              </ul>
+            </div>
+          </div>
 
           <div className="flex items-start gap-2">
             <Checkbox

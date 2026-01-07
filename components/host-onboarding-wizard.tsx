@@ -51,11 +51,28 @@ const onboardingSchema = z.object({
   cleaning_expectations: z.string().optional(),
   additional_instructions: z.string().max(1000, "Additional instructions must be 1000 characters or less").optional(),
   
+  // Step 4.5: Facilities & Supplies
+  toilet_access: z.enum(["shared", "private", "limited", "none"]),
+  toilet_access_notes: z.string().optional(),
+  consumables_policy_host_notes: z.string().optional(),
+  provides_toilet_paper: z.boolean(),
+  provides_pantry_staples: z.boolean(),
+  provides_groceries: z.boolean(),
+  
   // Step 5: Pricing
   hourly_rate: z.number().min(100), // $1 minimum
   half_day_rate: z.number().min(100),
   full_day_rate: z.number().min(100),
   deposit_amount: z.number().min(0),
+}).refine((data) => {
+  // Require toilet_access_notes when toilet_access is limited or none
+  if (data.toilet_access === "limited" || data.toilet_access === "none") {
+    return data.toilet_access_notes && data.toilet_access_notes.trim().length > 0;
+  }
+  return true;
+}, {
+  message: "Please explain the toilet arrangements",
+  path: ["toilet_access_notes"],
 });
 
 type OnboardingFormData = z.infer<typeof onboardingSchema>;
@@ -146,6 +163,14 @@ export function HostOnboardingWizard() {
           noise_tolerance: data.noise_tolerance,
           cleaning_expectations: data.cleaning_expectations || null,
           additional_instructions: data.additional_instructions?.trim() || null,
+          toilet_access: data.toilet_access,
+          toilet_access_notes: data.toilet_access_notes?.trim() || null,
+          consumables_policy: data.consumables_policy_host_notes?.trim()
+            ? `Personal consumables and perishables are not provided unless explicitly listed by the Host. Please bring any groceries/ingredients and personal items you require (e.g., hygiene products).\n\nHost notes: ${data.consumables_policy_host_notes.trim()}`
+            : 'Personal consumables and perishables are not provided unless explicitly listed by the Host. Please bring any groceries/ingredients and personal items you require (e.g., hygiene products).',
+          provides_toilet_paper: data.provides_toilet_paper,
+          provides_pantry_staples: data.provides_pantry_staples,
+          provides_groceries: data.provides_groceries,
           hourly_rate: Math.round(data.hourly_rate * 100), // Convert to cents
           half_day_rate: Math.round(data.half_day_rate * 100),
           full_day_rate: Math.round(data.full_day_rate * 100),
@@ -560,8 +585,166 @@ export function HostOnboardingWizard() {
     </div>
   );
 
-  // Step 6: Photos
-  const renderStep6 = () => {
+  // Step 5: Facilities & Supplies
+  const renderStep5 = () => {
+    const toiletAccess = form.watch("toilet_access");
+    const requiresNotes = toiletAccess === "limited" || toiletAccess === "none";
+
+    return (
+      <div className="space-y-6">
+        <h2 className="text-2xl font-bold mb-4">Facilities & Supplies</h2>
+        <p className="text-muted-foreground mb-6">
+          Specify toilet access and what supplies you provide to guests.
+        </p>
+
+        <div className="space-y-4">
+          <div>
+            <Label htmlFor="toilet_access" className="text-base font-semibold">
+              Toilet Access <span className="text-destructive">*</span>
+            </Label>
+            <div className="mt-2 space-y-2">
+              <div className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  id="toilet_shared"
+                  value="shared"
+                  {...form.register("toilet_access")}
+                  className="h-4 w-4"
+                />
+                <Label htmlFor="toilet_shared" className="cursor-pointer font-normal">
+                  Shared bathroom
+                </Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  id="toilet_private"
+                  value="private"
+                  {...form.register("toilet_access")}
+                  className="h-4 w-4"
+                />
+                <Label htmlFor="toilet_private" className="cursor-pointer font-normal">
+                  Private bathroom
+                </Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  id="toilet_limited"
+                  value="limited"
+                  {...form.register("toilet_access")}
+                  className="h-4 w-4"
+                />
+                <Label htmlFor="toilet_limited" className="cursor-pointer font-normal">
+                  Limited access (explain)
+                </Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  id="toilet_none"
+                  value="none"
+                  {...form.register("toilet_access")}
+                  className="h-4 w-4"
+                />
+                <Label htmlFor="toilet_none" className="cursor-pointer font-normal">
+                  No toilet access
+                </Label>
+              </div>
+            </div>
+            {form.formState.errors.toilet_access && (
+              <p className="text-sm text-destructive mt-1">
+                {form.formState.errors.toilet_access.message}
+              </p>
+            )}
+          </div>
+
+          {requiresNotes && (
+            <div>
+              <Label htmlFor="toilet_access_notes">
+                Explain bathroom/toilet arrangements <span className="text-destructive">*</span>
+              </Label>
+              <Textarea
+                id="toilet_access_notes"
+                {...form.register("toilet_access_notes", {
+                  required: requiresNotes ? "Please explain the toilet arrangements" : false,
+                })}
+                placeholder="e.g., Guests can use the downstairs bathroom, but the upstairs is private"
+                rows={3}
+              />
+              {form.formState.errors.toilet_access_notes && (
+                <p className="text-sm text-destructive mt-1">
+                  {form.formState.errors.toilet_access_notes.message}
+                </p>
+              )}
+            </div>
+          )}
+
+          <div className="border-t pt-4">
+            <h3 className="font-semibold mb-4">Supplies Provided</h3>
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="provides_toilet_paper"
+                  checked={form.watch("provides_toilet_paper")}
+                  onChange={(e) => form.setValue("provides_toilet_paper", e.target.checked)}
+                />
+                <Label htmlFor="provides_toilet_paper" className="cursor-pointer">
+                  Toilet paper provided
+                </Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="provides_pantry_staples"
+                  checked={form.watch("provides_pantry_staples")}
+                  onChange={(e) => form.setValue("provides_pantry_staples", e.target.checked)}
+                />
+                <Label htmlFor="provides_pantry_staples" className="cursor-pointer">
+                  Basic pantry staples provided (oil/salt/pepper)
+                </Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="provides_groceries"
+                  checked={form.watch("provides_groceries")}
+                  onChange={(e) => form.setValue("provides_groceries", e.target.checked)}
+                />
+                <Label htmlFor="provides_groceries" className="cursor-pointer">
+                  Groceries/ingredients provided
+                </Label>
+              </div>
+            </div>
+          </div>
+
+          <div className="border-t pt-4">
+            <h3 className="font-semibold mb-2">Consumables Policy</h3>
+            <div className="bg-muted p-4 rounded-md mb-4">
+              <p className="text-sm whitespace-pre-wrap">
+                Personal consumables and perishables are not provided unless explicitly listed by the Host. Please bring any groceries/ingredients and personal items you require (e.g., hygiene products).
+              </p>
+            </div>
+            <div>
+              <Label htmlFor="consumables_policy_host_notes">
+                Host notes (optional)
+              </Label>
+              <Textarea
+                id="consumables_policy_host_notes"
+                {...form.register("consumables_policy_host_notes")}
+                placeholder="Add any additional notes about consumables (optional)"
+                rows={3}
+              />
+              <p className="text-sm text-muted-foreground mt-1">
+                These notes will be appended to the default policy text shown to guests.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Step 7: Photos
+  const renderStep7 = () => {
     const selectedSpaces = form.watch("spaces");
     
     return (
@@ -637,8 +820,8 @@ export function HostOnboardingWizard() {
     );
   };
 
-  // Step 5: Pricing
-  const renderStep5 = () => (
+  // Step 6: Pricing (renumbered from Step 5)
+  const renderStep6Pricing = () => (
     <div className="space-y-4">
       <h2 className="text-2xl font-bold mb-4">Pricing</h2>
       <p className="text-muted-foreground mb-6">
@@ -718,7 +901,7 @@ export function HostOnboardingWizard() {
         <CardHeader>
           <CardTitle>Create Your Listing</CardTitle>
           <p className="text-sm text-muted-foreground">
-            Step {step} of 6
+            Step {step} of 7
           </p>
         </CardHeader>
         <CardContent>
@@ -734,7 +917,8 @@ export function HostOnboardingWizard() {
             {step === 3 && renderStep3()}
             {step === 4 && renderStep4()}
             {step === 5 && renderStep5()}
-            {step === 6 && renderStep6()}
+            {step === 6 && renderStep6Pricing()}
+            {step === 7 && renderStep7()}
 
             <div className="flex gap-4 mt-8">
               {step > 1 && (
@@ -746,7 +930,7 @@ export function HostOnboardingWizard() {
                   Previous
                 </Button>
               )}
-              {step < 6 ? (
+              {step < 7 ? (
                 <Button
                   type="button"
                   onClick={() => {
@@ -761,6 +945,8 @@ export function HostOnboardingWizard() {
                         : step === 4
                         ? ["noise_tolerance"]
                         : step === 5
+                        ? ["toilet_access", "toilet_access_notes"]
+                        : step === 6
                         ? ["hourly_rate", "half_day_rate", "full_day_rate"]
                         : [];
                     

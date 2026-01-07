@@ -182,6 +182,77 @@ export function ListingDetail({
               </CardContent>
             </Card>
           )}
+
+          {/* Toilet & Supplies */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Toilet & Supplies</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <p className="text-sm font-semibold mb-2">Toilet Access</p>
+                <div className="flex items-center gap-2">
+                  <Badge variant={
+                    listing.toilet_access === "none" ? "destructive" :
+                    listing.toilet_access === "limited" ? "outline" :
+                    "default"
+                  }>
+                    {listing.toilet_access === "shared" && "Shared bathroom"}
+                    {listing.toilet_access === "private" && "Private bathroom"}
+                    {listing.toilet_access === "limited" && "Limited access"}
+                    {listing.toilet_access === "none" && "No toilet access"}
+                  </Badge>
+                  {listing.toilet_access === "none" && (
+                    <Badge variant="destructive">Important: Bring your own facilities</Badge>
+                  )}
+                </div>
+                {listing.toilet_access_notes && (
+                  <p className="text-sm text-muted-foreground mt-2 whitespace-pre-wrap">
+                    {listing.toilet_access_notes}
+                  </p>
+                )}
+              </div>
+
+              <div className="border-t pt-4">
+                <p className="text-sm font-semibold mb-3">Supplies Provided</p>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    {listing.provides_toilet_paper ? (
+                      <Badge variant="default">Toilet paper: Provided</Badge>
+                    ) : (
+                      <Badge variant="outline" className="border-amber-300 text-amber-700">
+                        Toilet paper: Bring your own
+                      </Badge>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {listing.provides_pantry_staples ? (
+                      <Badge variant="default">Pantry staples: Provided</Badge>
+                    ) : (
+                      <Badge variant="outline">Pantry staples: Not provided</Badge>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {listing.provides_groceries ? (
+                      <Badge variant="default">Groceries: Provided</Badge>
+                    ) : (
+                      <Badge variant="outline">Groceries: Not provided</Badge>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="border-t pt-4">
+                <p className="text-sm font-semibold mb-2">Consumables Policy</p>
+                <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                  {listing.consumables_policy}
+                </p>
+                <p className="text-sm font-medium mt-2 text-amber-700">
+                  Bring what you need; only listed inclusions are provided.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
         <div>

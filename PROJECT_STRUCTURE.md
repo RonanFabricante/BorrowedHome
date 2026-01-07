@@ -88,10 +88,14 @@ BorrowedHome/
 - `profiles` - User profiles with `is_host` and `is_guest` flags
 - `listings` - Home listings with pricing, rules, and metadata
   - Includes `additional_instructions` (optional text field, max 1000 chars) for hosts to share access notes, exclusions, or special considerations with guests
+  - Includes `toilet_access` (enum: shared/private/limited/none) and `toilet_access_notes` (required for limited/none)
+  - Includes `consumables_policy` (default platform text + optional host notes)
+  - Includes supply flags: `provides_toilet_paper`, `provides_pantry_staples`, `provides_groceries`
 - `listing_spaces` - Junction table for spaces (KITCHEN, DINING, LIVING, GARDEN)
 - `listing_photos` - Photo storage references
 - `listing_availability` - Weekly availability windows (day_of_week, start_time, end_time)
 - `bookings` - Booking records with status, pricing, and timestamps
+  - Includes guest acknowledgements: `guest_ack_toilet_access`, `guest_ack_consumables_policy`, `ack_version`
 - `messages` - In-app messaging threads per booking
 - `reviews` - Post-booking reviews (1-5 stars + optional text)
 

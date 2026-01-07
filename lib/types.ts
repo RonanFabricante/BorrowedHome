@@ -1,6 +1,7 @@
 export type BookingStatus = "PENDING" | "CONFIRMED" | "DECLINED" | "CANCELLED" | "COMPLETED";
 export type SpaceType = "KITCHEN" | "DINING" | "LIVING" | "GARDEN";
 export type NoiseTolerance = "LOW" | "MEDIUM" | "HIGH";
+export type ToiletAccessType = "shared" | "private" | "limited" | "none";
 
 export interface Profile {
   id: string;
@@ -24,6 +25,12 @@ export interface Listing {
   alcohol_allowed: boolean;
   cleaning_expectations: string | null;
   additional_instructions: string | null;
+  toilet_access: ToiletAccessType;
+  toilet_access_notes: string | null;
+  consumables_policy: string;
+  provides_toilet_paper: boolean;
+  provides_pantry_staples: boolean;
+  provides_groceries: boolean;
   hourly_rate: number;
   half_day_rate: number;
   full_day_rate: number;
@@ -68,6 +75,9 @@ export interface Booking {
   end_at: string;
   status: BookingStatus;
   accepted_rules_at: string | null;
+  guest_ack_toilet_access: boolean;
+  guest_ack_consumables_policy: boolean;
+  ack_version: string | null;
   guests_count: number;
   total_amount: number;
   platform_fee_amount: number;
