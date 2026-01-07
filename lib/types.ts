@@ -1,4 +1,4 @@
-export type BookingStatus = "PENDING" | "CONFIRMED" | "CANCELLED" | "COMPLETED";
+export type BookingStatus = "PENDING" | "CONFIRMED" | "DECLINED" | "CANCELLED" | "COMPLETED";
 export type SpaceType = "KITCHEN" | "DINING" | "LIVING" | "GARDEN";
 export type NoiseTolerance = "LOW" | "MEDIUM" | "HIGH";
 

@@ -39,6 +39,12 @@ export function MyBookingsList({ bookings }: { bookings: any[] }) {
                       variant={
                         booking.status === "CONFIRMED"
                           ? "default"
+                          : booking.status === "PENDING"
+                          ? "outline"
+                          : booking.status === "DECLINED"
+                          ? "destructive"
+                          : booking.status === "CANCELLED"
+                          ? "secondary"
                           : booking.status === "COMPLETED"
                           ? "secondary"
                           : "outline"

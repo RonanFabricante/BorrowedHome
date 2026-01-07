@@ -113,13 +113,15 @@ All tables have RLS enabled with policies for:
 
 **Booking Overlap Check:**
 - Implemented via `check_booking_overlap()` database function
-- Validates against existing CONFIRMED/PENDING bookings
-- Called before booking creation
+- At request time: Only checks against CONFIRMED bookings (PENDING does not block inventory)
+- At accept time: Atomic overlap check in `accept_booking()` function ensures race-safe confirmation
+- Called before booking creation and during host acceptance
 
 **Address Reveal:**
 - Address stored in `listings.address_text`
 - RLS policy allows guests to see address via booking join
-- Only revealed on booking confirmation page
+- Only revealed on booking confirmation page when status is CONFIRMED
+- PENDING/DECLINED/CANCELLED bookings do not reveal address
 
 **Pricing:**
 - All prices stored as integers (cents) to avoid floating point issues
@@ -166,7 +168,7 @@ All tables have RLS enabled with policies for:
 4. **House Rules** - Host presence, cooking, alcohol, noise, cleaning
 5. **Pricing** - Hourly, half-day, full-day rates + deposit
 
-### Booking Flow
+### Booking Flow (Host Approval Required)
 
 1. Guest searches/browses listings
 2. Views listing detail
@@ -176,17 +178,33 @@ All tables have RLS enabled with policies for:
    - Enter guest count (validated against max)
    - View price breakdown
    - Accept house rules (required checkbox)
-5. Booking created with status=CONFIRMED
-6. Redirect to confirmation page (address revealed)
-7. Messaging unlocked
-8. After booking end time, reviews available
+5. **Booking created with status=PENDING** (requires host approval)
+6. Guest redirected to confirmation page showing "Request sent" (address NOT revealed)
+7. Host views booking requests in "My Listings" page
+8. Host can Accept or Decline:
+   - **Accept**: Atomic overlap check against CONFIRMED bookings, then status→CONFIRMED
+   - **Decline**: Status→DECLINED
+9. Once CONFIRMED:
+   - Address revealed on confirmation page
+   - Messaging unlocked
+   - Guest can view full booking details
+10. After booking end time, reviews available
+
+**Booking Statuses:**
+- `PENDING` - Awaiting host approval (default for new requests)
+- `CONFIRMED` - Host accepted, booking active
+- `DECLINED` - Host declined the request
+- `CANCELLED` - Guest or host cancelled a confirmed booking
+- `COMPLETED` - Booking has ended (for review purposes)
 
 ### Messaging
 
 - Simple thread per booking
+- **Only accessible for CONFIRMED bookings** (gated by status)
 - Only accessible to booking parties (guest + host)
 - Real-time polling (5s interval) for new messages
 - In-app only (no email)
+- PENDING/DECLINED bookings show message: "Messaging unlocks once the host confirms"
 
 ### Reviews
 

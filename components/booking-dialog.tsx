@@ -140,7 +140,7 @@ export function BookingDialog({
         throw new Error("Selected time is outside available hours");
       }
 
-      // Check for overlaps
+      // Check for overlaps (only against CONFIRMED bookings - PENDING doesn't block inventory)
       const { data: overlapping } = await supabase
         .rpc("check_booking_overlap", {
           p_listing_id: listing.id,
@@ -153,6 +153,7 @@ export function BookingDialog({
         throw new Error("This time slot is already booked");
       }
 
+      // Create booking with PENDING status (requires host approval)
       const { data: booking, error } = await supabase
         .from("bookings")
         .insert({
@@ -160,7 +161,7 @@ export function BookingDialog({
           guest_id: user.id,
           start_at: start.toISOString(),
           end_at: end.toISOString(),
-          status: "CONFIRMED",
+          status: "PENDING",
           accepted_rules_at: new Date().toISOString(),
           guests_count: data.guestsCount,
           total_amount: priceBreakdown.total,
@@ -320,7 +321,7 @@ export function BookingDialog({
               disabled={createBooking.isPending}
               className="flex-1"
             >
-              {createBooking.isPending ? "Confirming..." : "Confirm Booking"}
+              {createBooking.isPending ? "Sending Request..." : "Request Booking"}
             </Button>
           </div>
         </form>

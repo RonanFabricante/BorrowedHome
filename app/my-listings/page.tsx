@@ -20,6 +20,18 @@ export default async function MyListingsPage() {
     .eq("host_id", user.id)
     .order("created_at", { ascending: false });
 
+  // Fetch pending bookings for host's listings
+  const { data: pendingBookings } = await supabase
+    .from("bookings")
+    .select(`
+      *,
+      listings!inner(id, title, location_text, host_id),
+      profiles!bookings_guest_id_fkey(id, full_name)
+    `)
+    .eq("listings.host_id", user.id)
+    .eq("status", "PENDING")
+    .order("created_at", { ascending: false });
+
   return (
     <div className="min-h-screen">
       <Nav />
@@ -32,7 +44,11 @@ export default async function MyListingsPage() {
             </button>
           </a>
         </div>
-        <MyListingsList listings={listings || []} />
+        <MyListingsList 
+          listings={listings || []} 
+          pendingBookings={pendingBookings || []}
+          hostId={user.id}
+        />
       </main>
     </div>
   );
