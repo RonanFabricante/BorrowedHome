@@ -5,7 +5,6 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -58,7 +57,7 @@ export function HostDeclarationModal({
             {hostDeclarationText}
           </div>
         </div>
-        <DialogFooter>
+        <div className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 gap-2 mt-4">
           <Button type="button" variant="outline" onClick={onCancel}>
             Cancel
           </Button>
@@ -70,7 +69,7 @@ export function HostDeclarationModal({
           >
             I Agree and Confirm
           </Button>
-        </DialogFooter>
+        </div>
       </DialogContent>
     </Dialog>
   );
