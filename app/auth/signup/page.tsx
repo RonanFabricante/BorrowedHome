@@ -50,22 +50,33 @@ export default function SignupPage() {
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: data.email,
         password: data.password,
+        options: {
+          data: {
+            full_name: data.fullName,
+          },
+        },
       });
 
       if (authError) throw authError;
 
+      // Profile is automatically created by database trigger (handle_new_user)
+      // If trigger fails or doesn't exist, try to create it manually as fallback
       if (authData.user) {
-        // Create profile
         const { error: profileError } = await supabase
           .from("profiles")
-          .insert({
+          .upsert({
             id: authData.user.id,
             full_name: data.fullName,
             is_guest: true,
             is_host: false,
+          }, {
+            onConflict: "id",
           });
 
-        if (profileError) throw profileError;
+        // Only throw if it's not a duplicate key error (trigger may have already created it)
+        if (profileError && !profileError.message.includes("duplicate") && !profileError.message.includes("already exists")) {
+          throw profileError;
+        }
       }
 
       router.push("/");
