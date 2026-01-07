@@ -42,6 +42,7 @@ const editSchema = z.object({
   alcohol_allowed: z.boolean(),
   noise_tolerance: z.enum(["LOW", "MEDIUM", "HIGH"]),
   cleaning_expectations: z.string().optional(),
+  additional_instructions: z.string().max(1000, "Additional instructions must be 1000 characters or less").optional(),
   hourly_rate: z.number().min(1),
   half_day_rate: z.number().min(1),
   full_day_rate: z.number().min(1),
@@ -80,6 +81,7 @@ export function EditListingForm({ listing }: { listing: any }) {
       alcohol_allowed: listing.alcohol_allowed || false,
       noise_tolerance: listing.noise_tolerance || "MEDIUM",
       cleaning_expectations: listing.cleaning_expectations || "",
+      additional_instructions: listing.additional_instructions || "",
       hourly_rate: (listing.hourly_rate || 0) / 100,
       half_day_rate: (listing.half_day_rate || 0) / 100,
       full_day_rate: (listing.full_day_rate || 0) / 100,
@@ -136,6 +138,7 @@ export function EditListingForm({ listing }: { listing: any }) {
           alcohol_allowed: data.alcohol_allowed,
           noise_tolerance: data.noise_tolerance,
           cleaning_expectations: data.cleaning_expectations || null,
+          additional_instructions: data.additional_instructions?.trim() || null,
           hourly_rate: Math.round(data.hourly_rate * 100),
           half_day_rate: Math.round(data.half_day_rate * 100),
           full_day_rate: Math.round(data.full_day_rate * 100),
@@ -411,6 +414,26 @@ export function EditListingForm({ listing }: { listing: any }) {
                 <div>
                   <Label htmlFor="cleaning_expectations">Cleaning Expectations</Label>
                   <Textarea id="cleaning_expectations" {...form.register("cleaning_expectations")} rows={3} />
+                </div>
+                <div>
+                  <Label htmlFor="additional_instructions">
+                    Additional Instructions (optional)
+                  </Label>
+                  <Textarea
+                    id="additional_instructions"
+                    {...form.register("additional_instructions")}
+                    placeholder="Share anything guests should know before booking (access notes, exclusions, special considerations)"
+                    rows={4}
+                    maxLength={1000}
+                  />
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {form.watch("additional_instructions")?.length || 0}/1000 characters
+                  </p>
+                  {form.formState.errors.additional_instructions && (
+                    <p className="text-sm text-destructive mt-1">
+                      {form.formState.errors.additional_instructions.message}
+                    </p>
+                  )}
                 </div>
               </div>
             </div>

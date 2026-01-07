@@ -11,6 +11,10 @@ export default async function MyListingsPage() {
     redirect("/auth/login");
   }
 
+  // Auto-update past CONFIRMED bookings to COMPLETED
+  // This ensures bookings are marked as completed when hosts view their listings
+  await supabase.rpc("mark_past_bookings_completed");
+
   const { data: listings } = await supabase
     .from("listings")
     .select(`
@@ -39,6 +43,13 @@ export default async function MyListingsPage() {
     !["PENDING", "CONFIRMED", "DECLINED"].includes(b.status)
   );
 
+  // Check which listings have active bookings (PENDING or CONFIRMED)
+  const listingsWithActiveBookings = new Set(
+    (allBookings || [])
+      .filter(b => b.status === "PENDING" || b.status === "CONFIRMED")
+      .map(b => b.listing_id)
+  );
+
   return (
     <div className="min-h-screen">
       <Nav />
@@ -57,6 +68,7 @@ export default async function MyListingsPage() {
           confirmedBookings={confirmedBookings}
           declinedBookings={declinedBookings}
           otherBookings={otherBookings}
+          listingsWithActiveBookings={listingsWithActiveBookings}
           hostId={user.id}
         />
       </main>

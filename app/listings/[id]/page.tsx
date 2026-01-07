@@ -48,6 +48,18 @@ export default async function ListingDetailPage({
     notFound();
   }
 
+  // Check for active bookings (PENDING or CONFIRMED) if user is host
+  let hasActiveBookings = false;
+  if (isHost) {
+    const { data: activeBookings } = await supabase
+      .from("bookings")
+      .select("id")
+      .eq("listing_id", id)
+      .in("status", ["PENDING", "CONFIRMED"])
+      .limit(1);
+    hasActiveBookings = (activeBookings || []).length > 0;
+  }
+
   // Get public URLs for photos
   const photosWithUrls = await Promise.all(
     (listing.listing_photos || []).map(async (photo: any) => {
@@ -74,6 +86,7 @@ export default async function ListingDetailPage({
             host: listing.profiles,
           }}
           userId={user?.id}
+          hasActiveBookings={hasActiveBookings}
         />
       </main>
     </div>

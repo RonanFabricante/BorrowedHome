@@ -87,6 +87,7 @@ BorrowedHome/
 **Core Tables:**
 - `profiles` - User profiles with `is_host` and `is_guest` flags
 - `listings` - Home listings with pricing, rules, and metadata
+  - Includes `additional_instructions` (optional text field, max 1000 chars) for hosts to share access notes, exclusions, or special considerations with guests
 - `listing_spaces` - Junction table for spaces (KITCHEN, DINING, LIVING, GARDEN)
 - `listing_photos` - Photo storage references
 - `listing_availability` - Weekly availability windows (day_of_week, start_time, end_time)

@@ -49,6 +49,7 @@ const onboardingSchema = z.object({
   alcohol_allowed: z.boolean(),
   noise_tolerance: z.enum(["LOW", "MEDIUM", "HIGH"]),
   cleaning_expectations: z.string().optional(),
+  additional_instructions: z.string().max(1000, "Additional instructions must be 1000 characters or less").optional(),
   
   // Step 5: Pricing
   hourly_rate: z.number().min(100), // $1 minimum
@@ -84,6 +85,7 @@ export function HostOnboardingWizard() {
       noise_tolerance: "MEDIUM",
       deposit_amount: 0,
       max_guests: 10,
+      additional_instructions: "",
     },
   });
 
@@ -143,6 +145,7 @@ export function HostOnboardingWizard() {
           alcohol_allowed: data.alcohol_allowed,
           noise_tolerance: data.noise_tolerance,
           cleaning_expectations: data.cleaning_expectations || null,
+          additional_instructions: data.additional_instructions?.trim() || null,
           hourly_rate: Math.round(data.hourly_rate * 100), // Convert to cents
           half_day_rate: Math.round(data.half_day_rate * 100),
           full_day_rate: Math.round(data.full_day_rate * 100),
@@ -532,6 +535,26 @@ export function HostOnboardingWizard() {
             placeholder="e.g., Please wash dishes and wipe surfaces"
             rows={3}
           />
+        </div>
+        <div>
+          <Label htmlFor="additional_instructions">
+            Additional Instructions (optional)
+          </Label>
+          <Textarea
+            id="additional_instructions"
+            {...form.register("additional_instructions")}
+            placeholder="Share anything guests should know before booking (access notes, exclusions, special considerations)"
+            rows={4}
+            maxLength={1000}
+          />
+          <p className="text-sm text-muted-foreground mt-1">
+            {form.watch("additional_instructions")?.length || 0}/1000 characters
+          </p>
+          {form.formState.errors.additional_instructions && (
+            <p className="text-sm text-destructive mt-1">
+              {form.formState.errors.additional_instructions.message}
+            </p>
+          )}
         </div>
       </div>
     </div>

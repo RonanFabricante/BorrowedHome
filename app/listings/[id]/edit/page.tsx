@@ -2,6 +2,8 @@ import { Nav } from "@/components/nav";
 import { EditListingForm } from "@/components/edit-listing-form";
 import { createClient } from "@/lib/supabase/server";
 import { notFound, redirect } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import Link from "next/link";
 
 export default async function EditListingPage({
   params,
@@ -33,6 +35,16 @@ export default async function EditListingPage({
     notFound();
   }
 
+  // Check for active bookings (PENDING or CONFIRMED)
+  const { data: activeBookings } = await supabase
+    .from("bookings")
+    .select("id, status")
+    .eq("listing_id", id)
+    .in("status", ["PENDING", "CONFIRMED"])
+    .limit(1);
+
+  const hasActiveBookings = (activeBookings || []).length > 0;
+
   // Get photo URLs
   const photosWithUrls = await Promise.all(
     (listing.listing_photos || []).map(async (photo: any) => {
@@ -50,14 +62,34 @@ export default async function EditListingPage({
     <div className="min-h-screen">
       <Nav />
       <main className="container mx-auto px-4 py-8">
-        <EditListingForm
-          listing={{
-            ...listing,
-            photos: photosWithUrls,
-            spaces: listing.listing_spaces?.map((s: any) => s.space_type),
-            availability: listing.listing_availability,
-          }}
-        />
+        {hasActiveBookings ? (
+          <div className="max-w-2xl mx-auto">
+            <div className="border-amber-200 bg-amber-50 rounded-lg border p-6">
+              <h2 className="text-2xl font-semibold mb-2">Editing Disabled</h2>
+              <p className="text-muted-foreground mb-4">
+                This listing cannot be edited because it has active or confirmed bookings.
+                Please wait until all bookings are completed, declined, or cancelled before making changes.
+              </p>
+              <div className="flex gap-2">
+                <Button asChild variant="outline">
+                  <Link href={`/listings/${id}`}>View Listing</Link>
+                </Button>
+                <Button asChild variant="outline">
+                  <Link href="/my-listings">Back to My Listings</Link>
+                </Button>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <EditListingForm
+            listing={{
+              ...listing,
+              photos: photosWithUrls,
+              spaces: listing.listing_spaces?.map((s: any) => s.space_type),
+              availability: listing.listing_availability,
+            }}
+          />
+        )}
       </main>
     </div>
   );

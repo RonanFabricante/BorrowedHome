@@ -288,6 +288,13 @@ export function BookingDialog({
             </div>
           </div>
 
+          {listing.additional_instructions && (
+            <div className="border-l-4 border-blue-200 bg-blue-50 p-4 rounded">
+              <h4 className="font-semibold mb-2 text-sm">Additional Instructions from the Host</h4>
+              <p className="text-sm whitespace-pre-wrap">{listing.additional_instructions}</p>
+            </div>
+          )}
+
           <div className="flex items-start gap-2">
             <Checkbox
               id="acceptedRules"

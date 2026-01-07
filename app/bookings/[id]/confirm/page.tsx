@@ -16,6 +16,9 @@ export default async function BookingConfirmPage({
     redirect("/auth/login");
   }
 
+  // Auto-update past CONFIRMED bookings to COMPLETED
+  await supabase.rpc("mark_past_bookings_completed");
+
   const { data: booking } = await supabase
     .from("bookings")
     .select(`

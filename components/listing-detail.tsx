@@ -28,9 +28,11 @@ const spaceLabels = {
 export function ListingDetail({
   listing,
   userId,
+  hasActiveBookings = false,
 }: {
   listing: Listing;
   userId?: string;
+  hasActiveBookings?: boolean;
 }) {
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState(0);
   const [showBookingDialog, setShowBookingDialog] = useState(false);
@@ -57,9 +59,19 @@ export function ListingDetail({
             {!listing.published && isHost && <Badge variant="outline">Draft</Badge>}
           </div>
           {isHost && (
-            <Button variant="outline" asChild>
-              <Link href={`/listings/${listing.id}/edit`}>Edit Listing</Link>
-            </Button>
+            hasActiveBookings ? (
+              <Button 
+                variant="outline" 
+                disabled
+                title="Cannot edit listing with active or confirmed bookings"
+              >
+                Edit Listing (Disabled)
+              </Button>
+            ) : (
+              <Button variant="outline" asChild>
+                <Link href={`/listings/${listing.id}/edit`}>Edit Listing</Link>
+              </Button>
+            )
           )}
         </div>
         <h1 className="text-4xl font-bold mb-2">{listing.title}</h1>
@@ -158,6 +170,18 @@ export function ListingDetail({
               </ul>
             </CardContent>
           </Card>
+
+          {/* Additional Instructions */}
+          {listing.additional_instructions && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Additional Instructions from the Host</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="whitespace-pre-wrap text-sm">{listing.additional_instructions}</p>
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         <div>

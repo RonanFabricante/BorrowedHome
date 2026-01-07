@@ -23,6 +23,7 @@ export interface Listing {
   cooking_allowed: boolean;
   alcohol_allowed: boolean;
   cleaning_expectations: string | null;
+  additional_instructions: string | null;
   hourly_rate: number;
   half_day_rate: number;
   full_day_rate: number;

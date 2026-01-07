@@ -17,6 +17,7 @@ export function MyListingsList({
   confirmedBookings,
   declinedBookings,
   otherBookings,
+  listingsWithActiveBookings,
   hostId 
 }: { 
   listings: any[];
@@ -24,6 +25,7 @@ export function MyListingsList({
   confirmedBookings: any[];
   declinedBookings: any[];
   otherBookings: any[];
+  listingsWithActiveBookings: Set<string>;
   hostId: string;
 }) {
   const router = useRouter();
@@ -247,9 +249,20 @@ export function MyListingsList({
                 <Button asChild variant="outline" size="sm">
                   <Link href={`/listings/${listing.id}`}>View</Link>
                 </Button>
-                <Button asChild variant="ghost" size="sm">
-                  <Link href={`/listings/${listing.id}/edit`}>Edit</Link>
-                </Button>
+                {listingsWithActiveBookings.has(listing.id) ? (
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    disabled
+                    title="Cannot edit listing with active or confirmed bookings"
+                  >
+                    Edit (Disabled)
+                  </Button>
+                ) : (
+                  <Button asChild variant="ghost" size="sm">
+                    <Link href={`/listings/${listing.id}/edit`}>Edit</Link>
+                  </Button>
+                )}
               </div>
             </div>
           </CardContent>
