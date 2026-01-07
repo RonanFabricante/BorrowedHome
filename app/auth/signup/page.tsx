@@ -12,13 +12,14 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import Link from "next/link";
+import { onboardingSummaryGuest, TERMS_VERSION } from "@/lib/legal/terms-au";
 
 const signupSchema = z.object({
   fullName: z.string().min(2, "Name must be at least 2 characters"),
   email: z.string().email("Invalid email address"),
   password: z.string().min(6, "Password must be at least 6 characters"),
-  acceptedTerms: z.boolean().refine((val) => val === true, {
-    message: "You must agree to the Terms & Conditions",
+  acceptedGuestTerms: z.boolean().refine((val) => val === true, {
+    message: "You must read and agree to the BorrowedHome Guest Terms",
   }),
 });
 
@@ -39,7 +40,7 @@ export default function SignupPage() {
   } = useForm<SignupFormData>({
     resolver: zodResolver(signupSchema),
     defaultValues: {
-      acceptedTerms: false,
+      acceptedGuestTerms: false,
     },
   });
 
@@ -76,6 +77,23 @@ export default function SignupPage() {
         // Only throw if it's not a duplicate key error (trigger may have already created it)
         if (profileError && !profileError.message.includes("duplicate") && !profileError.message.includes("already exists")) {
           throw profileError;
+        }
+
+        // Record guest terms acceptance
+        const { error: acceptanceError } = await supabase
+          .from("user_legal_acceptances")
+          .insert({
+            user_id: authData.user.id,
+            doc_type: "guest_terms",
+            doc_version: TERMS_VERSION,
+            accepted_at: new Date().toISOString(),
+            metadata: {
+              signup: true,
+            },
+          });
+
+        if (acceptanceError) {
+          throw new Error(`Failed to record terms acceptance: ${acceptanceError.message}`);
         }
       }
 
@@ -142,30 +160,43 @@ export default function SignupPage() {
                 </p>
               )}
             </div>
+
+            {/* Plain-English Summary */}
+            <div className="p-4 bg-muted rounded-lg space-y-3">
+              <h3 className="font-semibold text-sm">{onboardingSummaryGuest.title}</h3>
+              <ul className="list-disc pl-5 space-y-1 text-sm">
+                {onboardingSummaryGuest.bullets.map((bullet, idx) => (
+                  <li key={idx}>{bullet}</li>
+                ))}
+              </ul>
+              <p className="text-xs text-muted-foreground italic">
+                {onboardingSummaryGuest.footer}
+              </p>
+            </div>
+
             <div className="flex items-start gap-2">
               <Checkbox
-                id="acceptedTerms"
-                checked={watch("acceptedTerms")}
+                id="acceptedGuestTerms"
+                checked={watch("acceptedGuestTerms")}
                 onChange={(e) =>
-                  setValue("acceptedTerms", e.target.checked)
+                  setValue("acceptedGuestTerms", e.target.checked)
                 }
               />
-              <Label htmlFor="acceptedTerms" className="cursor-pointer text-sm leading-tight">
-                I agree to the{" "}
+              <Label htmlFor="acceptedGuestTerms" className="cursor-pointer text-sm leading-tight">
+                I have read and agree to the{" "}
                 <Link
-                  href="/terms"
+                  href="/terms/guest-au"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-primary hover:underline"
                 >
-                  BorrowedHome Terms & Conditions
+                  BorrowedHome Guest Terms
                 </Link>
-                {" "}and acknowledge that BorrowedHome is a marketplace only.
               </Label>
             </div>
-            {errors.acceptedTerms && (
+            {errors.acceptedGuestTerms && (
               <p className="text-sm text-destructive">
-                {errors.acceptedTerms.message}
+                {errors.acceptedGuestTerms.message}
               </p>
             )}
             <Button type="submit" className="w-full" disabled={loading}>

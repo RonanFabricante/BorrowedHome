@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { formatCurrency } from "@/lib/utils";
 import { addHours, differenceInHours, parse, format } from "date-fns";
+import { DayUseWarning } from "@/components/day-use-warning";
 
 const bookingSchema = z.object({
   date: z.string().min(1, "Date is required"),
@@ -211,6 +212,8 @@ export function BookingDialog({
               {error}
             </div>
           )}
+
+          <DayUseWarning compact />
 
           <div className="grid grid-cols-3 gap-4">
             <div>

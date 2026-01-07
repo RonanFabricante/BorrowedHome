@@ -17,6 +17,8 @@ import { Select } from "@/components/ui/select";
 import { Listing, ListingPhoto, SpaceType, NoiseTolerance } from "@/lib/types";
 import { ChefHat, UtensilsCrossed, Home, Trees, Upload, X } from "lucide-react";
 import Image from "next/image";
+import { hostDeclarationCheckboxLabel, TERMS_VERSION } from "@/lib/legal/terms-au";
+import { HostDeclarationModal } from "@/components/host-declaration-modal";
 
 const spaceOptions: { value: SpaceType; label: string; icon: any }[] = [
   { value: "KITCHEN", label: "Kitchen", icon: ChefHat },
@@ -54,6 +56,7 @@ const editSchema = z.object({
   full_day_rate: z.number().min(1),
   deposit_amount: z.number().min(0),
   published: z.boolean(),
+  hostDeclarationConfirmed: z.boolean().optional(),
 }).refine((data) => {
   // Require toilet_access_notes when toilet_access is limited or none
   if (data.toilet_access === "limited" || data.toilet_access === "none") {
@@ -80,6 +83,8 @@ export function EditListingForm({ listing }: { listing: any }) {
   const [photos, setPhotos] = useState<PhotoUpload[]>([]);
   const [existingPhotos, setExistingPhotos] = useState<(ListingPhoto & { url?: string })[]>(listing.photos || []);
   const [uploading, setUploading] = useState(false);
+  const [showDeclarationModal, setShowDeclarationModal] = useState(false);
+  const [hostDeclarationConfirmed, setHostDeclarationConfirmed] = useState(false);
 
   const form = useForm<EditFormData>({
     resolver: zodResolver(editSchema),
@@ -102,6 +107,7 @@ export function EditListingForm({ listing }: { listing: any }) {
       full_day_rate: (listing.full_day_rate || 0) / 100,
       deposit_amount: (listing.deposit_amount || 0) / 100,
       published: listing.published || false,
+      hostDeclarationConfirmed: false,
     },
   });
 
@@ -139,10 +145,28 @@ export function EditListingForm({ listing }: { listing: any }) {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
-      // Update listing
-      const { error: listingError } = await supabase
-        .from("listings")
-        .update({
+      // If publishing, check for host declaration acceptance
+      if (data.published && !listing.published) {
+        // Check if user has accepted host declaration for current version
+        const { data: existingAcceptance } = await supabase
+          .from("user_legal_acceptances")
+          .select("*")
+          .eq("user_id", user.id)
+          .eq("doc_type", "host_declaration")
+          .eq("doc_version", TERMS_VERSION)
+          .single();
+
+        if (!existingAcceptance) {
+          throw new Error("You must confirm the Host Declaration before publishing. Please check the declaration checkbox.");
+        }
+
+        // Verify checkbox is checked
+        if (!data.hostDeclarationConfirmed) {
+          throw new Error("You must confirm the Host Declaration checkbox before publishing.");
+        }
+
+        // Record acceptance on listing
+        const updateData: any = {
           title: data.title,
           description: data.description,
           location_text: data.location_text,
@@ -167,11 +191,52 @@ export function EditListingForm({ listing }: { listing: any }) {
           full_day_rate: Math.round(data.full_day_rate * 100),
           deposit_amount: Math.round(data.deposit_amount * 100),
           published: data.published,
-        })
-        .eq("id", listing.id)
-        .eq("host_id", user.id);
+          host_declaration_version: TERMS_VERSION,
+          host_declaration_accepted_at: new Date().toISOString(),
+        };
 
-      if (listingError) throw listingError;
+        const { error: listingError } = await supabase
+          .from("listings")
+          .update(updateData)
+          .eq("id", listing.id)
+          .eq("host_id", user.id);
+
+        if (listingError) throw listingError;
+      } else {
+        // Not publishing or already published - normal update
+        const { error: listingError } = await supabase
+          .from("listings")
+          .update({
+            title: data.title,
+            description: data.description,
+            location_text: data.location_text,
+            address_text: data.address_text,
+            max_guests: data.max_guests,
+            host_present: data.host_present,
+            cooking_allowed: data.cooking_allowed,
+            alcohol_allowed: data.alcohol_allowed,
+            noise_tolerance: data.noise_tolerance,
+            cleaning_expectations: data.cleaning_expectations || null,
+            additional_instructions: data.additional_instructions?.trim() || null,
+            toilet_access: data.toilet_access,
+            toilet_access_notes: data.toilet_access_notes?.trim() || null,
+            consumables_policy: data.consumables_policy_host_notes?.trim()
+              ? `Personal consumables and perishables are not provided unless explicitly listed by the Host. Please bring any groceries/ingredients and personal items you require (e.g., hygiene products).\n\nHost notes: ${data.consumables_policy_host_notes.trim()}`
+              : 'Personal consumables and perishables are not provided unless explicitly listed by the Host. Please bring any groceries/ingredients and personal items you require (e.g., hygiene products).',
+            provides_toilet_paper: data.provides_toilet_paper,
+            provides_pantry_staples: data.provides_pantry_staples,
+            provides_groceries: data.provides_groceries,
+            hourly_rate: Math.round(data.hourly_rate * 100),
+            half_day_rate: Math.round(data.half_day_rate * 100),
+            full_day_rate: Math.round(data.full_day_rate * 100),
+            deposit_amount: Math.round(data.deposit_amount * 100),
+            published: data.published,
+          })
+          .eq("id", listing.id)
+          .eq("host_id", user.id);
+
+        if (listingError) throw listingError;
+      }
 
       // Update spaces
       await supabase.from("listing_spaces").delete().eq("listing_id", listing.id);
@@ -716,16 +781,68 @@ export function EditListingForm({ listing }: { listing: any }) {
             </div>
 
             {/* Publish */}
-            <div className="flex items-center gap-2 p-4 border rounded-lg">
-              <Checkbox
-                id="published"
-                checked={form.watch("published")}
-                onChange={(e) => form.setValue("published", e.target.checked)}
-              />
-              <Label htmlFor="published" className="cursor-pointer font-semibold">
-                Publish this listing (make it visible to guests)
-              </Label>
-            </div>
+            {!listing.published && (
+              <div className="space-y-4 p-4 border rounded-lg">
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="published"
+                    checked={form.watch("published")}
+                    onChange={(e) => form.setValue("published", e.target.checked)}
+                  />
+                  <Label htmlFor="published" className="cursor-pointer font-semibold">
+                    Publish this listing (make it visible to guests)
+                  </Label>
+                </div>
+                {form.watch("published") && (
+                  <div className="space-y-2 pl-6">
+                    <div className="flex items-start gap-2">
+                      <Checkbox
+                        id="hostDeclarationConfirmed"
+                        checked={hostDeclarationConfirmed}
+                        onChange={(e) => {
+                          setHostDeclarationConfirmed(e.target.checked);
+                          form.setValue("hostDeclarationConfirmed", e.target.checked);
+                        }}
+                      />
+                      <Label htmlFor="hostDeclarationConfirmed" className="cursor-pointer text-sm">
+                        {hostDeclarationCheckboxLabel}
+                      </Label>
+                    </div>
+                    {form.watch("published") && !hostDeclarationConfirmed && (
+                      <p className="text-sm text-destructive ml-6">
+                        You must confirm the Host Declaration to publish.
+                      </p>
+                    )}
+                    <Button
+                      type="button"
+                      variant="link"
+                      className="text-sm p-0 h-auto ml-6"
+                      onClick={() => setShowDeclarationModal(true)}
+                    >
+                      Review Host Declaration
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
+            {listing.published && (
+              <div className="p-4 bg-muted rounded-lg">
+                <p className="text-sm font-semibold">This listing is published</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Uncheck "Publish" below to unpublish it.
+                </p>
+                <div className="flex items-center gap-2 mt-3">
+                  <Checkbox
+                    id="published"
+                    checked={form.watch("published")}
+                    onChange={(e) => form.setValue("published", e.target.checked)}
+                  />
+                  <Label htmlFor="published" className="cursor-pointer font-semibold">
+                    Publish this listing (make it visible to guests)
+                  </Label>
+                </div>
+              </div>
+            )}
 
             <div className="flex gap-4">
               <Button type="button" variant="outline" onClick={() => router.back()}>
@@ -738,6 +855,15 @@ export function EditListingForm({ listing }: { listing: any }) {
           </form>
         </CardContent>
       </Card>
+      <HostDeclarationModal
+        open={showDeclarationModal}
+        onConfirm={() => {
+          setShowDeclarationModal(false);
+          setHostDeclarationConfirmed(true);
+          form.setValue("hostDeclarationConfirmed", true);
+        }}
+        onCancel={() => setShowDeclarationModal(false)}
+      />
     </div>
   );
 }

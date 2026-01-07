@@ -10,6 +10,7 @@ import { ChefHat, UtensilsCrossed, Home, Trees, Check } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { BookingDialog } from "@/components/booking-dialog";
+import { DayUseWarning } from "@/components/day-use-warning";
 
 const spaceIcons = {
   KITCHEN: ChefHat,
@@ -77,6 +78,13 @@ export function ListingDetail({
         <h1 className="text-4xl font-bold mb-2">{listing.title}</h1>
         <p className="text-muted-foreground">{listing.location_text}</p>
       </div>
+
+      {/* Day-Use Warning */}
+      {!isHost && (
+        <div className="mb-6">
+          <DayUseWarning compact />
+        </div>
+      )}
 
       {/* Photos */}
       {photos.length > 0 && (

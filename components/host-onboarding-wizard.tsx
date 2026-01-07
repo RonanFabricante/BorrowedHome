@@ -17,6 +17,8 @@ import { Select } from "@/components/ui/select";
 import { SpaceType, NoiseTolerance } from "@/lib/types";
 import { ChefHat, UtensilsCrossed, Home, Trees, Upload, X } from "lucide-react";
 import Image from "next/image";
+import { HostDeclarationModal } from "@/components/host-declaration-modal";
+import { onboardingSummaryHost, TERMS_VERSION } from "@/lib/legal/terms-au";
 
 const spaceOptions: { value: SpaceType; label: string; icon: any }[] = [
   { value: "KITCHEN", label: "Kitchen", icon: ChefHat },
@@ -86,10 +88,12 @@ type PhotoUpload = {
 export function HostOnboardingWizard() {
   const router = useRouter();
   const supabase = createClient();
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState(0); // Start at step 0 for summary/declaration
   const [error, setError] = useState<string | null>(null);
   const [photos, setPhotos] = useState<PhotoUpload[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [showDeclarationModal, setShowDeclarationModal] = useState(false);
+  const [hostDeclarationAccepted, setHostDeclarationAccepted] = useState(false);
 
   const form = useForm<OnboardingFormData>({
     resolver: zodResolver(onboardingSchema),
@@ -254,6 +258,24 @@ export function HostOnboardingWizard() {
         .insert(availability);
 
       if (availError) throw availError;
+
+      // Record host declaration acceptance
+      const { error: declarationError } = await supabase
+        .from("user_legal_acceptances")
+        .insert({
+          user_id: user.id,
+          doc_type: "host_declaration",
+          doc_version: TERMS_VERSION,
+          accepted_at: new Date().toISOString(),
+          metadata: {
+            onboarding: true,
+            listing_id: listing.id,
+          },
+        });
+
+      if (declarationError) {
+        throw new Error(`Failed to record host declaration: ${declarationError.message}`);
+      }
 
       // Update profile to mark as host
       await supabase
@@ -895,13 +917,47 @@ export function HostOnboardingWizard() {
     </div>
   );
 
+  const handleDeclarationConfirm = async () => {
+    setShowDeclarationModal(false);
+    setHostDeclarationAccepted(true);
+    setStep(1); // Move to first actual step
+  };
+
+  const renderStep0 = () => (
+    <div className="space-y-6">
+      <div className="p-4 bg-muted rounded-lg space-y-3">
+        <h3 className="font-semibold">{onboardingSummaryHost.title}</h3>
+        <ul className="list-disc pl-5 space-y-1 text-sm">
+          {onboardingSummaryHost.bullets.map((bullet, idx) => (
+            <li key={idx}>{bullet}</li>
+          ))}
+        </ul>
+        <p className="text-xs text-muted-foreground italic">
+          {onboardingSummaryHost.footer}
+        </p>
+      </div>
+      <div className="p-4 border rounded-lg">
+        <p className="text-sm mb-4">
+          Before you can create a listing, you must confirm the Host Declaration.
+        </p>
+        <Button
+          type="button"
+          onClick={() => setShowDeclarationModal(true)}
+          className="w-full"
+        >
+          Review Host Declaration
+        </Button>
+      </div>
+    </div>
+  );
+
   return (
     <div className="max-w-3xl mx-auto">
       <Card>
         <CardHeader>
           <CardTitle>Create Your Listing</CardTitle>
           <p className="text-sm text-muted-foreground">
-            Step {step} of 7
+            {step === 0 ? "Getting Started" : `Step ${step} of 7`}
           </p>
         </CardHeader>
         <CardContent>
@@ -912,6 +968,7 @@ export function HostOnboardingWizard() {
               </div>
             )}
 
+            {step === 0 && renderStep0()}
             {step === 1 && renderStep1()}
             {step === 2 && renderStep2()}
             {step === 3 && renderStep3()}
@@ -930,7 +987,16 @@ export function HostOnboardingWizard() {
                   Previous
                 </Button>
               )}
-              {step < 7 ? (
+              {step === 0 ? (
+                <Button
+                  type="button"
+                  onClick={() => setShowDeclarationModal(true)}
+                  disabled={!hostDeclarationAccepted}
+                  className="ml-auto"
+                >
+                  {hostDeclarationAccepted ? "Continue" : "Review Host Declaration"}
+                </Button>
+              ) : step < 7 ? (
                 <Button
                   type="button"
                   onClick={() => {
@@ -961,7 +1027,7 @@ export function HostOnboardingWizard() {
               ) : (
                 <Button
                   type="submit"
-                  disabled={createListing.isPending || uploading}
+                  disabled={createListing.isPending || uploading || !hostDeclarationAccepted}
                   className="ml-auto"
                 >
                   {uploading
@@ -975,6 +1041,11 @@ export function HostOnboardingWizard() {
           </form>
         </CardContent>
       </Card>
+      <HostDeclarationModal
+        open={showDeclarationModal}
+        onConfirm={handleDeclarationConfirm}
+        onCancel={() => setShowDeclarationModal(false)}
+      />
     </div>
   );
 }
