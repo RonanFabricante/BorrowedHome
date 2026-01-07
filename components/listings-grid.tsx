@@ -28,7 +28,8 @@ export function ListingsGrid({ listings }: { listings: Listing[] }) {
     <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
       {listings.map((listing) => {
         const heroPhoto = listing.photos?.sort((a, b) => a.sort_order - b.sort_order)[0];
-        const minPrice = Math.min(
+        const hourlyRate = listing.hourly_rate;
+        const hourlyEquivalent = Math.min(
           listing.hourly_rate,
           Math.round(listing.half_day_rate / 4),
           Math.round(listing.full_day_rate / 8)
@@ -69,9 +70,16 @@ export function ListingsGrid({ listings }: { listings: Listing[] }) {
                   })}
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="font-semibold">
-                    From {formatCurrency(minPrice)}/hr
-                  </span>
+                  <div>
+                    <span className="font-semibold block">
+                      From {formatCurrency(hourlyRate)}/hr
+                    </span>
+                    {hourlyEquivalent < hourlyRate && (
+                      <span className="text-xs text-muted-foreground">
+                        As low as {formatCurrency(hourlyEquivalent)}/hr for longer bookings
+                      </span>
+                    )}
+                  </div>
                   <span className="text-sm text-muted-foreground">
                     Up to {listing.max_guests} guests
                   </span>
