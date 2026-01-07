@@ -30,8 +30,8 @@ export function ListingsGrid({ listings }: { listings: Listing[] }) {
         const heroPhoto = listing.photos?.sort((a, b) => a.sort_order - b.sort_order)[0];
         const minPrice = Math.min(
           listing.hourly_rate,
-          listing.half_day_rate / 4,
-          listing.full_day_rate / 8
+          Math.round(listing.half_day_rate / 4),
+          Math.round(listing.full_day_rate / 8)
         );
 
         return (

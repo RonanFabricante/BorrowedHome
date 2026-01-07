@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -58,12 +58,18 @@ export function BookingDialog({
   const endTime = watch("endTime");
   const guestsCount = watch("guestsCount");
 
-  const calculatePrice = () => {
-    if (!date || !startTime || !endTime) return { total: 0, fee: 0, deposit: listing.deposit_amount };
+  const priceBreakdown = useMemo(() => {
+    if (!date || !startTime || !endTime) {
+      return { total: 0, fee: 0, deposit: listing.deposit_amount, basePrice: 0 };
+    }
 
     const start = parse(`${date} ${startTime}`, "yyyy-MM-dd HH:mm", new Date());
     const end = parse(`${date} ${endTime}`, "yyyy-MM-dd HH:mm", new Date());
     const hours = differenceInHours(end, start);
+
+    if (hours <= 0) {
+      return { total: 0, fee: 0, deposit: listing.deposit_amount, basePrice: 0 };
+    }
 
     let basePrice = 0;
     if (hours >= 8) {
@@ -81,10 +87,9 @@ export function BookingDialog({
       total,
       fee: platformFee,
       deposit: listing.deposit_amount,
+      basePrice,
     };
-  };
-
-  const priceBreakdown = calculatePrice();
+  }, [date, startTime, endTime, listing.hourly_rate, listing.half_day_rate, listing.full_day_rate, listing.deposit_amount]);
 
   const createBooking = useMutation({
     mutationFn: async (data: BookingFormData) => {
@@ -263,10 +268,10 @@ export function BookingDialog({
             <div className="space-y-2">
               <div className="flex justify-between">
                 <span>Base price</span>
-                <span>{formatCurrency(priceBreakdown.total - priceBreakdown.fee)}</span>
+                <span>{formatCurrency(priceBreakdown.basePrice)}</span>
               </div>
               <div className="flex justify-between">
-                <span>Platform fee</span>
+                <span>Platform fee (10%)</span>
                 <span>{formatCurrency(priceBreakdown.fee)}</span>
               </div>
               {priceBreakdown.deposit > 0 && (
