@@ -829,7 +829,7 @@ export function EditListingForm({ listing }: { listing: any }) {
               <div className="p-4 bg-muted rounded-lg">
                 <p className="text-sm font-semibold">This listing is published</p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Uncheck "Publish" below to unpublish it.
+                  Uncheck &quot;Publish&quot; below to unpublish it.
                 </p>
                 <div className="flex items-center gap-2 mt-3">
                   <Checkbox

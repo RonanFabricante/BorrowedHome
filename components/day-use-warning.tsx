@@ -41,7 +41,7 @@ export function DayUseWarning({ compact = false }: { compact?: boolean }) {
               Hosts and guests are responsible for complying with applicable laws, building rules, strata by-laws, lease conditions, and house rules. Guests must leave by the agreed end time.
             </p>
             <p className="text-sm text-amber-800 dark:text-amber-200">
-              BorrowedHome does not supervise in-person interactions and is not responsible for a host's or guest's acts or omissions. To the maximum extent permitted by law, each party assumes the risks associated with accessing and using a space in person.
+              BorrowedHome does not supervise in-person interactions and is not responsible for a host&apos;s or guest&apos;s acts or omissions. To the maximum extent permitted by law, each party assumes the risks associated with accessing and using a space in person.
             </p>
             <Link
               href="/terms/guest-au#day-use-only--no-overnight"
