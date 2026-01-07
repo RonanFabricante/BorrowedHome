@@ -20,8 +20,8 @@ export default async function MyListingsPage() {
     .eq("host_id", user.id)
     .order("created_at", { ascending: false });
 
-  // Fetch pending bookings for host's listings
-  const { data: pendingBookings } = await supabase
+  // Fetch all bookings for host's listings (not just PENDING)
+  const { data: allBookings } = await supabase
     .from("bookings")
     .select(`
       *,
@@ -29,8 +29,15 @@ export default async function MyListingsPage() {
       profiles!bookings_guest_id_fkey(id, full_name)
     `)
     .eq("listings.host_id", user.id)
-    .eq("status", "PENDING")
     .order("created_at", { ascending: false });
+
+  // Separate bookings by status
+  const pendingBookings = (allBookings || []).filter(b => b.status === "PENDING");
+  const confirmedBookings = (allBookings || []).filter(b => b.status === "CONFIRMED");
+  const declinedBookings = (allBookings || []).filter(b => b.status === "DECLINED");
+  const otherBookings = (allBookings || []).filter(b => 
+    !["PENDING", "CONFIRMED", "DECLINED"].includes(b.status)
+  );
 
   return (
     <div className="min-h-screen">
@@ -46,7 +53,10 @@ export default async function MyListingsPage() {
         </div>
         <MyListingsList 
           listings={listings || []} 
-          pendingBookings={pendingBookings || []}
+          pendingBookings={pendingBookings}
+          confirmedBookings={confirmedBookings}
+          declinedBookings={declinedBookings}
+          otherBookings={otherBookings}
           hostId={user.id}
         />
       </main>
