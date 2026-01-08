@@ -13,6 +13,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import Link from "next/link";
 import { onboardingSummaryGuest, TERMS_VERSION } from "@/lib/legal/terms-au";
+import { Logo } from "@/components/logo";
 
 const signupSchema = z.object({
   fullName: z.string().min(2, "Name must be at least 2 characters"),
@@ -110,7 +111,10 @@ export default function SignupPage() {
     <div className="min-h-screen flex items-center justify-center bg-muted p-4">
       <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle>Sign Up</CardTitle>
+          <div className="flex justify-center mb-4">
+            <Logo size="lg" href={null} />
+          </div>
+          <CardTitle className="text-center">Sign Up</CardTitle>
           <CardDescription>
             Create your BorrowedHome account
           </CardDescription>

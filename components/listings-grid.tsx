@@ -7,6 +7,7 @@ import { Listing } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils";
 import { ChefHat, UtensilsCrossed, Home, Trees } from "lucide-react";
 import Image from "next/image";
+import { Logo } from "@/components/logo";
 
 const spaceIcons = {
   KITCHEN: ChefHat,
@@ -19,6 +20,9 @@ export function ListingsGrid({ listings }: { listings: Listing[] }) {
   if (listings.length === 0) {
     return (
       <div className="text-center py-12">
+        <div className="flex justify-center mb-4">
+          <Logo size="md" href={null} />
+        </div>
         <p className="text-muted-foreground">No listings found.</p>
       </div>
     );

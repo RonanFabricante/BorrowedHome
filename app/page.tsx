@@ -3,6 +3,7 @@ import { SearchForm } from "@/components/search-form";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { Home, Users, Clock, X } from "lucide-react";
+import { Logo } from "@/components/logo";
 
 export default function HomePage() {
   return (
@@ -12,6 +13,9 @@ export default function HomePage() {
       {/* Hero Section */}
       <section className="bh-container bh-section">
         <div className="max-w-3xl mx-auto text-center">
+          <div className="flex justify-center mb-6">
+            <Logo size="xl" href={null} />
+          </div>
           <h1 className="text-4xl sm:text-5xl font-semibold tracking-tight mb-4">
             Book Real Homes by the Hour
           </h1>

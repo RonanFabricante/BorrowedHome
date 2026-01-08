@@ -6,6 +6,7 @@ import { Nav } from "@/components/nav";
 import { HostOnboardingWizard } from "@/components/host-onboarding-wizard";
 import { createClient } from "@/lib/supabase/client";
 import { useEffect } from "react";
+import { Logo } from "@/components/logo";
 
 export default function HostOnboardPage() {
   const router = useRouter();
@@ -27,7 +28,7 @@ export default function HostOnboardPage() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <p>Loading...</p>
+        <Logo size="lg" href={null} />
       </div>
     );
   }

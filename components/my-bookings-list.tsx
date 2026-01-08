@@ -7,11 +7,15 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatCurrency } from "@/lib/utils";
 import { format } from "date-fns";
+import { Logo } from "@/components/logo";
 
 export function MyBookingsList({ bookings }: { bookings: any[] }) {
   if (bookings.length === 0) {
     return (
       <div className="text-center py-12">
+        <div className="flex justify-center mb-4">
+          <Logo size="md" href={null} />
+        </div>
         <p className="text-muted-foreground mb-4">You don&apos;t have any bookings yet.</p>
         <Button asChild>
           <Link href="/listings">Browse Homes</Link>

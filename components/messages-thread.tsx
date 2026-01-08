@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { format } from "date-fns";
+import { Logo } from "@/components/logo";
 
 export function MessagesThread({
   bookingId,
@@ -65,7 +66,11 @@ export function MessagesThread({
   };
 
   if (isLoading) {
-    return <div>Loading messages...</div>;
+    return (
+      <div className="flex justify-center py-8">
+        <Logo size="md" href={null} />
+      </div>
+    );
   }
 
   return (

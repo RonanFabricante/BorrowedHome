@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import Link from "next/link";
+import { Logo } from "@/components/logo";
 
 const loginSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -57,7 +58,10 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-muted p-4">
       <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle>Log In</CardTitle>
+          <div className="flex justify-center mb-4">
+            <Logo size="lg" href={null} />
+          </div>
+          <CardTitle className="text-center">Log In</CardTitle>
           <CardDescription>
             Sign in to your BorrowedHome account
           </CardDescription>

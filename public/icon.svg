@@ -1,0 +1,93 @@
+<svg viewBox="0 0 120 100" xmlns="http://www.w3.org/2000/svg">
+  <!-- House outline with integrated BH letters -->
+  <!-- Left wall (also left stroke of B) -->
+  <line
+    x1="20"
+    y1="20"
+    x2="20"
+    y2="80"
+    stroke="#204A36"
+    stroke-width="8"
+    stroke-linecap="round"
+  />
+  
+  <!-- B letter - top curve -->
+  <path
+    d="M 20 20 Q 35 20 35 35 Q 35 50 20 50"
+    fill="none"
+    stroke="#204A36"
+    stroke-width="8"
+    stroke-linecap="round"
+  />
+  <!-- B letter - bottom curve -->
+  <path
+    d="M 20 50 Q 35 50 35 65 Q 35 80 20 80"
+    fill="none"
+    stroke="#204A36"
+    stroke-width="8"
+    stroke-linecap="round"
+  />
+  
+  <!-- H letter - left vertical stroke -->
+  <line
+    x1="50"
+    y1="20"
+    x2="50"
+    y2="80"
+    stroke="#204A36"
+    stroke-width="8"
+    stroke-linecap="round"
+  />
+  <!-- H letter - horizontal bar -->
+  <line
+    x1="50"
+    y1="50"
+    x2="70"
+    y2="50"
+    stroke="#204A36"
+    stroke-width="8"
+    stroke-linecap="round"
+  />
+  <!-- H letter - right vertical stroke (also right wall) -->
+  <line
+    x1="70"
+    y1="20"
+    x2="70"
+    y2="80"
+    stroke="#204A36"
+    stroke-width="8"
+    stroke-linecap="round"
+  />
+  
+  <!-- House base (horizontal line connecting B and H) -->
+  <line
+    x1="20"
+    y1="80"
+    x2="70"
+    y2="80"
+    stroke="#204A36"
+    stroke-width="8"
+    stroke-linecap="round"
+  />
+  
+  <!-- House roof - left slanted line -->
+  <line
+    x1="20"
+    y1="20"
+    x2="45"
+    y2="5"
+    stroke="#204A36"
+    stroke-width="8"
+    stroke-linecap="round"
+  />
+  <!-- House roof - right slanted line -->
+  <line
+    x1="70"
+    y1="20"
+    x2="45"
+    y2="5"
+    stroke="#204A36"
+    stroke-width="8"
+    stroke-linecap="round"
+  />
+</svg>
