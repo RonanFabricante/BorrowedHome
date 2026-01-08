@@ -31,28 +31,30 @@ export default function HomePage() {
 
           {/* Content Overlay */}
           <div className="relative h-full flex flex-col">
-            {/* Top Content: Logo, Headline, Description */}
-            <div className="flex-1 flex flex-col items-center justify-center text-center px-4 sm:px-6 pt-8 sm:pt-12">
-              <div className="flex justify-center mb-6">
-                <Logo size="xl" href={null} />
-              </div>
-              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-semibold tracking-tight mb-4 text-white drop-shadow-lg">
-                Book Real Homes by the Hour
-              </h1>
-              <p className="mt-4 text-white/90 max-w-2xl mx-auto text-lg sm:text-xl drop-shadow-md">
-                Day-use access to lived-in homes. No overnight stays. No bedrooms. Just
-                the spaces you need, when you need them.
-              </p>
-            </div>
+            {/* Top Content: Empty space for video background */}
+            <div className="flex-1" />
 
             {/* Bottom Content: Tagline and Search Form Overlay */}
             <div className="absolute inset-x-0 bottom-0 z-10 p-4 sm:p-6">
               <div className="max-w-4xl mx-auto">
                 {/* Hero Tagline */}
                 <div className="max-w-3xl mx-auto text-center mb-6 sm:mb-8 -translate-y-6 sm:-translate-y-10">
+                  {/* Logo */}
+                  <div className="flex justify-center mb-3 sm:mb-4">
+                    <Logo 
+                      size="md" 
+                      variant="reversed" 
+                      href={null}
+                      className="opacity-90"
+                    />
+                  </div>
+                  
+                  {/* Primary Tagline */}
                   <h1 className="text-white font-semibold text-3xl sm:text-4xl lg:text-5xl tracking-tight leading-tight drop-shadow-lg">
                     Borrow space. Just for the day.
                   </h1>
+                  
+                  {/* Supporting Sub-line */}
                   <p className="text-white/80 text-sm sm:text-base mt-2 sm:mt-3 max-w-xl mx-auto drop-shadow-md">
                     Day-use homes for work, cooking, and gatherings — no overnight stays.
                   </p>
