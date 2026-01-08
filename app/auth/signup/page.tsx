@@ -14,11 +14,27 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import Link from "next/link";
 import { onboardingSummaryGuest, TERMS_VERSION } from "@/lib/legal/terms-au";
 import { Logo } from "@/components/logo";
+import { differenceInYears, parse } from "date-fns";
+
+// Helper function to calculate age from date of birth
+const calculateAge = (dateOfBirth: string): number => {
+  const birthDate = parse(dateOfBirth, "yyyy-MM-dd", new Date());
+  return differenceInYears(new Date(), birthDate);
+};
 
 const signupSchema = z.object({
   fullName: z.string().min(2, "Name must be at least 2 characters"),
   email: z.string().email("Invalid email address"),
   password: z.string().min(6, "Password must be at least 6 characters"),
+  dateOfBirth: z.string().min(1, "Date of birth is required").refine(
+    (date) => {
+      const age = calculateAge(date);
+      return age >= 18;
+    },
+    {
+      message: "You must be at least 18 years old to use BorrowedHome",
+    }
+  ),
   acceptedGuestTerms: z.boolean().refine((val) => val === true, {
     message: "You must read and agree to the BorrowedHome Guest Terms",
   }),
@@ -55,6 +71,7 @@ export default function SignupPage() {
         options: {
           data: {
             full_name: data.fullName,
+            date_of_birth: data.dateOfBirth,
           },
         },
       });
@@ -166,6 +183,23 @@ export default function SignupPage() {
                   {errors.password.message}
                 </p>
               )}
+            </div>
+            <div>
+              <Label htmlFor="dateOfBirth">Date of Birth</Label>
+              <Input
+                id="dateOfBirth"
+                type="date"
+                max={new Date(new Date().setFullYear(new Date().getFullYear() - 18)).toISOString().split("T")[0]}
+                {...register("dateOfBirth")}
+              />
+              {errors.dateOfBirth && (
+                <p className="text-sm text-destructive mt-1">
+                  {errors.dateOfBirth.message}
+                </p>
+              )}
+              <p className="text-xs text-muted-foreground mt-1">
+                You must be 18 years or older to use BorrowedHome
+              </p>
             </div>
 
             {/* Plain-English Summary */}
