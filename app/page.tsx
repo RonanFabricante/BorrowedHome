@@ -29,6 +29,26 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* Welcome Video */}
+      <section className="bh-container bh-section border-t">
+        <div className="max-w-4xl mx-auto">
+          <div className="rounded-2xl overflow-hidden shadow-lg bg-card border">
+            <video
+              className="w-full h-auto"
+              controls
+              autoPlay
+              muted
+              loop
+              playsInline
+              aria-label="BorrowedHome welcome video"
+            >
+              <source src="/welcome.mp4" type="video/mp4" />
+              Your browser does not support the video tag.
+            </video>
+          </div>
+        </div>
+      </section>
+
       {/* Use Cases */}
       <section className="bh-container bh-section border-t">
         <h2 className="text-3xl font-semibold text-center mb-12">
