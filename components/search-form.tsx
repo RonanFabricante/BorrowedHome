@@ -160,9 +160,9 @@ export function SearchForm() {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-3 md:gap-4">
-        <div className="w-full">
-          <Label htmlFor="location">Location</Label>
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 md:gap-4">
+        <div className="w-full space-y-2">
+          <Label htmlFor="location" className="text-sm font-medium">Location</Label>
           <Input
             id="location"
             data-testid="location-input"
@@ -171,8 +171,8 @@ export function SearchForm() {
             {...register("location")}
           />
         </div>
-        <div className="w-full">
-          <Label htmlFor="date">Date</Label>
+        <div className="w-full space-y-2">
+          <Label htmlFor="date" className="text-sm font-medium">Date</Label>
           <Input
             id="date"
             data-testid="date-input"
@@ -182,8 +182,8 @@ export function SearchForm() {
             {...register("date")}
           />
         </div>
-        <div className="w-full">
-          <Label htmlFor="startTime">Start Time</Label>
+        <div className="w-full space-y-2">
+          <Label htmlFor="startTime" className="text-sm font-medium">Start Time</Label>
           <Input
             id="startTime"
             data-testid="start-time-input"
@@ -196,8 +196,8 @@ export function SearchForm() {
             })}
           />
         </div>
-        <div className="w-full">
-          <Label htmlFor="endTime">End Time</Label>
+        <div className="w-full space-y-2">
+          <Label htmlFor="endTime" className="text-sm font-medium">End Time</Label>
           <Input
             id="endTime"
             data-testid="end-time-input"
@@ -213,7 +213,7 @@ export function SearchForm() {
       </div>
       
       {/* Preset Time Buttons */}
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-2 pt-2">
         <Button
           type="button"
           variant={activePreset === "morning" ? "default" : "outline"}
@@ -248,14 +248,14 @@ export function SearchForm() {
 
       {/* Same-day helper text */}
       {isSameDay && (
-        <p data-testid="helper-same-day" className="text-xs text-muted-foreground">
+        <p data-testid="helper-same-day" className="text-xs text-muted-foreground mt-2">
           Same-day bookings must start at least 30 minutes from now.
         </p>
       )}
 
       {/* Consolidated error display */}
       {(validationError || Object.keys(errors).length > 0) && (
-        <div data-testid="search-error" className="p-3 text-sm text-destructive bg-destructive/10 rounded-md">
+        <div data-testid="search-error" className="p-3 text-sm text-destructive bg-destructive/10 rounded-md mt-2">
           {validationError || 
            errors.location?.message || 
            errors.date?.message || 
@@ -264,14 +264,14 @@ export function SearchForm() {
         </div>
       )}
 
-      <div className="text-xs text-muted-foreground">
+      <div className="text-xs text-muted-foreground mt-2">
         Day use only · 7am–6pm · No overnight stays
       </div>
 
       <Button 
         type="submit" 
         size="lg" 
-        className="w-full md:w-auto"
+        className="w-full md:w-auto mt-4"
         data-testid="browse-homes-button"
         disabled={!isFormValid}
         style={!isFormValid ? { opacity: 0.5, cursor: "not-allowed" } : {}}

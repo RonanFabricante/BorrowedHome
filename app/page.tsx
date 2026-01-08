@@ -48,7 +48,7 @@ export default function HomePage() {
             {/* Bottom Content: Search Form Overlay */}
             <div className="absolute inset-x-0 bottom-0 z-10 p-4 sm:p-6">
               <div className="max-w-4xl mx-auto -translate-y-6 sm:-translate-y-10">
-                <div className="bg-white/90 backdrop-blur-md shadow-lg ring-1 ring-black/5 rounded-2xl p-4 sm:p-6">
+                <div className="bg-white/90 backdrop-blur-md shadow-lg ring-1 ring-black/5 rounded-2xl p-6 sm:p-8">
                   <SearchForm />
                 </div>
               </div>
