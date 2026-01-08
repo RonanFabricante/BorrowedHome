@@ -62,9 +62,9 @@ const onboardingSchema = z.object({
   provides_groceries: z.boolean(),
   
   // Step 5: Pricing
-  hourly_rate: z.number().min(100), // $1 minimum
-  half_day_rate: z.number().min(100),
-  full_day_rate: z.number().min(100),
+  hourly_rate: z.number().min(0),
+  half_day_rate: z.number().min(0),
+  full_day_rate: z.number().min(0),
   deposit_amount: z.number().min(0),
 }).refine((data) => {
   // Require toilet_access_notes when toilet_access is limited or none
