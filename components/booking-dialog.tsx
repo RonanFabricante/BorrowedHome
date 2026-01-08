@@ -55,6 +55,8 @@ export function BookingDialog({
   } = useForm<BookingFormData>({
     resolver: zodResolver(bookingSchema),
     defaultValues: {
+      startTime: "07:00",
+      endTime: "18:00",
       guestsCount: 1,
       acceptedRules: false,
       guest_ack_toilet_access: false,
@@ -118,9 +120,19 @@ export function BookingDialog({
         throw new Error("Minimum booking duration is 2 hours");
       }
 
-      // Check end time is before 9pm
-      if (end.getHours() >= 21) {
-        throw new Error("Bookings must end before 9pm (day use only)");
+      // Check maximum 11 hours
+      if (hours > 11) {
+        throw new Error("Maximum booking duration is 11 hours");
+      }
+
+      // Check start time is at or after 7am
+      if (start.getHours() < 7) {
+        throw new Error("Earliest start time is 7:00 AM");
+      }
+
+      // Check end time is at or before 6pm
+      if (end.getHours() > 18 || (end.getHours() === 18 && end.getMinutes() > 0)) {
+        throw new Error("Latest end time is 6:00 PM (day use only, no overnight)");
       }
 
       // Check availability
@@ -235,6 +247,8 @@ export function BookingDialog({
               <Input
                 id="startTime"
                 type="time"
+                min="07:00"
+                max="18:00"
                 {...register("startTime")}
               />
               {errors.startTime && (
@@ -248,7 +262,8 @@ export function BookingDialog({
               <Input
                 id="endTime"
                 type="time"
-                max="21:00"
+                min="07:00"
+                max="18:00"
                 {...register("endTime")}
               />
               {errors.endTime && (
@@ -380,7 +395,7 @@ export function BookingDialog({
             />
             <Label htmlFor="acceptedRules" className="cursor-pointer">
               I agree to the house rules and day-use terms. I understand this is
-              day-use only (no overnight) and I will return the space as I found it.
+              day-use only (7am–6pm, no overnight) and I will return the space as I found it.
             </Label>
           </div>
           {errors.acceptedRules && (

@@ -412,7 +412,7 @@ export function EditListingForm({ listing }: { listing: any }) {
                           if (e.target.checked) {
                             form.setValue("availability", [
                               ...current,
-                              { day_of_week: index, start_time: "09:00", end_time: "21:00" },
+                              { day_of_week: index, start_time: "07:00", end_time: "18:00" },
                             ]);
                           } else {
                             form.setValue("availability", current.filter((a) => a.day_of_week !== index));
@@ -427,6 +427,8 @@ export function EditListingForm({ listing }: { listing: any }) {
                           <Label>Start</Label>
                           <Input
                             type="time"
+                            min="07:00"
+                            max="18:00"
                             value={dayAvail.start_time}
                             onChange={(e) => {
                               const current = form.getValues("availability");
@@ -440,10 +442,11 @@ export function EditListingForm({ listing }: { listing: any }) {
                           />
                         </div>
                         <div className="flex-1">
-                          <Label>End</Label>
+                          <Label>End (max 6pm)</Label>
                           <Input
                             type="time"
-                            max="21:00"
+                            min="07:00"
+                            max="18:00"
                             value={dayAvail.end_time}
                             onChange={(e) => {
                               const current = form.getValues("availability");

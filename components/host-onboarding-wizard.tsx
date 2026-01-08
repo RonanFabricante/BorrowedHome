@@ -457,7 +457,7 @@ export function HostOnboardingWizard() {
                     if (e.target.checked) {
                       form.setValue("availability", [
                         ...current,
-                        { day_of_week: index, start_time: "09:00", end_time: "21:00" },
+                        { day_of_week: index, start_time: "07:00", end_time: "18:00" },
                       ]);
                     } else {
                       form.setValue(
@@ -475,6 +475,8 @@ export function HostOnboardingWizard() {
                     <Label>Start</Label>
                     <Input
                       type="time"
+                      min="07:00"
+                      max="18:00"
                       value={dayAvail.start_time}
                       onChange={(e) => {
                         const current = form.getValues("availability");
@@ -490,10 +492,11 @@ export function HostOnboardingWizard() {
                     />
                   </div>
                   <div className="flex-1">
-                    <Label>End (max 9pm)</Label>
+                    <Label>End (max 6pm)</Label>
                     <Input
                       type="time"
-                      max="21:00"
+                      min="07:00"
+                      max="18:00"
                       value={dayAvail.end_time}
                       onChange={(e) => {
                         const current = form.getValues("availability");
