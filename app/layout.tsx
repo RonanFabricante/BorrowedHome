@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
 import { Footer } from "@/components/footer";
+import { IdleTimeoutHandler } from "@/components/idle-timeout-handler";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -24,6 +25,7 @@ export default function RootLayout({
     <html lang="en">
       <body className={inter.className}>
         <Providers>
+          <IdleTimeoutHandler />
           <div className="min-h-screen flex flex-col">
             {children}
             <Footer />
