@@ -34,17 +34,32 @@ export function MyListingsList({
 
   const acceptBooking = useMutation({
     mutationFn: async (bookingId: string) => {
-      const { data, error } = await supabase.rpc("accept_booking", {
-        p_booking_id: bookingId,
-        p_host_id: hostId,
+      const response = await fetch("/api/bookings/accept", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ bookingId }),
       });
-      if (error) throw error;
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        if (data.error === "STRIPE_ONBOARDING_REQUIRED") {
+          throw new Error("STRIPE_ONBOARDING_REQUIRED");
+        }
+        throw new Error(data.error || "Failed to accept booking");
+      }
+
       return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["bookings"] });
       queryClient.invalidateQueries({ queryKey: ["listings"] });
       router.refresh(); // Refresh the page to show updated bookings
+    },
+    onError: (error: any) => {
+      if (error.message === "STRIPE_ONBOARDING_REQUIRED") {
+        router.push("/host/stripe/onboarding");
+      }
     },
   });
 

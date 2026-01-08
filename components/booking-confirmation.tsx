@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Booking } from "@/lib/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,9 +8,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatCurrency } from "@/lib/utils";
 import { format } from "date-fns";
-import { AlertCircle, Clock, XCircle } from "lucide-react";
+import { AlertCircle, Clock, XCircle, CheckCircle2 } from "lucide-react";
+import { PaymentForm } from "@/components/payment-form";
+import { createClient } from "@/lib/supabase/client";
 
 export function BookingConfirmation({ booking }: { booking: any }) {
+  const supabase = createClient();
   const listing = booking.listings;
   const startDate = new Date(booking.start_at);
   const endDate = new Date(booking.end_at);
@@ -17,6 +21,31 @@ export function BookingConfirmation({ booking }: { booking: any }) {
   const isPending = booking.status === "PENDING";
   const isDeclined = booking.status === "DECLINED";
   const isCancelled = booking.status === "CANCELLED";
+  
+  const [payment, setPayment] = useState<any>(null);
+  const [paymentLoading, setPaymentLoading] = useState(true);
+
+  useEffect(() => {
+    if (isConfirmed) {
+      // Fetch payment status
+      supabase
+        .from("payments")
+        .select("*")
+        .eq("booking_id", booking.id)
+        .single()
+        .then(({ data, error }) => {
+          if (!error && data) {
+            setPayment(data);
+          }
+          setPaymentLoading(false);
+        });
+    } else {
+      setPaymentLoading(false);
+    }
+  }, [booking.id, isConfirmed, supabase]);
+
+  const needsPayment = isConfirmed && payment && payment.status === "pending";
+  const paymentAuthorised = payment && payment.status === "authorised";
 
   const rules = [
     listing.cooking_allowed && "Cooking allowed",
@@ -234,7 +263,45 @@ export function BookingConfirmation({ booking }: { booking: any }) {
         </CardContent>
       </Card>
 
-      {isConfirmed && (
+      {/* Payment Form - Show if CONFIRMED but payment not authorised */}
+      {needsPayment && !paymentLoading && (
+        <PaymentForm
+          bookingId={booking.id}
+          amount={booking.total_amount}
+          depositAmount={booking.deposit_amount || 0}
+          onSuccess={() => {
+            // Refresh payment status
+            supabase
+              .from("payments")
+              .select("*")
+              .eq("booking_id", booking.id)
+              .single()
+              .then(({ data }) => {
+                if (data) setPayment(data);
+              });
+          }}
+        />
+      )}
+
+      {/* Payment Status */}
+      {paymentAuthorised && (
+        <Card className="mb-6 border-green-200 bg-green-50">
+          <CardContent className="pt-6">
+            <div className="flex gap-3">
+              <CheckCircle2 className="h-5 w-5 text-green-600 mt-0.5 flex-shrink-0" />
+              <div>
+                <h3 className="font-semibold mb-2">Payment Authorised</h3>
+                <p className="text-sm text-muted-foreground">
+                  Your payment has been authorised. Funds will be captured after your booking is completed.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Address - Only show if payment is authorised */}
+      {isConfirmed && paymentAuthorised && (
         <Card className="mb-6">
           <CardHeader>
             <CardTitle>Address</CardTitle>
