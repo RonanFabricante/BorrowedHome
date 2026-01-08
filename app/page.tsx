@@ -10,41 +10,49 @@ export default function HomePage() {
     <main className="bg-background text-foreground min-h-screen">
       <Nav />
       
-      {/* Hero Section */}
-      <section className="bh-container bh-section">
-        <div className="max-w-3xl mx-auto text-center">
-          <div className="flex justify-center mb-6">
-            <Logo size="xl" href={null} />
-          </div>
-          <h1 className="text-4xl sm:text-5xl font-semibold tracking-tight mb-4">
-            Book Real Homes by the Hour
-          </h1>
-          <p className="mt-4 text-muted-foreground max-w-2xl mx-auto text-lg">
-            Day-use access to lived-in homes. No overnight stays. No bedrooms. Just
-            the spaces you need, when you need them.
-          </p>
-          <div className="mt-8 rounded-2xl border bg-card p-4 sm:p-6 shadow-sm">
-            <SearchForm />
-          </div>
-        </div>
-      </section>
+      {/* Hero Section with Video Background */}
+      <section className="relative w-full">
+        <div className="relative w-full h-[85vh] min-h-[600px] max-h-[900px] rounded-2xl overflow-hidden mx-4 sm:mx-6 mt-4 sm:mt-6">
+          {/* Video Background */}
+          <video
+            className="absolute inset-0 w-full h-full object-cover"
+            autoPlay
+            muted
+            loop
+            playsInline
+            aria-label="BorrowedHome welcome video"
+          >
+            <source src="/welcome.mp4" type="video/mp4" />
+            Your browser does not support the video tag.
+          </video>
 
-      {/* Welcome Video */}
-      <section className="bh-container bh-section border-t">
-        <div className="max-w-4xl mx-auto">
-          <div className="rounded-2xl overflow-hidden shadow-lg bg-card border">
-            <video
-              className="w-full h-auto"
-              controls
-              autoPlay
-              muted
-              loop
-              playsInline
-              aria-label="BorrowedHome welcome video"
-            >
-              <source src="/welcome.mp4" type="video/mp4" />
-              Your browser does not support the video tag.
-            </video>
+          {/* Bottom Gradient Overlay */}
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/35 via-black/0 to-black/0" />
+
+          {/* Content Overlay */}
+          <div className="relative h-full flex flex-col">
+            {/* Top Content: Logo, Headline, Description */}
+            <div className="flex-1 flex flex-col items-center justify-center text-center px-4 sm:px-6 pt-8 sm:pt-12">
+              <div className="flex justify-center mb-6">
+                <Logo size="xl" href={null} />
+              </div>
+              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-semibold tracking-tight mb-4 text-white drop-shadow-lg">
+                Book Real Homes by the Hour
+              </h1>
+              <p className="mt-4 text-white/90 max-w-2xl mx-auto text-lg sm:text-xl drop-shadow-md">
+                Day-use access to lived-in homes. No overnight stays. No bedrooms. Just
+                the spaces you need, when you need them.
+              </p>
+            </div>
+
+            {/* Bottom Content: Search Form Overlay */}
+            <div className="absolute inset-x-0 bottom-0 z-10 p-4 sm:p-6">
+              <div className="max-w-4xl mx-auto -translate-y-6 sm:-translate-y-10">
+                <div className="bg-white/90 backdrop-blur-md shadow-lg ring-1 ring-black/5 rounded-2xl p-4 sm:p-6">
+                  <SearchForm />
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </section>

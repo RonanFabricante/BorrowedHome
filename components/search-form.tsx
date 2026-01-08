@@ -39,12 +39,13 @@ export function SearchForm() {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-      <div className="grid md:grid-cols-4 gap-4">
-        <div>
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-3 md:gap-4">
+        <div className="w-full">
           <Label htmlFor="location">Location</Label>
           <Input
             id="location"
             placeholder="Suburb or city"
+            className="w-full"
             {...register("location")}
           />
           {errors.location && (
@@ -53,11 +54,12 @@ export function SearchForm() {
             </p>
           )}
         </div>
-        <div>
+        <div className="w-full">
           <Label htmlFor="date">Date</Label>
           <Input
             id="date"
             type="date"
+            className="w-full"
             min={new Date().toISOString().split("T")[0]}
             {...register("date")}
           />
@@ -67,11 +69,12 @@ export function SearchForm() {
             </p>
           )}
         </div>
-        <div>
+        <div className="w-full">
           <Label htmlFor="startTime">Start Time</Label>
           <Input
             id="startTime"
             type="time"
+            className="w-full"
             {...register("startTime")}
           />
           {errors.startTime && (
@@ -80,11 +83,12 @@ export function SearchForm() {
             </p>
           )}
         </div>
-        <div>
+        <div className="w-full">
           <Label htmlFor="endTime">End Time</Label>
           <Input
             id="endTime"
             type="time"
+            className="w-full"
             {...register("endTime")}
           />
           {errors.endTime && (
