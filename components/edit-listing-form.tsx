@@ -95,13 +95,25 @@ export function EditListingForm({ listing }: { listing: any }) {
       location_text: listing.location_text || "",
       address_text: listing.address_text || "",
       max_guests: listing.max_guests || 10,
-      availability: listing.availability || [],
+      availability: (listing.availability || []).map((avail: any) => ({
+        day_of_week: avail.day_of_week,
+        start_time: avail.start_time?.substring(0, 5) || "07:00", // Convert HH:mm:ss to HH:mm
+        end_time: avail.end_time?.substring(0, 5) || "18:00", // Convert HH:mm:ss to HH:mm
+      })),
       host_present: listing.host_present || false,
       cooking_allowed: listing.cooking_allowed || false,
       alcohol_allowed: listing.alcohol_allowed || false,
       noise_tolerance: listing.noise_tolerance || "MEDIUM",
       cleaning_expectations: listing.cleaning_expectations || "",
       additional_instructions: listing.additional_instructions || "",
+      toilet_access: listing.toilet_access || "shared",
+      toilet_access_notes: listing.toilet_access_notes || "",
+      consumables_policy_host_notes: listing.consumables_policy?.includes("Host notes:") 
+        ? listing.consumables_policy.split("Host notes:")[1]?.trim() || ""
+        : "",
+      provides_toilet_paper: listing.provides_toilet_paper || false,
+      provides_pantry_staples: listing.provides_pantry_staples || false,
+      provides_groceries: listing.provides_groceries || false,
       hourly_rate: (listing.hourly_rate || 0) / 100,
       half_day_rate: (listing.half_day_rate || 0) / 100,
       full_day_rate: (listing.full_day_rate || 0) / 100,
