@@ -61,26 +61,19 @@ export default function SignupPage() {
 
       if (authError) throw authError;
 
+      if (!authData.user) {
+        throw new Error("User creation failed");
+      }
+
       // Profile is automatically created by database trigger (handle_new_user)
-      // If trigger fails or doesn't exist, try to create it manually as fallback
-      if (authData.user) {
-        const { error: profileError } = await supabase
-          .from("profiles")
-          .upsert({
-            id: authData.user.id,
-            full_name: data.fullName,
-            is_guest: true,
-            is_host: false,
-          }, {
-            onConflict: "id",
-          });
+      // Wait a moment for the trigger to complete and session to be established
+      await new Promise(resolve => setTimeout(resolve, 1000));
 
-        // Only throw if it's not a duplicate key error (trigger may have already created it)
-        if (profileError && !profileError.message.includes("duplicate") && !profileError.message.includes("already exists")) {
-          throw profileError;
-        }
-
-        // Record guest terms acceptance
+      // Record guest terms acceptance
+      // Retry logic in case session isn't fully established yet
+      let acceptanceRecorded = false;
+      let attempts = 0;
+      while (!acceptanceRecorded && attempts < 3) {
         const { error: acceptanceError } = await supabase
           .from("user_legal_acceptances")
           .insert({
@@ -93,8 +86,18 @@ export default function SignupPage() {
             },
           });
 
-        if (acceptanceError) {
-          throw new Error(`Failed to record terms acceptance: ${acceptanceError.message}`);
+        if (!acceptanceError) {
+          acceptanceRecorded = true;
+        } else {
+          // If RLS error, wait and retry
+          if (acceptanceError.message.includes("row-level security")) {
+            attempts++;
+            await new Promise(resolve => setTimeout(resolve, 500));
+          } else {
+            // Other error, log but don't block signup
+            console.error("Failed to record terms acceptance:", acceptanceError);
+            break;
+          }
         }
       }
 
