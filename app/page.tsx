@@ -45,11 +45,24 @@ export default function HomePage() {
               </p>
             </div>
 
-            {/* Bottom Content: Search Form Overlay */}
+            {/* Bottom Content: Tagline and Search Form Overlay */}
             <div className="absolute inset-x-0 bottom-0 z-10 p-4 sm:p-6">
-              <div className="max-w-4xl mx-auto -translate-y-6 sm:-translate-y-10">
-                <div className="bg-white/90 backdrop-blur-md shadow-lg ring-1 ring-black/5 rounded-2xl p-6 sm:p-8">
-                  <SearchForm />
+              <div className="max-w-4xl mx-auto">
+                {/* Hero Tagline */}
+                <div className="max-w-3xl mx-auto text-center mb-6 sm:mb-8 -translate-y-6 sm:-translate-y-10">
+                  <h1 className="text-white font-semibold text-3xl sm:text-4xl lg:text-5xl tracking-tight leading-tight drop-shadow-lg">
+                    Borrow space. Just for the day.
+                  </h1>
+                  <p className="text-white/80 text-sm sm:text-base mt-2 sm:mt-3 max-w-xl mx-auto drop-shadow-md">
+                    Day-use homes for work, cooking, and gatherings — no overnight stays.
+                  </p>
+                </div>
+                
+                {/* Search Form Card */}
+                <div className="-translate-y-6 sm:-translate-y-10">
+                  <div className="bg-white/90 backdrop-blur-md shadow-lg ring-1 ring-black/5 rounded-2xl p-6 sm:p-8">
+                    <SearchForm />
+                  </div>
                 </div>
               </div>
             </div>
