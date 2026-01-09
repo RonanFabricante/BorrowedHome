@@ -107,6 +107,20 @@ export function HostOnboardingWizard() {
       deposit_amount: 0,
       max_guests: 10,
       additional_instructions: "",
+      toilet_access: "shared",
+      toilet_access_notes: "",
+      consumables_policy_host_notes: "",
+      provides_toilet_paper: false,
+      provides_pantry_staples: false,
+      provides_groceries: false,
+      hourly_rate: 0,
+      half_day_rate: 0,
+      full_day_rate: 0,
+      title: "",
+      description: "",
+      location_text: "",
+      address_text: "",
+      cleaning_expectations: "",
     },
   });
 
@@ -296,7 +310,24 @@ export function HostOnboardingWizard() {
 
   const onSubmit = (data: OnboardingFormData) => {
     setError(null);
+    console.log("Form submitted with data:", data);
     createListing.mutate(data);
+  };
+
+  const handleFormSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const isValid = await form.trigger();
+    if (!isValid) {
+      const errors = form.formState.errors;
+      console.error("Form validation errors:", errors);
+      setError("Please fix the errors in the form before submitting.");
+      return;
+    }
+    if (!hostDeclarationAccepted) {
+      setError("You must accept the Host Declaration before creating a listing.");
+      return;
+    }
+    form.handleSubmit(onSubmit)(e);
   };
 
   // Step 1: Select Spaces
@@ -964,10 +995,22 @@ export function HostOnboardingWizard() {
           </p>
         </CardHeader>
         <CardContent>
-          <form onSubmit={form.handleSubmit(onSubmit)}>
+          <form onSubmit={handleFormSubmit}>
             {error && (
               <div className="p-3 text-sm text-destructive bg-destructive/10 rounded-md mb-6">
                 {error}
+              </div>
+            )}
+            {Object.keys(form.formState.errors).length > 0 && (
+              <div className="p-3 text-sm text-destructive bg-destructive/10 rounded-md mb-6">
+                <p className="font-semibold mb-2">Please fix the following errors:</p>
+                <ul className="list-disc list-inside space-y-1">
+                  {Object.entries(form.formState.errors).map(([key, error]: [string, any]) => (
+                    <li key={key}>
+                      {key}: {error?.message || "Invalid value"}
+                    </li>
+                  ))}
+                </ul>
               </div>
             )}
 
@@ -1028,17 +1071,24 @@ export function HostOnboardingWizard() {
                   Next
                 </Button>
               ) : (
-                <Button
-                  type="submit"
-                  disabled={createListing.isPending || uploading || !hostDeclarationAccepted}
-                  className="ml-auto"
-                >
-                  {uploading
-                    ? "Uploading photos..."
-                    : createListing.isPending
-                    ? "Creating..."
-                    : "Create Listing"}
-                </Button>
+                <>
+                  {!hostDeclarationAccepted && (
+                    <div className="p-3 text-sm text-amber-600 bg-amber-50 rounded-md mb-4">
+                      You must accept the Host Declaration before creating a listing. Please go back to Step 0 and review the declaration.
+                    </div>
+                  )}
+                  <Button
+                    type="submit"
+                    disabled={createListing.isPending || uploading || !hostDeclarationAccepted}
+                    className="ml-auto"
+                  >
+                    {uploading
+                      ? "Uploading photos..."
+                      : createListing.isPending
+                      ? "Creating..."
+                      : "Create Listing"}
+                  </Button>
+                </>
               )}
             </div>
           </form>
