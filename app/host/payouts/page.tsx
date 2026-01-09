@@ -48,15 +48,22 @@ function HostPayoutsContent() {
             "Cache-Control": "no-cache",
           },
         });
-        const data = await response.json();
-
+        
         if (!response.ok) {
-          throw new Error(data.error || "Failed to check status");
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.error || `HTTP ${response.status}: Failed to check status`);
         }
 
-        setStatus(data);
+        const data = await response.json();
+        console.log("Stripe status response:", data);
+        
+        // Ensure we always have a status object
+        setStatus(data || { hasAccount: false });
       } catch (err: any) {
+        console.error("Error checking Stripe status:", err);
         setError(err.message || "An error occurred");
+        // Set a default status so something renders
+        setStatus({ hasAccount: false });
       } finally {
         setLoading(false);
       }
@@ -155,11 +162,43 @@ function HostPayoutsContent() {
               )}
 
               {(() => {
+                // If no status, show default onboarding UI
+                if (!status) {
+                  return (
+                    <div className="space-y-4">
+                      <div>
+                        <h3 className="font-semibold mb-2">Enable Payouts</h3>
+                        <p className="text-sm text-muted-foreground mb-4">
+                          To accept bookings and receive payouts, you need to complete Stripe Connect onboarding.
+                          This is a secure process that allows BorrowedHome to process payments on your behalf.
+                        </p>
+
+                        <div className="space-y-2 mb-4">
+                          <h4 className="font-semibold text-sm">What you&apos;ll need:</h4>
+                          <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground">
+                            <li>Business or personal information</li>
+                            <li>Bank account details for payouts</li>
+                            <li>Tax identification (if applicable)</li>
+                          </ul>
+                        </div>
+
+                        <Button
+                          onClick={handleEnablePayouts}
+                          disabled={onboarding}
+                          className="w-full"
+                        >
+                          {onboarding ? "Starting..." : "Enable Payouts"}
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                }
+
                 // Use new detailed status fields if available, fallback to legacy
-                const chargesEnabled = status?.chargesEnabled ?? status?.stripe_charges_enabled ?? false;
-                const payoutsEnabled = status?.payoutsEnabled ?? status?.stripe_payouts_enabled ?? false;
-                const detailsSubmitted = status?.detailsSubmitted ?? false;
-                const currentlyDue = status?.requirements?.currently_due ?? status?.stripe_requirements_due ?? [];
+                const chargesEnabled = status.chargesEnabled ?? status.stripe_charges_enabled ?? false;
+                const payoutsEnabled = status.payoutsEnabled ?? status.stripe_payouts_enabled ?? false;
+                const detailsSubmitted = status.detailsSubmitted ?? false;
+                const currentlyDue = status.requirements?.currently_due ?? status.stripe_requirements_due ?? [];
                 const isReady = chargesEnabled && payoutsEnabled && currentlyDue.length === 0;
                 const isInProgress = !detailsSubmitted || currentlyDue.length > 0;
                 const isRestricted = (!chargesEnabled || !payoutsEnabled) && currentlyDue.length > 0;
@@ -174,9 +213,9 @@ function HostPayoutsContent() {
                           <p className="text-sm text-muted-foreground">
                             Your Stripe account is set up and ready to receive payouts. You can now accept booking requests.
                           </p>
-                          {(status?.connectedAccountId || status?.stripe_account_id) && (
+                          {(status.connectedAccountId || status.stripe_account_id) && (
                             <p className="text-xs text-muted-foreground mt-2">
-                              Account ID: {(status?.connectedAccountId || status?.stripe_account_id || "").substring(0, 20)}...
+                              Account ID: {(status.connectedAccountId || status.stripe_account_id || "").substring(0, 20)}...
                             </p>
                           )}
                         </div>
@@ -193,7 +232,7 @@ function HostPayoutsContent() {
                           <p className="text-sm text-muted-foreground">
                             Your Stripe account has been restricted. Please complete any outstanding requirements.
                           </p>
-                          {status?.stripe_disabled_reason && (
+                          {status.stripe_disabled_reason && (
                             <div className="mt-3 p-2 bg-amber-100 rounded text-xs">
                               <p className="font-semibold mb-1">Reason:</p>
                               <p className="text-muted-foreground">{status.stripe_disabled_reason}</p>
@@ -221,15 +260,19 @@ function HostPayoutsContent() {
                       </div>
                     </div>
                   );
-                } else if (isInProgress) {
+                } else if (isInProgress || !status.hasAccount) {
                   return (
                     <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
                       <div className="flex gap-3">
                         <Loader2 className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0 animate-spin" />
                         <div>
-                          <h3 className="font-semibold mb-2">Onboarding in Progress</h3>
+                          <h3 className="font-semibold mb-2">
+                            {!status.hasAccount ? "Enable Payouts" : "Onboarding in Progress"}
+                          </h3>
                           <p className="text-sm text-muted-foreground">
-                            {!detailsSubmitted
+                            {!status.hasAccount
+                              ? "To accept bookings and receive payouts, you need to complete Stripe Connect onboarding."
+                              : !detailsSubmitted
                               ? "Complete your Stripe onboarding to enable payouts."
                               : "Please complete the remaining requirements to enable payouts."}
                           </p>
@@ -248,43 +291,44 @@ function HostPayoutsContent() {
                             disabled={onboarding}
                             className="mt-4"
                           >
-                            {onboarding ? "Redirecting..." : "Continue Onboarding"}
+                            {onboarding ? "Redirecting..." : status.hasAccount ? "Continue Onboarding" : "Enable Payouts"}
                           </Button>
                         </div>
                       </div>
                     </div>
                   );
                 }
-                return null;
-              })()}
-              {!status?.hasAccount && (
-                <div className="space-y-4">
-                  <div>
-                    <h3 className="font-semibold mb-2">Enable Payouts</h3>
-                    <p className="text-sm text-muted-foreground mb-4">
-                      To accept bookings and receive payouts, you need to complete Stripe Connect onboarding.
-                      This is a secure process that allows BorrowedHome to process payments on your behalf.
-                    </p>
+                
+                // Fallback: show default onboarding UI if nothing matches
+                return (
+                  <div className="space-y-4">
+                    <div>
+                      <h3 className="font-semibold mb-2">Enable Payouts</h3>
+                      <p className="text-sm text-muted-foreground mb-4">
+                        To accept bookings and receive payouts, you need to complete Stripe Connect onboarding.
+                        This is a secure process that allows BorrowedHome to process payments on your behalf.
+                      </p>
 
-                    <div className="space-y-2 mb-4">
-                      <h4 className="font-semibold text-sm">What you&apos;ll need:</h4>
-                      <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground">
-                        <li>Business or personal information</li>
-                        <li>Bank account details for payouts</li>
-                        <li>Tax identification (if applicable)</li>
-                      </ul>
+                      <div className="space-y-2 mb-4">
+                        <h4 className="font-semibold text-sm">What you&apos;ll need:</h4>
+                        <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground">
+                          <li>Business or personal information</li>
+                          <li>Bank account details for payouts</li>
+                          <li>Tax identification (if applicable)</li>
+                        </ul>
+                      </div>
+
+                      <Button
+                        onClick={handleEnablePayouts}
+                        disabled={onboarding}
+                        className="w-full"
+                      >
+                        {onboarding ? "Starting..." : "Enable Payouts"}
+                      </Button>
                     </div>
-
-                    <Button
-                      onClick={handleEnablePayouts}
-                      disabled={onboarding}
-                      className="w-full"
-                    >
-                      {onboarding ? "Starting..." : "Enable Payouts"}
-                    </Button>
                   </div>
-                </div>
-              )}
+                );
+              })()}
 
               <div className="pt-4 border-t">
                 <Button
