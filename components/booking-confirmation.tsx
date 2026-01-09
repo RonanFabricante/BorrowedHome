@@ -33,8 +33,37 @@ export function BookingConfirmation({ booking }: { booking: any }) {
         .select("*")
         .eq("booking_id", booking.id)
         .single()
-        .then(({ data, error }) => {
-          if (!error && data) {
+        .then(async ({ data, error }) => {
+          if (error && error.code === "PGRST116") {
+            // No payment record exists - initiate payment automatically
+            try {
+              const response = await fetch("/api/payments/initiate", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ bookingId: booking.id }),
+              });
+
+              const paymentData = await response.json();
+
+              if (response.ok && paymentData.clientSecret) {
+                // Payment initiated, now fetch the payment record
+                const { data: newPayment } = await supabase
+                  .from("payments")
+                  .select("*")
+                  .eq("booking_id", booking.id)
+                  .single();
+                
+                if (newPayment) {
+                  setPayment(newPayment);
+                }
+              } else {
+                console.error("Failed to initiate payment:", paymentData.error);
+              }
+            } catch (err) {
+              console.error("Error initiating payment:", err);
+            }
+          } else if (data) {
+            // Payment record exists
             setPayment(data);
           }
           setPaymentLoading(false);
@@ -44,7 +73,7 @@ export function BookingConfirmation({ booking }: { booking: any }) {
     }
   }, [booking.id, isConfirmed, supabase]);
 
-  const needsPayment = isConfirmed && payment && payment.status === "pending";
+  const needsPayment = isConfirmed && (!payment || payment.status === "pending");
   const paymentAuthorised = payment && payment.status === "authorised";
 
   const rules = [
