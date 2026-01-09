@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { stripe } from "@/lib/stripe/server";
 import { createClient } from "@/lib/supabase/server";
+import { checkAccountStatus, computeOnboardingStatus } from "@/lib/stripe/connect";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
@@ -88,6 +92,72 @@ export async function POST(request: NextRequest) {
             `stripe_payment_intent_id.eq.${paymentIntent.id},stripe_deposit_intent_id.eq.${paymentIntent.id}`
           );
 
+        break;
+      }
+
+      case "account.updated": {
+        const account = event.data.object as Stripe.Account;
+        
+        // Find host by stripe_account_id
+        const { data: host } = await supabase
+          .from("hosts")
+          .select("id")
+          .eq("stripe_account_id", account.id)
+          .single();
+
+        if (host) {
+          const status = await checkAccountStatus({ accountId: account.id });
+          const onboardingStatus = computeOnboardingStatus(status);
+
+          await supabase
+            .from("hosts")
+            .update({
+              stripe_charges_enabled: status.charges_enabled,
+              stripe_payouts_enabled: status.payouts_enabled,
+              stripe_requirements_due: status.currently_due.length > 0 ? status.currently_due : null,
+              stripe_onboarding_status: onboardingStatus,
+            })
+            .eq("stripe_account_id", account.id);
+        }
+
+        break;
+      }
+
+      case "capability.updated": {
+        const capability = event.data.object as Stripe.Capability;
+        const accountId = capability.account as string;
+
+        // Find host by stripe_account_id
+        const { data: host } = await supabase
+          .from("hosts")
+          .select("id")
+          .eq("stripe_account_id", accountId)
+          .single();
+
+        if (host) {
+          // Re-check full account status when capability changes
+          const status = await checkAccountStatus({ accountId });
+          const onboardingStatus = computeOnboardingStatus(status);
+
+          await supabase
+            .from("hosts")
+            .update({
+              stripe_charges_enabled: status.charges_enabled,
+              stripe_payouts_enabled: status.payouts_enabled,
+              stripe_requirements_due: status.currently_due.length > 0 ? status.currently_due : null,
+              stripe_onboarding_status: onboardingStatus,
+            })
+            .eq("stripe_account_id", accountId);
+        }
+
+        break;
+      }
+
+      case "account.application.deauthorized": {
+        const deauth = event.data.object as Stripe.Application;
+        // Log for admin review - account was disconnected
+        console.error("Stripe account deauthorized:", deauth.id);
+        // TODO: Notify admin, potentially mark host as restricted
         break;
       }
 

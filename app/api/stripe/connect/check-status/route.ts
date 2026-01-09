@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { stripe } from "@/lib/stripe/server";
+import { checkAccountStatus, computeOnboardingStatus } from "@/lib/stripe/connect";
+
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient();
@@ -12,36 +14,49 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { data: account } = await supabase
-      .from("host_stripe_accounts")
+    const { data: host } = await supabase
+      .from("hosts")
       .select("*")
       .eq("user_id", user.id)
       .single();
 
-    if (!account) {
-      return NextResponse.json({ hasAccount: false });
+    if (!host || !host.stripe_account_id) {
+      return NextResponse.json({
+        hasAccount: false,
+        stripe_onboarding_status: host?.stripe_onboarding_status || "not_started",
+      });
     }
 
     // Check Stripe account status
-    const stripeAccount = await stripe.accounts.retrieve(account.stripe_account_id);
+    const status = await checkAccountStatus({
+      accountId: host.stripe_account_id,
+    });
 
-    const onboardingCompleted =
-      stripeAccount.details_submitted &&
-      stripeAccount.charges_enabled &&
-      stripeAccount.payouts_enabled;
+    const onboardingStatus = computeOnboardingStatus(status);
 
-    // Update database if status changed
-    if (onboardingCompleted !== account.onboarding_completed) {
-      await supabase
-        .from("host_stripe_accounts")
-        .update({ onboarding_completed: onboardingCompleted })
-        .eq("user_id", user.id);
+    // Update database with latest status
+    const { error: updateError } = await supabase
+      .from("hosts")
+      .update({
+        stripe_charges_enabled: status.charges_enabled,
+        stripe_payouts_enabled: status.payouts_enabled,
+        stripe_requirements_due: status.currently_due.length > 0 ? status.currently_due : null,
+        stripe_onboarding_status: onboardingStatus,
+      })
+      .eq("user_id", user.id);
+
+    if (updateError) {
+      console.error("Failed to update host status:", updateError);
     }
 
     return NextResponse.json({
       hasAccount: true,
-      onboardingCompleted,
-      accountId: account.stripe_account_id,
+      stripe_account_id: host.stripe_account_id,
+      stripe_charges_enabled: status.charges_enabled,
+      stripe_payouts_enabled: status.payouts_enabled,
+      stripe_requirements_due: status.currently_due,
+      stripe_onboarding_status: onboardingStatus,
+      ready: onboardingStatus === "complete",
     });
   } catch (error: any) {
     console.error("Stripe Connect status check error:", error);

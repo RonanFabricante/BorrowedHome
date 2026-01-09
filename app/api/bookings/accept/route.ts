@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient();
@@ -16,14 +19,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "bookingId is required" }, { status: 400 });
     }
 
-    // Check if host has Stripe account
-    const { data: stripeAccount } = await supabase
-      .from("host_stripe_accounts")
+    // Check if host has completed Stripe onboarding
+    const { data: host } = await supabase
+      .from("hosts")
       .select("*")
       .eq("user_id", user.id)
       .single();
 
-    if (!stripeAccount || !stripeAccount.onboarding_completed) {
+    if (!host || host.stripe_onboarding_status !== "complete") {
       return NextResponse.json(
         {
           error: "STRIPE_ONBOARDING_REQUIRED",

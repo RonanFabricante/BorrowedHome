@@ -24,32 +24,32 @@ export default function StripeOnboardingPage() {
           throw new Error(data.error || "Failed to check status");
         }
 
-        if (data.onboardingCompleted) {
+        if (data.ready && data.stripe_onboarding_status === "complete") {
           setOnboardingCompleted(true);
-        } else if (data.hasAccount) {
+        } else if (data.hasAccount || data.stripe_onboarding_status === "in_progress") {
           // Account exists but onboarding not completed - get onboarding URL
-          const createResponse = await fetch("/api/stripe/connect/create-account", {
+          const onboardResponse = await fetch("/api/stripe/connect/onboard", {
             method: "POST",
           });
-          const createData = await createResponse.json();
+          const onboardData = await onboardResponse.json();
 
-          if (!createResponse.ok) {
-            throw new Error(createData.error || "Failed to get onboarding URL");
+          if (!onboardResponse.ok) {
+            throw new Error(onboardData.error || "Failed to get onboarding URL");
           }
 
-          setOnboardingUrl(createData.onboardingUrl);
+          setOnboardingUrl(onboardData.url);
         } else {
           // No account - create one
-          const createResponse = await fetch("/api/stripe/connect/create-account", {
+          const onboardResponse = await fetch("/api/stripe/connect/onboard", {
             method: "POST",
           });
-          const createData = await createResponse.json();
+          const onboardData = await onboardResponse.json();
 
-          if (!createResponse.ok) {
-            throw new Error(createData.error || "Failed to create account");
+          if (!onboardResponse.ok) {
+            throw new Error(onboardData.error || "Failed to create account");
           }
 
-          setOnboardingUrl(createData.onboardingUrl);
+          setOnboardingUrl(onboardData.url);
         }
       } catch (err: any) {
         setError(err.message || "An error occurred");

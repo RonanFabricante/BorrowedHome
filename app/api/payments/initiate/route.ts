@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { stripe, PLATFORM_FEE_PERCENTAGE } from "@/lib/stripe/server";
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient();
@@ -54,16 +57,23 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Check if host has Stripe account
-    const { data: hostStripeAccount } = await supabase
-      .from("host_stripe_accounts")
+    // Check if host has completed Stripe onboarding
+    const { data: host } = await supabase
+      .from("hosts")
       .select("*")
       .eq("user_id", booking.listings.host_id)
       .single();
 
-    if (!hostStripeAccount || !hostStripeAccount.onboarding_completed) {
+    if (!host || host.stripe_onboarding_status !== "complete") {
       return NextResponse.json(
         { error: "Host must complete Stripe onboarding before accepting bookings" },
+        { status: 400 }
+      );
+    }
+
+    if (!host.stripe_account_id) {
+      return NextResponse.json(
+        { error: "Host Stripe account not found" },
         { status: 400 }
       );
     }

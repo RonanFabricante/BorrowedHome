@@ -157,7 +157,7 @@ export function EditListingForm({ listing }: { listing: any }) {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
-      // If publishing, check for host declaration acceptance
+      // If publishing, check for host declaration acceptance and Stripe onboarding
       if (data.published && !listing.published) {
         // Check if user has accepted host declaration for current version
         const { data: existingAcceptance } = await supabase
@@ -175,6 +175,17 @@ export function EditListingForm({ listing }: { listing: any }) {
         // Verify checkbox is checked
         if (!data.hostDeclarationConfirmed) {
           throw new Error("You must confirm the Host Declaration checkbox before publishing.");
+        }
+
+        // Check if host has completed Stripe onboarding
+        const { data: host } = await supabase
+          .from("hosts")
+          .select("stripe_onboarding_status")
+          .eq("user_id", user.id)
+          .single();
+
+        if (!host || host.stripe_onboarding_status !== "complete") {
+          throw new Error("You must complete Stripe onboarding before publishing listings. Please visit the Host Payouts page to enable payouts.");
         }
 
         // Record acceptance on listing
