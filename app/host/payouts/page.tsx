@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Nav } from "@/components/nav";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,7 +18,7 @@ interface HostStatus {
   ready?: boolean;
 }
 
-export default function HostPayoutsPage() {
+function HostPayoutsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [loading, setLoading] = useState(true);
@@ -262,5 +262,29 @@ export default function HostPayoutsPage() {
         </div>
       </main>
     </div>
+  );
+}
+
+export default function HostPayoutsPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen">
+          <Nav />
+          <main className="container mx-auto px-4 py-8">
+            <div className="max-w-2xl mx-auto">
+              <Card>
+                <CardContent className="p-12 text-center">
+                  <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-muted-foreground" />
+                  <p className="text-muted-foreground">Loading...</p>
+                </CardContent>
+              </Card>
+            </div>
+          </main>
+        </div>
+      }
+    >
+      <HostPayoutsContent />
+    </Suspense>
   );
 }
