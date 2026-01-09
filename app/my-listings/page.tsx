@@ -50,18 +50,55 @@ export default async function MyListingsPage() {
       .map(b => b.listing_id)
   );
 
+  // Check Stripe onboarding status
+  const { data: host } = await supabase
+    .from("hosts")
+    .select("stripe_onboarding_status")
+    .eq("user_id", user.id)
+    .single();
+
+  const stripeOnboardingComplete = host?.stripe_onboarding_status === "complete";
+
   return (
     <div className="min-h-screen">
       <Nav />
       <main className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-8">
           <h1 className="text-3xl font-bold">My Listings</h1>
-          <a href="/host/onboard">
-            <button className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90">
-              Create New Listing
-            </button>
-          </a>
+          <div className="flex gap-2">
+            {!stripeOnboardingComplete && (
+              <a href="/host/payouts">
+                <button className="px-4 py-2 bg-amber-600 text-white rounded-md hover:bg-amber-700">
+                  Enable Payouts
+                </button>
+              </a>
+            )}
+            <a href="/host/onboard">
+              <button className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90">
+                Create New Listing
+              </button>
+            </a>
+          </div>
         </div>
+        
+        {/* Stripe Onboarding Reminder Banner */}
+        {!stripeOnboardingComplete && (
+          <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <h3 className="font-semibold text-amber-900 mb-1">Enable Payouts to Accept Bookings</h3>
+                <p className="text-sm text-amber-800 mb-3">
+                  To publish your listings and accept booking requests, you need to complete Stripe Connect onboarding to add your bank account details.
+                </p>
+                <a href="/host/payouts">
+                  <button className="px-4 py-2 bg-amber-600 text-white rounded-md hover:bg-amber-700 text-sm">
+                    Set Up Payouts
+                  </button>
+                </a>
+              </div>
+            </div>
+          </div>
+        )}
         <MyListingsList 
           listings={listings || []} 
           pendingBookings={pendingBookings}

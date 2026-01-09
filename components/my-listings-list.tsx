@@ -58,7 +58,7 @@ export function MyListingsList({
     },
     onError: (error: any) => {
       if (error.message === "STRIPE_ONBOARDING_REQUIRED") {
-        router.push("/host/stripe/onboarding");
+        router.push("/host/payouts");
       }
     },
   });

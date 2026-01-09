@@ -185,7 +185,9 @@ export function EditListingForm({ listing }: { listing: any }) {
           .single();
 
         if (!host || host.stripe_onboarding_status !== "complete") {
-          throw new Error("You must complete Stripe onboarding before publishing listings. Please visit the Host Payouts page to enable payouts.");
+          const error = new Error("You must complete Stripe onboarding before publishing listings.");
+          (error as any).code = "STRIPE_ONBOARDING_REQUIRED";
+          throw error;
         }
 
         // Record acceptance on listing
@@ -350,7 +352,12 @@ export function EditListingForm({ listing }: { listing: any }) {
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
             {error && (
               <div className="p-3 text-sm text-destructive bg-destructive/10 rounded-md">
-                {error}
+                <p className="mb-2">{error}</p>
+                {error.includes("Stripe onboarding") && (
+                  <a href="/host/payouts" className="text-sm underline font-semibold">
+                    Go to Host Payouts to enable payouts →
+                  </a>
+                )}
               </div>
             )}
 
