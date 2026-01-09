@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Nav } from "@/components/nav";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { AlertCircle, CheckCircle2, Loader2, Alert } from "lucide-react";
+import { AlertCircle, CheckCircle2, Loader2, AlertTriangle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 interface HostStatus {
@@ -192,7 +192,7 @@ export default function HostPayoutsPage() {
               ) : status?.stripe_onboarding_status === "restricted" ? (
                 <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
                   <div className="flex gap-3">
-                    <Alert className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
+                    <AlertTriangle className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
                     <div>
                       <h3 className="font-semibold mb-2">Account Restricted</h3>
                       <p className="text-sm text-muted-foreground">
