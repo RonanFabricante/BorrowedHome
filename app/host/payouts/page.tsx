@@ -10,6 +10,17 @@ import { Badge } from "@/components/ui/badge";
 
 interface HostStatus {
   hasAccount: boolean;
+  connectedAccountId?: string;
+  chargesEnabled?: boolean;
+  payoutsEnabled?: boolean;
+  detailsSubmitted?: boolean;
+  requirements?: {
+    currently_due: string[];
+    eventually_due: string[];
+    past_due: string[];
+    pending_verification: string[];
+  };
+  // Legacy fields for backward compatibility
   stripe_account_id?: string;
   stripe_charges_enabled?: boolean;
   stripe_payouts_enabled?: boolean;
@@ -30,7 +41,13 @@ function HostPayoutsContent() {
   useEffect(() => {
     const checkStatus = async () => {
       try {
-        const response = await fetch("/api/stripe/connect/check-status");
+        // Force fresh fetch with cache-busting
+        const response = await fetch("/api/stripe/connect/check-status", {
+          cache: "no-store",
+          headers: {
+            "Cache-Control": "no-cache",
+          },
+        });
         const data = await response.json();
 
         if (!response.ok) {
@@ -45,15 +62,8 @@ function HostPayoutsContent() {
       }
     };
 
-    // Check if returning from Stripe onboarding
-    const returnParam = searchParams.get("return");
-    const refreshParam = searchParams.get("refresh");
-
-    if (returnParam || refreshParam) {
-      checkStatus();
-    } else {
-      checkStatus();
-    }
+    // Always check status on load, especially when returning from Stripe
+    checkStatus();
   }, [searchParams]);
 
   const handleEnablePayouts = async () => {
@@ -144,89 +154,110 @@ function HostPayoutsContent() {
                 </div>
               )}
 
-              {status?.stripe_onboarding_status === "complete" && status.ready ? (
-                <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-                  <div className="flex gap-3">
-                    <CheckCircle2 className="h-5 w-5 text-green-600 mt-0.5 flex-shrink-0" />
-                    <div>
-                      <h3 className="font-semibold mb-2">Payouts Enabled</h3>
-                      <p className="text-sm text-muted-foreground">
-                        Your Stripe account is set up and ready to receive payouts. You can now accept booking requests.
-                      </p>
-                      {status.stripe_account_id && (
-                        <p className="text-xs text-muted-foreground mt-2">
-                          Account ID: {status.stripe_account_id.substring(0, 20)}...
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ) : status?.stripe_onboarding_status === "in_progress" ? (
-                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                  <div className="flex gap-3">
-                    <Loader2 className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0 animate-spin" />
-                    <div>
-                      <h3 className="font-semibold mb-2">Onboarding in Progress</h3>
-                      <p className="text-sm text-muted-foreground">
-                        Complete your Stripe onboarding to enable payouts. If you were redirected here, you may need to finish the process.
-                      </p>
-                      {status.stripe_requirements_due && status.stripe_requirements_due.length > 0 && (
-                        <div className="mt-3">
-                          <p className="text-sm font-semibold mb-2">Still required:</p>
-                          <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground">
-                            {status.stripe_requirements_due.map((req, idx) => (
-                              <li key={idx}>{getRequirementLabel(req)}</li>
-                            ))}
-                          </ul>
+              {(() => {
+                // Use new detailed status fields if available, fallback to legacy
+                const chargesEnabled = status?.chargesEnabled ?? status?.stripe_charges_enabled ?? false;
+                const payoutsEnabled = status?.payoutsEnabled ?? status?.stripe_payouts_enabled ?? false;
+                const detailsSubmitted = status?.detailsSubmitted ?? false;
+                const currentlyDue = status?.requirements?.currently_due ?? status?.stripe_requirements_due ?? [];
+                const isReady = chargesEnabled && payoutsEnabled && currentlyDue.length === 0;
+                const isInProgress = !detailsSubmitted || currentlyDue.length > 0;
+                const isRestricted = (!chargesEnabled || !payoutsEnabled) && currentlyDue.length > 0;
+
+                if (isReady) {
+                  return (
+                    <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                      <div className="flex gap-3">
+                        <CheckCircle2 className="h-5 w-5 text-green-600 mt-0.5 flex-shrink-0" />
+                        <div>
+                          <h3 className="font-semibold mb-2">Ready for Payouts</h3>
+                          <p className="text-sm text-muted-foreground">
+                            Your Stripe account is set up and ready to receive payouts. You can now accept booking requests.
+                          </p>
+                          {(status?.connectedAccountId || status?.stripe_account_id) && (
+                            <p className="text-xs text-muted-foreground mt-2">
+                              Account ID: {(status?.connectedAccountId || status?.stripe_account_id || "").substring(0, 20)}...
+                            </p>
+                          )}
                         </div>
-                      )}
-                      <Button
-                        onClick={handleEnablePayouts}
-                        disabled={onboarding}
-                        className="mt-4"
-                      >
-                        {onboarding ? "Redirecting..." : "Continue Onboarding"}
-                      </Button>
+                      </div>
                     </div>
-                  </div>
-                </div>
-              ) : status?.stripe_onboarding_status === "restricted" ? (
-                <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
-                  <div className="flex gap-3">
-                    <AlertTriangle className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
-                    <div>
-                      <h3 className="font-semibold mb-2">Account Restricted</h3>
-                      <p className="text-sm text-muted-foreground">
-                        Your Stripe account has been restricted. Please contact support or complete any outstanding requirements.
-                      </p>
-                      {status.stripe_disabled_reason && (
-                        <div className="mt-3 p-2 bg-amber-100 rounded text-xs">
-                          <p className="font-semibold mb-1">Reason:</p>
-                          <p className="text-muted-foreground">{status.stripe_disabled_reason}</p>
+                  );
+                } else if (isRestricted) {
+                  return (
+                    <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                      <div className="flex gap-3">
+                        <AlertTriangle className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
+                        <div>
+                          <h3 className="font-semibold mb-2">Account Restricted</h3>
+                          <p className="text-sm text-muted-foreground">
+                            Your Stripe account has been restricted. Please complete any outstanding requirements.
+                          </p>
+                          {status?.stripe_disabled_reason && (
+                            <div className="mt-3 p-2 bg-amber-100 rounded text-xs">
+                              <p className="font-semibold mb-1">Reason:</p>
+                              <p className="text-muted-foreground">{status.stripe_disabled_reason}</p>
+                            </div>
+                          )}
+                          {currentlyDue.length > 0 && (
+                            <div className="mt-3">
+                              <p className="text-sm font-semibold mb-2">Required actions:</p>
+                              <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground">
+                                {currentlyDue.map((req, idx) => (
+                                  <li key={idx}>{getRequirementLabel(req)}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                          <Button
+                            onClick={handleEnablePayouts}
+                            disabled={onboarding}
+                            className="mt-4"
+                            variant="outline"
+                          >
+                            {onboarding ? "Redirecting..." : "Continue Onboarding"}
+                          </Button>
                         </div>
-                      )}
-                      {status.stripe_requirements_due && status.stripe_requirements_due.length > 0 && (
-                        <div className="mt-3">
-                          <p className="text-sm font-semibold mb-2">Required actions:</p>
-                          <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground">
-                            {status.stripe_requirements_due.map((req, idx) => (
-                              <li key={idx}>{getRequirementLabel(req)}</li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-                      <Button
-                        onClick={handleEnablePayouts}
-                        disabled={onboarding}
-                        className="mt-4"
-                        variant="outline"
-                      >
-                        {onboarding ? "Redirecting..." : "Update Account"}
-                      </Button>
+                      </div>
                     </div>
-                  </div>
-                </div>
-              ) : (
+                  );
+                } else if (isInProgress) {
+                  return (
+                    <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                      <div className="flex gap-3">
+                        <Loader2 className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0 animate-spin" />
+                        <div>
+                          <h3 className="font-semibold mb-2">Onboarding in Progress</h3>
+                          <p className="text-sm text-muted-foreground">
+                            {!detailsSubmitted
+                              ? "Complete your Stripe onboarding to enable payouts."
+                              : "Please complete the remaining requirements to enable payouts."}
+                          </p>
+                          {currentlyDue.length > 0 && (
+                            <div className="mt-3">
+                              <p className="text-sm font-semibold mb-2">Still required:</p>
+                              <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground">
+                                {currentlyDue.map((req, idx) => (
+                                  <li key={idx}>{getRequirementLabel(req)}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                          <Button
+                            onClick={handleEnablePayouts}
+                            disabled={onboarding}
+                            className="mt-4"
+                          >
+                            {onboarding ? "Redirecting..." : "Continue Onboarding"}
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
+              {!status?.hasAccount && (
                 <div className="space-y-4">
                   <div>
                     <h3 className="font-semibold mb-2">Enable Payouts</h3>

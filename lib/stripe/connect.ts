@@ -5,7 +5,11 @@ export interface AccountStatus {
   charges_enabled: boolean;
   payouts_enabled: boolean;
   currently_due: string[];
+  eventually_due: string[];
+  past_due: string[];
+  pending_verification: string[];
   disabled_reason?: string | null;
+  details_submitted: boolean;
 }
 
 /**
@@ -69,13 +73,21 @@ export async function checkAccountStatus({
   const account = await stripe.accounts.retrieve(accountId);
 
   const currently_due = account.requirements?.currently_due || [];
+  const eventually_due = account.requirements?.eventually_due || [];
+  const past_due = account.requirements?.past_due || [];
+  const pending_verification = account.requirements?.pending_verification || [];
   const disabled_reason = account.requirements?.disabled_reason || null;
+  const details_submitted = account.details_submitted || false;
 
   return {
     charges_enabled: account.charges_enabled || false,
     payouts_enabled: account.payouts_enabled || false,
     currently_due: currently_due.map((req) => req.toString()),
+    eventually_due: eventually_due.map((req) => req.toString()),
+    past_due: past_due.map((req) => req.toString()),
+    pending_verification: pending_verification.map((req) => req.toString()),
     disabled_reason: disabled_reason || undefined,
+    details_submitted,
   };
 }
 
