@@ -273,22 +273,34 @@ export function HostOnboardingWizard() {
 
       if (availError) throw availError;
 
-      // Record host declaration acceptance
-      const { error: declarationError } = await supabase
+      // Record host declaration acceptance (only if not already recorded)
+      // Check if acceptance already exists to avoid duplicate key error
+      const { data: existingAcceptance } = await supabase
         .from("user_legal_acceptances")
-        .insert({
-          user_id: user.id,
-          doc_type: "host_declaration",
-          doc_version: TERMS_VERSION,
-          accepted_at: new Date().toISOString(),
-          metadata: {
-            onboarding: true,
-            listing_id: listing.id,
-          },
-        });
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("doc_type", "host_declaration")
+        .eq("doc_version", TERMS_VERSION)
+        .single();
 
-      if (declarationError) {
-        throw new Error(`Failed to record host declaration: ${declarationError.message}`);
+      // Only insert if it doesn't already exist
+      if (!existingAcceptance) {
+        const { error: declarationError } = await supabase
+          .from("user_legal_acceptances")
+          .insert({
+            user_id: user.id,
+            doc_type: "host_declaration",
+            doc_version: TERMS_VERSION,
+            accepted_at: new Date().toISOString(),
+            metadata: {
+              onboarding: true,
+              listing_id: listing.id,
+            },
+          });
+
+        if (declarationError) {
+          throw new Error(`Failed to record host declaration: ${declarationError.message}`);
+        }
       }
 
       // Update profile to mark as host
