@@ -44,6 +44,8 @@ export async function GET(request: NextRequest) {
         stripe_onboarding_status: onboardingStatus,
       })
       .eq("user_id", user.id);
+    
+    // Store disabled_reason in a separate field if needed (for now, we'll return it in the response)
 
     if (updateError) {
       console.error("Failed to update host status:", updateError);
@@ -56,6 +58,7 @@ export async function GET(request: NextRequest) {
       stripe_payouts_enabled: status.payouts_enabled,
       stripe_requirements_due: status.currently_due,
       stripe_onboarding_status: onboardingStatus,
+      stripe_disabled_reason: status.disabled_reason || undefined,
       ready: onboardingStatus === "complete",
     });
   } catch (error: any) {

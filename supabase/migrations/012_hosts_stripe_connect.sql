@@ -48,6 +48,11 @@ CREATE POLICY "Users can view their own host record"
   ON hosts FOR SELECT
   USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can insert their own host record" ON hosts;
+CREATE POLICY "Users can insert their own host record"
+  ON hosts FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
 DROP POLICY IF EXISTS "Users can update their own host record" ON hosts;
 CREATE POLICY "Users can update their own host record"
   ON hosts FOR UPDATE

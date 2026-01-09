@@ -15,6 +15,7 @@ interface HostStatus {
   stripe_payouts_enabled?: boolean;
   stripe_requirements_due?: string[];
   stripe_onboarding_status?: "not_started" | "in_progress" | "complete" | "restricted";
+  stripe_disabled_reason?: string;
   ready?: boolean;
 }
 
@@ -198,6 +199,12 @@ function HostPayoutsContent() {
                       <p className="text-sm text-muted-foreground">
                         Your Stripe account has been restricted. Please contact support or complete any outstanding requirements.
                       </p>
+                      {status.stripe_disabled_reason && (
+                        <div className="mt-3 p-2 bg-amber-100 rounded text-xs">
+                          <p className="font-semibold mb-1">Reason:</p>
+                          <p className="text-muted-foreground">{status.stripe_disabled_reason}</p>
+                        </div>
+                      )}
                       {status.stripe_requirements_due && status.stripe_requirements_due.length > 0 && (
                         <div className="mt-3">
                           <p className="text-sm font-semibold mb-2">Required actions:</p>

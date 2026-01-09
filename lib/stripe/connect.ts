@@ -85,8 +85,36 @@ export async function checkAccountStatus({
 export function computeOnboardingStatus(
   status: AccountStatus
 ): "not_started" | "in_progress" | "complete" | "restricted" {
+  // Only mark as restricted if there's a serious disabled reason
+  // Some disabled_reasons are temporary and should be treated as "in_progress"
   if (status.disabled_reason) {
-    return "restricted";
+    // Check if it's a serious restriction (not just pending verification)
+    // Serious restrictions typically mean the account cannot be used at all
+    const seriousRestrictionPatterns = [
+      'requirements.past_due',
+      'listed',
+      'platform_paused',
+      'rejected.fraud',
+      'rejected.terms_of_service',
+    ];
+    
+    // Pending verification is normal during onboarding - don't treat as restricted
+    const isPendingVerification = status.disabled_reason.toLowerCase().includes('pending_verification');
+    
+    const isSerious = seriousRestrictionPatterns.some(pattern => 
+      status.disabled_reason?.toLowerCase().includes(pattern.toLowerCase())
+    );
+    
+    // If it's a serious restriction AND capabilities are disabled, mark as restricted
+    if (isSerious && !status.charges_enabled && !status.payouts_enabled) {
+      return "restricted";
+    }
+    
+    // For pending verification or other temporary states, treat as in_progress
+    // if there are requirements due or capabilities aren't enabled yet
+    if (isPendingVerification || status.currently_due.length > 0 || !status.charges_enabled || !status.payouts_enabled) {
+      return "in_progress";
+    }
   }
 
   if (status.charges_enabled && status.payouts_enabled && status.currently_due.length === 0) {
