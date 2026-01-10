@@ -42,6 +42,9 @@ function CheckoutForm({ bookingId, amount, depositAmount, onSuccess }: PaymentFo
       }
 
       // Confirm payment
+      // Note: With redirect: "if_required", if a redirect is needed, the function will
+      // actually redirect the page and we won't reach this code. If no redirect is needed,
+      // it returns { paymentIntent, error?: undefined }
       const result = await stripe.confirmPayment({
         elements,
         confirmParams: {
@@ -53,13 +56,6 @@ function CheckoutForm({ bookingId, amount, depositAmount, onSuccess }: PaymentFo
       if (result.error) {
         setError(result.error.message || "Payment failed");
         setLoading(false);
-        return;
-      }
-
-      // If redirect happened, we're done (user will be redirected back)
-      if (result.type === "redirect") {
-        console.log("[PaymentForm] Payment confirmation requires redirect");
-        // onSuccess will be called after redirect
         return;
       }
 
