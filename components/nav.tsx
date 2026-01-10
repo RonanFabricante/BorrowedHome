@@ -41,6 +41,9 @@ export function Nav() {
               <Link href="/my-listings">
                 <Button variant="ghost">My Listings</Button>
               </Link>
+              <Link href="/host/payouts">
+                <Button variant="ghost">Host Payouts</Button>
+              </Link>
               <Link href="/host/onboard">
                 <Button variant="outline">Become a Host</Button>
               </Link>
