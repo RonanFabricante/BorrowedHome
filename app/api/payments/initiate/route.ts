@@ -65,6 +65,47 @@ export async function POST(request: NextRequest) {
       .eq("user_id", booking.listings.host_id)
       .single();
 
+    // Handle RLS errors - if we can't read the host record, it might be an RLS issue
+    // This can happen if migration 014 hasn't been run yet
+    if (hostError && hostError.code !== "PGRST116") {
+      console.error("[Payment Initiate] Error reading host record:", {
+        code: hostError.code,
+        message: hostError.message,
+        details: hostError.details,
+        hint: hostError.hint
+      });
+      
+      // Check if it's an RLS/permission error
+      const errorMessage = hostError.message || "";
+      const errorDetails = hostError.details || "";
+      const isRlsError = 
+        errorMessage.toLowerCase().includes("row-level security") ||
+        errorMessage.toLowerCase().includes("permission denied") ||
+        errorMessage.toLowerCase().includes("policy") ||
+        errorDetails.toLowerCase().includes("row-level security") ||
+        hostError.code === "42501"; // PostgreSQL permission denied code
+      
+      if (isRlsError) {
+        return NextResponse.json(
+          { 
+            error: "Unable to verify host Stripe account due to database permissions. The host should visit /host/payouts to ensure their Stripe account is properly synced. If this issue persists, please contact support.",
+            code: "RLS_ERROR",
+            details: "This may require running database migration 014_allow_guests_read_host_stripe_status.sql"
+          },
+          { status: 403 }
+        );
+      }
+      
+      // Other database errors
+      return NextResponse.json(
+        { 
+          error: `Unable to verify host Stripe account: ${errorMessage || "Database error"}. The host should visit /host/payouts to ensure their account is set up.`,
+          code: "DATABASE_ERROR"
+        },
+        { status: 500 }
+      );
+    }
+
     // If host record doesn't exist or is missing stripe_account_id, try to find it in Stripe
     // Search if: host not found (PGRST116) OR host exists but stripe_account_id is missing OR any other error
     const needsStripeSearch = (hostError?.code === "PGRST116") || !host || (host && !host.stripe_account_id);

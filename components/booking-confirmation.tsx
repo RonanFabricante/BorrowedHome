@@ -45,6 +45,14 @@ export function BookingConfirmation({ booking }: { booking: any }) {
               });
 
               const paymentData = await response.json();
+              
+              console.log("[BookingConfirmation] Payment initiation response:", {
+                ok: response.ok,
+                status: response.status,
+                hasClientSecret: !!paymentData.clientSecret,
+                error: paymentData.error,
+                data: paymentData
+              });
 
               if (response.ok && paymentData.clientSecret) {
                 // Payment initiated, now fetch the payment record
@@ -59,13 +67,33 @@ export function BookingConfirmation({ booking }: { booking: any }) {
                 }
               } else {
                 // Store error to display to user
-                const errorMessage = paymentData.error || "Failed to initiate payment";
-                console.error("Failed to initiate payment:", errorMessage);
+                const errorMessage = paymentData.error || paymentData.message || `Failed to initiate payment (${response.status})`;
+                console.error("[BookingConfirmation] Failed to initiate payment:", {
+                  status: response.status,
+                  error: errorMessage,
+                  fullResponse: paymentData
+                });
                 setPaymentInitError(errorMessage);
               }
             } catch (err: any) {
-              console.error("Error initiating payment:", err);
-              setPaymentInitError(err.message || "Failed to initiate payment");
+              console.error("[BookingConfirmation] Error initiating payment:", err);
+              // Handle different error types
+              let errorMessage = "Failed to initiate payment. Please try again.";
+              
+              if (err.message) {
+                errorMessage = err.message;
+              } else if (err.toString && err.toString() !== "[object Object]") {
+                errorMessage = err.toString();
+              } else if (err.error) {
+                errorMessage = err.error;
+              }
+              
+              // If it's a network error, provide helpful message
+              if (errorMessage.includes("fetch") || errorMessage.includes("network") || errorMessage.includes("Failed to fetch")) {
+                errorMessage = "Network error. Please check your connection and try again.";
+              }
+              
+              setPaymentInitError(errorMessage);
             }
           } else if (data) {
             // Payment record exists
@@ -306,9 +334,7 @@ export function BookingConfirmation({ booking }: { booking: any }) {
               <div>
                 <h3 className="font-semibold text-destructive mb-1">Payment Setup Required</h3>
                 <p className="text-sm text-muted-foreground mb-3">
-                  {paymentInitError.includes("Stripe") || paymentInitError.includes("onboarding")
-                    ? paymentInitError
-                    : "Unable to set up payment. Please contact support."}
+                  {paymentInitError}
                 </p>
                 {paymentInitError.includes("/host/payouts") && (
                   <p className="text-xs text-muted-foreground">
