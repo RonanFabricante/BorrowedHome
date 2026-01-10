@@ -59,15 +59,93 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if host has completed Stripe onboarding
-    const { data: host } = await supabase
+    let { data: host, error: hostError } = await supabase
       .from("hosts")
       .select("*")
       .eq("user_id", booking.listings.host_id)
       .single();
 
+    // If host record doesn't exist or is missing stripe_account_id, try to find it in Stripe
+    if (hostError || !host || !host.stripe_account_id) {
+      console.log(`[Payment Initiate] Host record missing or stripe_account_id not found for user ${booking.listings.host_id}, searching Stripe...`);
+      
+      // Try to find Stripe account by listing accounts with matching metadata (user_id)
+      // When onboarding creates an account, it sets metadata.user_id = userId
+      try {
+        const accounts = await stripe.accounts.list({
+          limit: 100,
+        });
+
+        // Find account matching user_id in metadata
+        const matchingAccount = accounts.data.find(
+          (acc) => acc.metadata?.user_id === booking.listings.host_id
+        );
+
+        if (matchingAccount) {
+          // Found the account - update or create host record
+          console.log(`[Payment Initiate] Found Stripe account ${matchingAccount.id} for user ${booking.listings.host_id}`);
+          
+          if (!host) {
+            // Create host record
+            const { data: newHost, error: createError } = await supabase
+              .from("hosts")
+              .insert({
+                user_id: booking.listings.host_id,
+                stripe_account_id: matchingAccount.id,
+                stripe_onboarding_status: "in_progress",
+              })
+              .select()
+              .single();
+            
+            if (createError) {
+              console.error("[Payment Initiate] Failed to create host record:", createError);
+            } else {
+              host = newHost;
+            }
+          } else {
+            // Update existing host record
+            const { data: updatedHost, error: updateError } = await supabase
+              .from("hosts")
+              .update({
+                stripe_account_id: matchingAccount.id,
+              })
+              .eq("user_id", booking.listings.host_id)
+              .select()
+              .single();
+            
+            if (updateError) {
+              console.error("[Payment Initiate] Failed to update host record:", updateError);
+            } else if (updatedHost) {
+              host = updatedHost;
+            }
+          }
+        } else {
+          // Account not found in Stripe - host needs to complete onboarding
+          console.log(`[Payment Initiate] No Stripe account found with metadata.user_id = ${booking.listings.host_id}`);
+          if (!host) {
+            await supabase.from("hosts").insert({
+              user_id: booking.listings.host_id,
+              stripe_onboarding_status: "not_started",
+            });
+          }
+          return NextResponse.json(
+            { error: "Host must complete Stripe onboarding. Please visit /host/payouts to set up your account." },
+            { status: 400 }
+          );
+        }
+      } catch (stripeError: any) {
+        console.error("[Payment Initiate] Error searching Stripe accounts:", stripeError);
+        return NextResponse.json(
+          { error: "Unable to verify host Stripe account. Please visit /host/payouts to complete onboarding." },
+          { status: 500 }
+        );
+      }
+    }
+
+    // At this point, host should exist and have stripe_account_id
     if (!host || !host.stripe_account_id) {
       return NextResponse.json(
-        { error: "Host Stripe account not found. Please complete Stripe onboarding." },
+        { error: "Host Stripe account not found. Please visit /host/payouts to complete onboarding." },
         { status: 400 }
       );
     }
