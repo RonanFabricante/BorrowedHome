@@ -57,7 +57,10 @@ export function BookingConfirmation({ booking }: { booking: any }) {
                   setPayment(newPayment);
                 }
               } else {
-                console.error("Failed to initiate payment:", paymentData.error);
+                // Store error to display to user
+                const errorMessage = paymentData.error || "Failed to initiate payment";
+                console.error("Failed to initiate payment:", errorMessage);
+                setPaymentInitError(errorMessage);
               }
             } catch (err) {
               console.error("Error initiating payment:", err);
@@ -292,8 +295,32 @@ export function BookingConfirmation({ booking }: { booking: any }) {
         </CardContent>
       </Card>
 
-      {/* Payment Form - Show if CONFIRMED but payment not authorised */}
-      {needsPayment && !paymentLoading && (
+      {/* Payment Initiation Error */}
+      {paymentInitError && (
+        <Card className="mb-6 border-destructive bg-destructive/10">
+          <CardContent className="pt-6">
+            <div className="flex gap-3">
+              <AlertCircle className="h-5 w-5 text-destructive mt-0.5 flex-shrink-0" />
+              <div>
+                <h3 className="font-semibold text-destructive mb-1">Payment Setup Required</h3>
+                <p className="text-sm text-muted-foreground mb-3">
+                  {paymentInitError.includes("Stripe") || paymentInitError.includes("onboarding")
+                    ? paymentInitError
+                    : "Unable to set up payment. Please contact support."}
+                </p>
+                {paymentInitError.includes("/host/payouts") && (
+                  <p className="text-xs text-muted-foreground">
+                    The host needs to complete Stripe onboarding before payments can be processed.
+                  </p>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Payment Form - Show if CONFIRMED but payment not authorised and no error */}
+      {needsPayment && !paymentLoading && !paymentInitError && (
         <PaymentForm
           bookingId={booking.id}
           amount={booking.total_amount}

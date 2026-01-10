@@ -92,6 +92,64 @@ export async function checkAccountStatus({
 }
 
 /**
+ * Find a Stripe Connect account for a user by searching with multiple strategies
+ * Returns the account ID if found, null otherwise
+ */
+export async function findStripeAccountByUserId(userId: string): Promise<string | null> {
+  try {
+    // Strategy 1: Search by metadata.user_id (most reliable if metadata was set)
+    let allAccounts: Stripe.Account[] = [];
+    let hasMore = true;
+    let startingAfter: string | undefined = undefined;
+
+    // Paginate through accounts to find the one matching our userId
+    // We'll check up to 500 accounts (5 pages of 100) - increase if needed
+    const maxPages = 10; // Increased to check more accounts
+    let pageCount = 0;
+
+    console.log(`[findStripeAccountByUserId] Searching for account with user_id: ${userId}`);
+
+    while (hasMore && pageCount < maxPages) {
+      const response = await stripe.accounts.list({
+        limit: 100,
+        starting_after: startingAfter,
+      });
+
+      allAccounts = allAccounts.concat(response.data);
+      hasMore = response.has_more;
+      startingAfter = response.data.length > 0 ? response.data[response.data.length - 1].id : undefined;
+      pageCount++;
+      
+      console.log(`[findStripeAccountByUserId] Searched ${allAccounts.length} accounts so far (page ${pageCount})`);
+    }
+
+    // Find account matching user_id in metadata
+    const matchingAccount = allAccounts.find(
+      (acc) => acc.metadata?.user_id === userId
+    );
+
+    if (matchingAccount) {
+      console.log(`[findStripeAccountByUserId] Found account ${matchingAccount.id} with metadata.user_id = ${userId}`);
+      return matchingAccount.id;
+    }
+
+    // Log accounts that don't have metadata set for debugging
+    const accountsWithoutMetadata = allAccounts.filter(acc => !acc.metadata || !acc.metadata.user_id);
+    if (accountsWithoutMetadata.length > 0) {
+      console.log(`[findStripeAccountByUserId] Found ${accountsWithoutMetadata.length} accounts without metadata.user_id set. Cannot match by user_id.`);
+      // Log first few account IDs for debugging (without exposing sensitive data)
+      console.log(`[findStripeAccountByUserId] Sample account IDs without metadata: ${accountsWithoutMetadata.slice(0, 3).map(a => a.id).join(", ")}`);
+    }
+
+    console.log(`[findStripeAccountByUserId] No account found with metadata.user_id = ${userId} after searching ${allAccounts.length} accounts`);
+    return null;
+  } catch (error: any) {
+    console.error(`[findStripeAccountByUserId] Error searching for account:`, error);
+    return null;
+  }
+}
+
+/**
  * Determine onboarding status from Stripe account
  */
 export function computeOnboardingStatus(
