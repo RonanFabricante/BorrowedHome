@@ -149,6 +149,36 @@ export function HostOnboardingWizard() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
+      // Check Stripe onboarding status BEFORE creating listing (defense in depth)
+      const { data: host, error: hostError } = await supabase
+        .from("hosts")
+        .select("stripe_onboarding_status, stripe_charges_enabled, stripe_payouts_enabled")
+        .eq("user_id", user.id)
+        .single();
+
+      if (hostError && hostError.code !== "PGRST116") {
+        const error = new Error("Unable to verify Stripe status. Please visit /host/payouts to set up your account.");
+        (error as any).code = "STRIPE_CHECK_ERROR";
+        throw error;
+      }
+
+      if (!host) {
+        const error = new Error("You must complete Stripe onboarding before creating listings. Please visit /host/payouts to set up your account.");
+        (error as any).code = "STRIPE_ONBOARDING_REQUIRED";
+        throw error;
+      }
+
+      // Verify Stripe is fully ready (complete and capabilities enabled)
+      if (
+        host.stripe_onboarding_status !== "complete" ||
+        !host.stripe_charges_enabled ||
+        !host.stripe_payouts_enabled
+      ) {
+        const error = new Error("Your Stripe account must be fully set up before creating listings. Please complete onboarding at /host/payouts");
+        (error as any).code = "STRIPE_ONBOARDING_REQUIRED";
+        throw error;
+      }
+
       // Ensure profile exists before creating listing
       const { error: profileError } = await supabase
         .from("profiles")
@@ -315,7 +345,11 @@ export function HostOnboardingWizard() {
       router.push(`/my-listings?created=${listing.id}`);
     },
     onError: (err: any) => {
-      setError(err.message || "Failed to create listing");
+      if (err.code === "STRIPE_ONBOARDING_REQUIRED" || err.message?.includes("Stripe")) {
+        setError(err.message || "Stripe onboarding required. Please visit /host/payouts to complete setup.");
+      } else {
+        setError(err.message || "Failed to create listing");
+      }
       setUploading(false);
     },
   });
