@@ -77,104 +77,38 @@ export async function POST(request: NextRequest) {
         const foundAccountId = await findStripeAccountByUserId(booking.listings.host_id);
 
         if (foundAccountId) {
-          // Found the account - check status and sync database
+          // Found the account in Stripe - verify it's ready
           console.log(`[Payment Initiate] Found Stripe account ${foundAccountId} for user ${booking.listings.host_id}`);
           
-          // Get full account status from Stripe
+          // Get full account status from Stripe (we cannot update database as guest due to RLS)
           const status = await checkAccountStatus({ accountId: foundAccountId });
-          const onboardingStatus = computeOnboardingStatus(status);
           
           // Verify account is actually ready
-          if (!status.charges_enabled || !status.payouts_enabled) {
-            console.log(`[Payment Initiate] Stripe account found but not ready:`, {
-              charges_enabled: status.charges_enabled,
-              payouts_enabled: status.payouts_enabled,
-              currently_due: status.currently_due.length,
-            });
-            // Still sync to database so status is updated
-          }
-          
-          if (!host) {
-            // Create host record with full status
-            const { data: newHost, error: createError } = await supabase
-              .from("hosts")
-              .insert({
-                user_id: booking.listings.host_id,
-                stripe_account_id: foundAccountId,
-                stripe_charges_enabled: status.charges_enabled,
-                stripe_payouts_enabled: status.payouts_enabled,
-                stripe_requirements_due: status.currently_due.length > 0 ? status.currently_due : null,
-                stripe_onboarding_status: onboardingStatus,
-              })
-              .select()
-              .single();
-            
-            if (createError) {
-              console.error("[Payment Initiate] Failed to create host record:", createError);
-              throw new Error(`Failed to sync Stripe account to database: ${createError.message}`);
-            } else {
-              host = newHost;
-            }
-          } else {
-            // Update existing host record with full status
-            const { data: updatedHost, error: updateError } = await supabase
-              .from("hosts")
-              .update({
-                stripe_account_id: foundAccountId,
-                stripe_charges_enabled: status.charges_enabled,
-                stripe_payouts_enabled: status.payouts_enabled,
-                stripe_requirements_due: status.currently_due.length > 0 ? status.currently_due : null,
-                stripe_onboarding_status: onboardingStatus,
-              })
-              .eq("user_id", booking.listings.host_id)
-              .select()
-              .single();
-            
-            if (updateError) {
-              console.error("[Payment Initiate] Failed to update host record:", updateError);
-              throw new Error(`Failed to sync Stripe account to database: ${updateError.message}`);
-            } else if (!updatedHost) {
-              throw new Error("Failed to update host record: no data returned");
-            } else {
-              host = updatedHost;
-            }
-          }
-          
-          // If account is not ready, return error
           if (!status.charges_enabled || !status.payouts_enabled || status.currently_due.length > 0) {
             return NextResponse.json(
               { 
-                error: "Host Stripe account is not fully enabled yet",
+                error: "Host Stripe account exists but is not fully enabled yet. The host should visit /host/payouts to complete setup.",
                 details: `Charges enabled: ${status.charges_enabled}, Payouts enabled: ${status.payouts_enabled}, Requirements due: ${status.currently_due.length}`
               },
               { status: 400 }
             );
           }
+          
+          // Account is ready in Stripe but not synced to database
+          // Host needs to visit /host/payouts to sync (they can do this themselves, which will work with RLS)
+          return NextResponse.json(
+            { 
+              error: "Host Stripe account exists but needs to be synced. The host should visit /host/payouts to sync their account before accepting payments.",
+              code: "STRIPE_ACCOUNT_NOT_SYNCED"
+            },
+            { status: 400 }
+          );
         } else {
-          // Account not found in Stripe - host needs to complete onboarding OR sync their account
+          // Account not found in Stripe - host needs to complete onboarding
           console.log(`[Payment Initiate] No Stripe account found with metadata.user_id = ${booking.listings.host_id} after searching`);
           
-          // If host record exists but stripe_account_id is missing, suggest syncing
-          if (host && !host.stripe_account_id) {
-            return NextResponse.json(
-              { 
-                error: "Host Stripe account not found in database. The host should visit /host/payouts to sync their Stripe account. If they completed Stripe onboarding, visiting /host/payouts will automatically sync the account.",
-                code: "STRIPE_ACCOUNT_NOT_SYNCED"
-              },
-              { status: 400 }
-            );
-          }
-          
-          // Host record doesn't exist - create it
-          if (!host) {
-            await supabase.from("hosts").insert({
-              user_id: booking.listings.host_id,
-              stripe_onboarding_status: "not_started",
-            });
-          }
-          
           return NextResponse.json(
-            { error: "Host must complete Stripe onboarding. Please visit /host/payouts to set up your account." },
+            { error: "Host must complete Stripe onboarding. Please contact the host to visit /host/payouts to set up their account." },
             { status: 400 }
           );
         }
@@ -196,7 +130,7 @@ export async function POST(request: NextRequest) {
     }
 
     // If database status is not complete, check Stripe directly (source of truth)
-    // This handles cases where the database might be out of sync with Stripe
+    // Note: We cannot update the database as a guest due to RLS, but we can verify Stripe status
     if (!host.stripe_onboarding_status || host.stripe_onboarding_status !== "complete") {
       console.log(`[Payment Initiate] Database shows status "${host.stripe_onboarding_status}", checking Stripe directly...`);
       
@@ -205,24 +139,9 @@ export async function POST(request: NextRequest) {
       
       // Check if account is actually ready (charges and payouts enabled, no requirements due)
       if (status.charges_enabled && status.payouts_enabled && status.currently_due.length === 0) {
-        // Account is ready in Stripe - update database and proceed
-        console.log(`[Payment Initiate] Stripe account is ready, updating database...`);
-        const onboardingStatus = computeOnboardingStatus(status);
-        const { error: updateError } = await supabase
-          .from("hosts")
-          .update({
-            stripe_charges_enabled: status.charges_enabled,
-            stripe_payouts_enabled: status.payouts_enabled,
-            stripe_requirements_due: status.currently_due.length > 0 ? status.currently_due : null,
-            stripe_onboarding_status: onboardingStatus,
-          })
-          .eq("user_id", booking.listings.host_id);
-        
-        if (updateError) {
-          console.error("[Payment Initiate] Failed to update host status:", updateError);
-          // Continue anyway since Stripe confirms account is ready
-        }
-        
+        // Account is ready in Stripe - proceed with payment even if database status is out of sync
+        // The host can visit /host/payouts to sync their status later
+        console.log(`[Payment Initiate] Stripe account is ready, proceeding despite database status mismatch`);
         // Continue with payment initiation
       } else {
         // Account is not ready in Stripe either
@@ -237,7 +156,7 @@ export async function POST(request: NextRequest) {
             error: "Host must complete Stripe onboarding before accepting bookings",
             details: status.currently_due.length > 0 
               ? `Please complete: ${status.currently_due.join(", ")}`
-              : "Account capabilities are not enabled yet"
+              : "Account capabilities are not enabled yet. The host should visit /host/payouts to complete setup."
           },
           { status: 400 }
         );
