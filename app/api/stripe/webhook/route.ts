@@ -43,7 +43,8 @@ export async function POST(request: NextRequest) {
 
   try {
     switch (event.type) {
-      case "payment_intent.succeeded": {
+      case "payment_intent.succeeded":
+      case "payment_intent.amount_capturable_updated": {
         const paymentIntent = event.data.object as Stripe.PaymentIntent;
         const bookingId = paymentIntent.metadata.booking_id;
         const paymentType = paymentIntent.metadata.type;
@@ -53,6 +54,7 @@ export async function POST(request: NextRequest) {
           break;
         }
 
+        // For manual capture, "requires_capture" or "succeeded" means payment is authorized
         // Update payment status to authorised
         const { error } = await supabase
           .from("payments")
@@ -65,7 +67,7 @@ export async function POST(request: NextRequest) {
           console.error("Failed to update payment status:", error);
         }
 
-        // If this is the booking payment (not deposit), update booking status
+        // If this is the booking payment (not deposit), ensure booking is CONFIRMED
         if (paymentType === "booking") {
           await supabase
             .from("bookings")

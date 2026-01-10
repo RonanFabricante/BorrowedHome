@@ -42,7 +42,7 @@ function CheckoutForm({ bookingId, amount, depositAmount, onSuccess }: PaymentFo
       }
 
       // Confirm payment
-      const { error: confirmError } = await stripe.confirmPayment({
+      const result = await stripe.confirmPayment({
         elements,
         confirmParams: {
           return_url: `${window.location.origin}/bookings/${bookingId}/confirm?payment=success`,
@@ -50,14 +50,76 @@ function CheckoutForm({ bookingId, amount, depositAmount, onSuccess }: PaymentFo
         redirect: "if_required",
       });
 
-      if (confirmError) {
-        setError(confirmError.message || "Payment failed");
+      if (result.error) {
+        setError(result.error.message || "Payment failed");
         setLoading(false);
         return;
       }
 
-      // Payment succeeded
-      onSuccess();
+      // If redirect happened, we're done (user will be redirected back)
+      if (result.type === "redirect") {
+        console.log("[PaymentForm] Payment confirmation requires redirect");
+        // onSuccess will be called after redirect
+        return;
+      }
+
+      // PaymentIntent was confirmed successfully
+      // For manual capture, status will be "requires_capture" (not "succeeded")
+      // This is correct - the payment is authorized but not yet captured
+      const paymentIntent = result.paymentIntent;
+      
+      if (paymentIntent) {
+        const status = paymentIntent.status;
+        console.log("[PaymentForm] PaymentIntent status after confirmation:", status);
+        
+        // Payment is authorized (requires_capture) or succeeded
+        if (status === "requires_capture" || status === "succeeded") {
+          // Update payment status in database via API
+          try {
+            const response = await fetch(`/api/payments/authorize`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ 
+                bookingId,
+                paymentIntentId: paymentIntent.id 
+              }),
+            });
+
+            if (!response.ok) {
+              const data = await response.json();
+              console.error("[PaymentForm] Failed to update payment status:", data.error);
+              // Don't fail - webhook will handle it eventually
+            } else {
+              console.log("[PaymentForm] Payment status updated to authorised");
+            }
+          } catch (err) {
+            console.error("[PaymentForm] Error updating payment status:", err);
+            // Don't fail - webhook will handle it eventually
+          }
+          
+          // Clear loading state first
+          setLoading(false);
+          
+          // Call onSuccess to refresh UI
+          // The parent component will refetch payment status
+          onSuccess();
+        } else if (status === "requires_action") {
+          // Payment requires additional action (like 3D Secure)
+          // This should have been handled by Stripe Elements, but log for debugging
+          console.warn("[PaymentForm] PaymentIntent still requires action:", status);
+          setError("Payment requires additional verification. Please try again.");
+          setLoading(false);
+        } else {
+          console.error("[PaymentForm] Unexpected PaymentIntent status:", status);
+          setError("Payment confirmation incomplete. Please try again.");
+          setLoading(false);
+        }
+      } else {
+        // No PaymentIntent returned - should not happen
+        console.error("[PaymentForm] No PaymentIntent returned from confirmPayment");
+        setError("Payment confirmation incomplete. Please refresh and try again.");
+        setLoading(false);
+      }
     } catch (err: any) {
       setError(err.message || "An error occurred");
       setLoading(false);
