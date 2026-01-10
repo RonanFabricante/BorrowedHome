@@ -86,13 +86,67 @@ export async function POST(request: NextRequest) {
           break;
         }
 
-        // Update payment status
-        await supabase
-          .from("payments")
-          .update({ status: "released" })
-          .or(
-            `stripe_payment_intent_id.eq.${paymentIntent.id},stripe_deposit_intent_id.eq.${paymentIntent.id}`
-          );
+        const paymentType = paymentIntent.metadata.type;
+
+        // If this is a deposit cancellation, update deposit release timestamp
+        if (paymentType === "deposit") {
+          await supabase
+            .from("payments")
+            .update({ 
+              deposit_released_at: new Date().toISOString()
+            })
+            .eq("stripe_deposit_intent_id", paymentIntent.id);
+        } else {
+          // For main payment, update status to released
+          await supabase
+            .from("payments")
+            .update({ status: "released" })
+            .eq("stripe_payment_intent_id", paymentIntent.id);
+        }
+
+        break;
+      }
+
+      case "payment_intent.captured": {
+        // Payment was captured (manual or automatic)
+        const paymentIntent = event.data.object as Stripe.PaymentIntent;
+        const bookingId = paymentIntent.metadata.booking_id;
+        const paymentType = paymentIntent.metadata.type;
+
+        if (!bookingId) {
+          break;
+        }
+
+        // Only update status for main booking payment (not deposit)
+        if (paymentType === "booking") {
+          const { error } = await supabase
+            .from("payments")
+            .update({ 
+              status: "captured",
+              auto_capture_scheduled_at: null // Clear scheduled time
+            })
+            .eq("stripe_payment_intent_id", paymentIntent.id);
+
+          if (error) {
+            console.error("[Webhook] Failed to update payment status to captured:", error);
+          } else {
+            console.log(`[Webhook] Payment captured for booking ${bookingId}`);
+          }
+        }
+
+        break;
+      }
+
+      case "transfer.created": {
+        // Transfer to host was created (for logging/auditing)
+        const transfer = event.data.object as Stripe.Transfer;
+        const bookingId = transfer.metadata?.booking_id;
+
+        if (bookingId) {
+          console.log(`[Webhook] Transfer created for booking ${bookingId}: ${transfer.id} (${transfer.amount} ${transfer.currency})`);
+          // Optionally log transfer to database for auditing
+          // For now, we just log it
+        }
 
         break;
       }

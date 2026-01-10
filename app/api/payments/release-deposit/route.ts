@@ -2,6 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { stripe } from "@/lib/stripe/server";
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+/**
+ * Release deposit (after booking completion with no damage)
+ * Cancels the deposit PaymentIntent and updates payment record
+ */
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient();
@@ -17,7 +24,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "bookingId is required" }, { status: 400 });
     }
 
-    // Fetch payment
+    // Fetch payment with deposit info
     const { data: payment, error: paymentError } = await supabase
       .from("payments")
       .select(`
@@ -54,20 +61,37 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Check if deposit has already been released
+    if (payment.deposit_released_at) {
+      return NextResponse.json(
+        { error: "Deposit has already been released" },
+        { status: 400 }
+      );
+    }
+
     // Cancel (release) the deposit intent
+    console.log(`[ReleaseDeposit] Canceling deposit PaymentIntent ${payment.stripe_deposit_intent_id} for booking ${bookingId}`);
     await stripe.paymentIntents.cancel(payment.stripe_deposit_intent_id);
 
-    // Update payment status
+    // Update payment record with deposit release timestamp
     const { error: updateError } = await supabase
       .from("payments")
-      .update({ status: "released" })
+      .update({ 
+        deposit_released_at: new Date().toISOString()
+      })
       .eq("id", payment.id);
 
     if (updateError) {
+      console.error("[ReleaseDeposit] Failed to update payment:", updateError);
       throw updateError;
     }
 
-    return NextResponse.json({ success: true });
+    console.log(`[ReleaseDeposit] Deposit released successfully for booking ${bookingId}`);
+    return NextResponse.json({ 
+      success: true,
+      message: "Deposit released successfully",
+      releasedAt: new Date().toISOString()
+    });
   } catch (error: any) {
     console.error("Deposit release error:", error);
     return NextResponse.json(
