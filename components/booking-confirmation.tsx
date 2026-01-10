@@ -24,6 +24,7 @@ export function BookingConfirmation({ booking }: { booking: any }) {
   
   const [payment, setPayment] = useState<any>(null);
   const [paymentLoading, setPaymentLoading] = useState(true);
+  const [paymentInitError, setPaymentInitError] = useState<string | null>(null);
 
   useEffect(() => {
     if (isConfirmed) {
@@ -62,8 +63,9 @@ export function BookingConfirmation({ booking }: { booking: any }) {
                 console.error("Failed to initiate payment:", errorMessage);
                 setPaymentInitError(errorMessage);
               }
-            } catch (err) {
+            } catch (err: any) {
               console.error("Error initiating payment:", err);
+              setPaymentInitError(err.message || "Failed to initiate payment");
             }
           } else if (data) {
             // Payment record exists

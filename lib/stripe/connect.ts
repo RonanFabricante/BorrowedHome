@@ -110,7 +110,7 @@ export async function findStripeAccountByUserId(userId: string): Promise<string 
     console.log(`[findStripeAccountByUserId] Searching for account with user_id: ${userId}`);
 
     while (hasMore && pageCount < maxPages) {
-      const response = await stripe.accounts.list({
+      const response: Stripe.Response<Stripe.ApiList<Stripe.Account>> = await stripe.accounts.list({
         limit: 100,
         starting_after: startingAfter,
       });
