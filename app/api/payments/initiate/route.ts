@@ -51,10 +51,24 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (existingPayment) {
+      // Payment already exists - retrieve client_secret from Stripe
+      const paymentIntent = await stripe.paymentIntents.retrieve(
+        existingPayment.stripe_payment_intent_id
+      );
+      
+      let depositClientSecret: string | null = null;
+      if (existingPayment.stripe_deposit_intent_id) {
+        const depositIntent = await stripe.paymentIntents.retrieve(
+          existingPayment.stripe_deposit_intent_id
+        );
+        depositClientSecret = depositIntent.client_secret;
+      }
+
       return NextResponse.json({
         paymentIntentId: existingPayment.stripe_payment_intent_id,
         depositIntentId: existingPayment.stripe_deposit_intent_id,
-        clientSecret: null, // Payment already initiated
+        clientSecret: paymentIntent.client_secret,
+        depositClientSecret,
       });
     }
 
