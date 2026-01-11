@@ -122,8 +122,11 @@ tsx scripts/seed.ts
 ├── lib/                    # Utilities and types
 │   ├── supabase/          # Supabase clients
 │   └── types.ts           # TypeScript types
-├── supabase/               # Database migrations
-│   └── migrations/        # SQL migration files
+├── supabase/               # Supabase configuration
+│   ├── migrations/        # SQL migration files
+│   └── functions/         # Edge Functions (scheduled jobs)
+│       ├── complete-bookings/
+│       └── auto-capture-payments/
 └── scripts/                # Utility scripts
     └── seed.ts            # Seed data script
 ```
@@ -176,18 +179,31 @@ All tables have Row Level Security (RLS) policies enabled.
 
 ## Deployment
 
-### Vercel
+### Vercel (Next.js Application)
 
 1. Push your code to GitHub
 2. Import project in Vercel
 3. Add environment variables:
    - `NEXT_PUBLIC_SUPABASE_URL`
    - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+   - `STRIPE_SECRET_KEY` (for payments)
+   - `STRIPE_WEBHOOK_SECRET` (for webhooks)
+   - `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`
+   - `CRON_SECRET` (optional - for manual API route triggers)
 4. Deploy
 
 ### Supabase Production
 
-Make sure to run migrations on your production Supabase instance.
+1. **Run Migrations**: Apply all migrations in `supabase/migrations/` to your production Supabase instance
+
+2. **Deploy Scheduled Edge Functions**: 
+   - See `docs/SUPABASE_SCHEDULER_SETUP.md` for detailed instructions
+   - Deploy `supabase/functions/complete-bookings` (runs hourly)
+   - Deploy `supabase/functions/auto-capture-payments` (runs every 30 minutes)
+   - Set required secrets: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `STRIPE_SECRET_KEY`, `SUPABASE_CRON_SECRET`
+   - Configure schedules using `pg_cron`
+
+**Note**: Production scheduling is handled by Supabase Edge Functions, not Vercel Cron. This eliminates deployment blocking and provides reliable scheduling.
 
 ## Development Notes
 

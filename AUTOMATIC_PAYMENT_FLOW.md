@@ -36,10 +36,11 @@ BorrowedHome implements automatic payment capture with a review window, automati
 - Automatically marks bookings as `COMPLETED` when `end_at < NOW()` and status is `CONFIRMED`
 - Trigger fires on UPDATE operations
 
-**Cron Job** (`/api/cron/complete-bookings`):
-- Runs every hour (`0 * * * *`)
-- Calls `mark_past_bookings_completed()` function as backup
+**Scheduled Edge Function** (`supabase/functions/complete-bookings`):
+- Runs every hour via Supabase scheduler (pg_cron)
+- Calls `mark_past_bookings_completed()` database function
 - Ensures no bookings are missed
+- See `docs/SUPABASE_SCHEDULER_SETUP.md` for setup details
 
 ### Phase 2: Review Window
 
@@ -56,21 +57,24 @@ BorrowedHome implements automatic payment capture with a review window, automati
 
 ### Phase 3: Automatic Capture
 
-**Cron Job** (`/api/cron/auto-capture-payments`):
-- Runs every 30 minutes (`*/30 * * * *`)
+**Scheduled Edge Function** (`supabase/functions/auto-capture-payments`):
+- Runs every 30 minutes via Supabase scheduler (pg_cron)
 - Finds payments where:
   - Status = `authorised`
   - Booking status = `COMPLETED`
   - `review_window_ends_at <= NOW()`
   - `dispute_reported_at IS NULL`
-- Calls `autoCaptureWithReviewWindow()` for each payment
+- Processes each payment using Stripe REST API (Deno-compatible)
+- See `docs/SUPABASE_SCHEDULER_SETUP.md` for setup details
 
-**Auto-Capture Function** (`lib/payments/auto-capture.ts`):
-- Captures PaymentIntent via Stripe
+**Auto-Capture Logic** (implemented in Edge Function):
+- Captures PaymentIntent via Stripe REST API
 - Calculates host amount: `payment.amount - booking.platform_fee_amount`
 - Creates Stripe Transfer to host's Connect account
 - Updates payment status to `captured`
 - Automatically releases deposit if no dispute
+
+**Note**: The original implementation in `lib/payments/auto-capture.ts` is kept for reference and manual testing via Next.js API routes, but production scheduling uses Supabase Edge Functions.
 
 ### Phase 4: Stripe Connect Transfers
 
@@ -113,11 +117,23 @@ BorrowedHome implements automatic payment capture with a review window, automati
 
 ## API Endpoints
 
-### Cron Jobs (Protected)
-- `GET /api/cron/complete-bookings` - Mark completed bookings (hourly)
-- `GET /api/cron/auto-capture-payments` - Auto-capture payments (every 30 min)
+### Scheduled Jobs (Supabase Edge Functions)
 
-**Security**: Requires `Authorization: Bearer {CRON_SECRET}` header
+Production scheduling is handled by Supabase scheduled Edge Functions:
+- `supabase/functions/complete-bookings` - Mark completed bookings (hourly)
+- `supabase/functions/auto-capture-payments` - Auto-capture payments (every 30 min)
+
+**Security**: Requires `Authorization: Bearer {SUPABASE_CRON_SECRET}` header
+
+**Setup**: See `docs/SUPABASE_SCHEDULER_SETUP.md` for deployment and configuration
+
+### Manual Triggers (Next.js API Routes - Optional)
+
+The Next.js API routes are still available for manual testing/admin use:
+- `GET /api/cron/complete-bookings` - Manual trigger (requires `CRON_SECRET`)
+- `GET /api/cron/auto-capture-payments` - Manual trigger (requires `CRON_SECRET`)
+
+**Note**: These endpoints are no longer required for production scheduling but remain available for manual/admin operations.
 
 ### Manual Actions
 - `POST /api/payments/capture` - Manual capture (host only)
@@ -139,41 +155,52 @@ BorrowedHome implements automatic payment capture with a review window, automati
 
 ## Environment Variables
 
+### Next.js Application (.env.local)
+
 ```env
 # Stripe
 STRIPE_SECRET_KEY=sk_live_...
 STRIPE_WEBHOOK_SECRET=whsec_...
 NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_live_...
 
-# Cron Security (optional but recommended)
+# Cron Security (optional - for manual API route triggers)
 CRON_SECRET=your-secure-random-string
 
 # Supabase
-SUPABASE_URL=https://...
-SUPABASE_SERVICE_ROLE_KEY=...
+NEXT_PUBLIC_SUPABASE_URL=https://...
 NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+SUPABASE_SERVICE_ROLE_KEY=...  # Server-side only
 ```
 
-## Vercel Cron Configuration
+### Supabase Edge Functions (Set via `supabase secrets set`)
 
-Add to `vercel.json` (already included):
+```bash
+# Required for all scheduled functions
+SUPABASE_URL=https://your-project-ref.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+SUPABASE_CRON_SECRET=your-secure-random-secret
 
-```json
-{
-  "crons": [
-    {
-      "path": "/api/cron/complete-bookings",
-      "schedule": "0 * * * *"
-    },
-    {
-      "path": "/api/cron/auto-capture-payments",
-      "schedule": "*/30 * * * *"
-    }
-  ]
-}
+# Required for auto-capture-payments function only
+STRIPE_SECRET_KEY=sk_live_...
 ```
 
-**Note**: Vercel Cron requires Pro plan. For Hobby plan, use external cron service (e.g., cron-job.org) to call these endpoints.
+See `docs/SUPABASE_SCHEDULER_SETUP.md` for detailed setup instructions.
+
+## Scheduling Configuration
+
+### Supabase Scheduled Edge Functions
+
+Scheduling is configured via `pg_cron` in Supabase. See `docs/SUPABASE_SCHEDULER_SETUP.md` for:
+- How to deploy Edge Functions
+- How to set secrets
+- How to configure schedules
+- How to monitor execution
+
+**Schedules:**
+- `complete-bookings`: Every hour at minute 0 (`0 * * * *`)
+- `auto-capture-payments`: Every 30 minutes (`*/30 * * * *`)
+
+**Note**: Vercel Cron configuration has been removed. All production scheduling now happens via Supabase. The Next.js API routes (`/api/cron/*`) remain available for manual/admin use.
 
 ## Webhook Events Handled
 
@@ -212,7 +239,8 @@ Add to `vercel.json` (already included):
 
 3. **Trigger auto-capture**:
    - Wait for review window to expire
-   - Call `/api/cron/auto-capture-payments` manually
+   - Manually invoke Supabase Edge Function: `supabase functions invoke auto-capture-payments --headers "Authorization=Bearer YOUR_SECRET"`
+   - Or call Next.js API route: `GET /api/cron/auto-capture-payments` (for testing)
    - Verify payment status becomes `captured`
    - Check Stripe Dashboard for transfer
 
@@ -278,14 +306,17 @@ Add tests for:
 ### Bookings not completing
 
 - Check trigger `trigger_auto_complete_bookings` is enabled
-- Verify cron job is running (`/api/cron/complete-bookings`)
-- Check database logs for trigger errors
+- Verify Supabase scheduled function is running (check `cron.job_run_details`)
+- Check Edge Function logs: `supabase functions logs complete-bookings`
+- Verify `SUPABASE_CRON_SECRET` is set correctly
 
 ### Payments not auto-capturing
 
 - Verify review window has expired (`review_window_ends_at <= NOW()`)
 - Check for disputes (`dispute_reported_at IS NULL`)
-- Verify cron job is running (`/api/cron/auto-capture-payments`)
+- Verify Supabase scheduled function is running (check `cron.job_run_details`)
+- Check Edge Function logs: `supabase functions logs auto-capture-payments`
+- Verify `STRIPE_SECRET_KEY` and `SUPABASE_CRON_SECRET` are set correctly
 - Check payment status is `authorised`
 - Verify host Stripe account is enabled
 
