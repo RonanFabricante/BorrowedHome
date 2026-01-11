@@ -8,6 +8,7 @@ import { Logo } from "@/components/logo";
 export default function HomePage() {
   return (
     <main className="bg-background text-foreground min-h-screen">
+      
       <Nav />
       
       {/* Hero Section with Video Background */}
