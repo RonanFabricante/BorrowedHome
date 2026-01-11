@@ -35,7 +35,7 @@ export default function HomePage() {
           <div className="hidden sm:block pointer-events-none absolute inset-0 bg-gradient-to-t from-black/35 via-black/0 to-black/0" />
 
           {/* Content Overlay */}
-          <div className="relative w-full flex flex-col">
+          <div className="relative h-full flex flex-col">
             {/* Mobile: Compact layout */}
             <div className="sm:hidden w-full bg-background px-4 pt-6 pb-4">
               <div className="max-w-4xl mx-auto">
@@ -66,12 +66,12 @@ export default function HomePage() {
             </div>
 
             {/* Desktop: Original layout */}
-            <div className="hidden sm:flex flex-col flex-1 min-h-[200px]">
+            <div className="hidden sm:flex flex-col h-full relative">
               {/* Top Content: Empty space for video background */}
-              <div className="flex-1 min-h-0" />
+              <div className="flex-1" />
 
               {/* Bottom Content: Tagline and Search Form Overlay */}
-              <div className="absolute inset-x-0 bottom-0 z-10 p-4 md:p-6">
+              <div className="relative z-10 p-4 md:p-6">
                 <div className="max-w-4xl mx-auto">
                   {/* Hero Tagline */}
                   <div className="max-w-3xl mx-auto text-center mb-6 md:mb-8 -translate-y-6 md:-translate-y-10">
