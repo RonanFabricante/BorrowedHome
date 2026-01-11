@@ -13,10 +13,11 @@ export default function HomePage() {
       
       {/* Hero Section with Video Background */}
       <section className="relative w-full">
-        <div className="relative w-full h-[70vh] min-h-[500px] sm:min-h-[600px] sm:h-[85vh] max-h-[900px] rounded-2xl overflow-hidden mx-4 sm:mx-6 mt-4 sm:mt-6">
-          {/* Video Background */}
+        {/* Mobile: Simple background, Desktop: Video */}
+        <div className="relative w-full sm:h-[70vh] sm:min-h-[600px] sm:h-[85vh] max-h-[900px] rounded-none sm:rounded-2xl overflow-hidden mx-0 sm:mx-4 md:mx-6 mt-0 sm:mt-4 md:mt-6">
+          {/* Video Background - Hidden on mobile */}
           <video
-            className="absolute inset-0 w-full h-full object-cover"
+            className="hidden sm:block absolute inset-0 w-full h-full object-cover"
             autoPlay
             muted
             loop
@@ -27,44 +28,79 @@ export default function HomePage() {
             Your browser does not support the video tag.
           </video>
 
-          {/* Bottom Gradient Overlay */}
-          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/35 via-black/0 to-black/0" />
+          {/* Mobile: Simple gradient background */}
+          <div className="sm:hidden absolute inset-0 bg-gradient-to-b from-primary/10 to-background" />
+
+          {/* Bottom Gradient Overlay - Desktop only */}
+          <div className="hidden sm:block pointer-events-none absolute inset-0 bg-gradient-to-t from-black/35 via-black/0 to-black/0" />
 
           {/* Content Overlay */}
-          <div className="relative h-full flex flex-col">
-            {/* Top Content: Empty space for video background - reduced on mobile */}
-            <div className="flex-1 min-h-0 sm:min-h-[200px]" />
-
-            {/* Bottom Content: Tagline and Search Form Overlay */}
-            <div className="absolute inset-x-0 bottom-0 z-10 p-3 sm:p-4 md:p-6">
+          <div className="relative w-full flex flex-col">
+            {/* Mobile: Compact layout */}
+            <div className="sm:hidden w-full bg-background px-4 pt-6 pb-4">
               <div className="max-w-4xl mx-auto">
-                {/* Hero Tagline - Reduced spacing on mobile */}
-                <div className="max-w-3xl mx-auto text-center mb-4 sm:mb-6 md:mb-8 -translate-y-2 sm:-translate-y-6 md:-translate-y-10">
-                  {/* Logo */}
-                  <div className="flex justify-center mb-2 sm:mb-3 md:mb-4">
-                    <Logo 
-                      size="md" 
-                      variant="reversed" 
-                      href={null}
-                      className="opacity-90"
-                    />
-                  </div>
-                  
-                  {/* Primary Tagline - Smaller on mobile */}
-                  <h1 className="text-white font-semibold text-2xl sm:text-3xl md:text-4xl lg:text-5xl tracking-tight leading-tight drop-shadow-lg">
-                    Borrow space. Just for the day.
-                  </h1>
-                  
-                  {/* Supporting Sub-line */}
-                  <p className="text-white/80 text-xs sm:text-sm md:text-base mt-1.5 sm:mt-2 md:mt-3 max-w-xl mx-auto drop-shadow-md">
-                    Day-use homes for work, cooking, and gatherings — no overnight stays.
-                  </p>
+                {/* Logo */}
+                <div className="flex justify-center mb-3">
+                  <Logo 
+                    size="md" 
+                    variant="default" 
+                    href={null}
+                  />
                 </div>
                 
-                {/* Search Form Card - Less translate on mobile */}
-                <div className="-translate-y-2 sm:-translate-y-6 md:-translate-y-10">
-                  <div className="bg-white/90 backdrop-blur-md shadow-lg ring-1 ring-black/5 rounded-2xl p-4 sm:p-6 md:p-8">
-                    <SearchForm />
+                {/* Primary Tagline */}
+                <h1 className="text-foreground font-semibold text-2xl tracking-tight leading-tight text-center mb-2">
+                  Borrow space. Just for the day.
+                </h1>
+                
+                {/* Supporting Sub-line */}
+                <p className="text-muted-foreground text-sm text-center mb-6">
+                  Day-use homes for work, cooking, and gatherings — no overnight stays.
+                </p>
+                
+                {/* Search Form Card */}
+                <div className="bg-card border border-border shadow-sm rounded-xl p-4">
+                  <SearchForm />
+                </div>
+              </div>
+            </div>
+
+            {/* Desktop: Original layout */}
+            <div className="hidden sm:flex flex-col flex-1 min-h-[200px]">
+              {/* Top Content: Empty space for video background */}
+              <div className="flex-1 min-h-0" />
+
+              {/* Bottom Content: Tagline and Search Form Overlay */}
+              <div className="absolute inset-x-0 bottom-0 z-10 p-4 md:p-6">
+                <div className="max-w-4xl mx-auto">
+                  {/* Hero Tagline */}
+                  <div className="max-w-3xl mx-auto text-center mb-6 md:mb-8 -translate-y-6 md:-translate-y-10">
+                    {/* Logo */}
+                    <div className="flex justify-center mb-3 md:mb-4">
+                      <Logo 
+                        size="md" 
+                        variant="reversed" 
+                        href={null}
+                        className="opacity-90"
+                      />
+                    </div>
+                    
+                    {/* Primary Tagline */}
+                    <h1 className="text-white font-semibold text-3xl md:text-4xl lg:text-5xl tracking-tight leading-tight drop-shadow-lg">
+                      Borrow space. Just for the day.
+                    </h1>
+                    
+                    {/* Supporting Sub-line */}
+                    <p className="text-white/80 text-sm md:text-base mt-2 md:mt-3 max-w-xl mx-auto drop-shadow-md">
+                      Day-use homes for work, cooking, and gatherings — no overnight stays.
+                    </p>
+                  </div>
+                  
+                  {/* Search Form Card */}
+                  <div className="-translate-y-6 md:-translate-y-10">
+                    <div className="bg-white/90 backdrop-blur-md shadow-lg ring-1 ring-black/5 rounded-2xl p-6 md:p-8">
+                      <SearchForm />
+                    </div>
                   </div>
                 </div>
               </div>
