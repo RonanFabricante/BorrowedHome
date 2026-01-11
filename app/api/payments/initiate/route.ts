@@ -43,6 +43,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Extract listings with type assertion (Supabase returns object with .single())
+    // Cast through unknown to handle TypeScript's array inference
+    const listings = booking.listings as unknown as { host_id: string; id: string; deposit_amount: number };
+
     // Check if payment already exists
     const { data: existingPayment } = await supabase
       .from("payments")
@@ -76,7 +80,7 @@ export async function POST(request: NextRequest) {
     let { data: host, error: hostError } = await supabase
       .from("hosts")
       .select("*")
-      .eq("user_id", booking.listings.host_id)
+      .eq("user_id", listings.host_id)
       .single();
 
     // Handle RLS errors - if we can't read the host record, it might be an RLS issue
@@ -125,15 +129,15 @@ export async function POST(request: NextRequest) {
     const needsStripeSearch = (hostError?.code === "PGRST116") || !host || (host && !host.stripe_account_id);
     
     if (needsStripeSearch) {
-      console.log(`[Payment Initiate] Host record missing or stripe_account_id not found for user ${booking.listings.host_id}, searching Stripe...`);
+      console.log(`[Payment Initiate] Host record missing or stripe_account_id not found for user ${listings.host_id}, searching Stripe...`);
       
       try {
         // Use helper function to find Stripe account (searches with pagination)
-        const foundAccountId = await findStripeAccountByUserId(booking.listings.host_id);
+        const foundAccountId = await findStripeAccountByUserId(listings.host_id);
 
         if (foundAccountId) {
           // Found the account in Stripe - verify it's ready
-          console.log(`[Payment Initiate] Found Stripe account ${foundAccountId} for user ${booking.listings.host_id}`);
+          console.log(`[Payment Initiate] Found Stripe account ${foundAccountId} for user ${listings.host_id}`);
           
           // Get full account status from Stripe (we cannot update database as guest due to RLS)
           const status = await checkAccountStatus({ accountId: foundAccountId });
@@ -160,7 +164,7 @@ export async function POST(request: NextRequest) {
           );
         } else {
           // Account not found in Stripe - host needs to complete onboarding
-          console.log(`[Payment Initiate] No Stripe account found with metadata.user_id = ${booking.listings.host_id} after searching`);
+          console.log(`[Payment Initiate] No Stripe account found with metadata.user_id = ${listings.host_id} after searching`);
           
           return NextResponse.json(
             { error: "Host must complete Stripe onboarding. Please contact the host to visit /host/payouts to set up their account." },
@@ -232,8 +236,8 @@ export async function POST(request: NextRequest) {
       payment_method_types: ["card"],
       metadata: {
         booking_id: bookingId,
-        listing_id: booking.listings.id,
-        host_id: booking.listings.host_id,
+        listing_id: listings.id,
+        host_id: listings.host_id,
         guest_id: booking.guest_id,
         type: "booking",
       },
@@ -250,8 +254,8 @@ export async function POST(request: NextRequest) {
         payment_method_types: ["card"],
         metadata: {
           booking_id: bookingId,
-          listing_id: booking.listings.id,
-          host_id: booking.listings.host_id,
+          listing_id: listings.id,
+          host_id: listings.host_id,
           guest_id: booking.guest_id,
           type: "deposit",
         },

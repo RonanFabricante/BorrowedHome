@@ -46,8 +46,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verify user is the host
-    if (payment.bookings.listings.host_id !== user.id) {
+    // Extract listings with type assertion (cast through unknown for safety)
+    const listings = payment.bookings.listings as unknown as { host_id: string };
+    if (!listings || listings.host_id !== user.id) {
       return NextResponse.json(
         { error: "Only the host can release deposits" },
         { status: 403 }

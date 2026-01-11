@@ -57,8 +57,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Extract listings with type assertion (cast through unknown for safety)
+    const listings = booking.listings as unknown as { host_id: string };
+
     const isGuest = booking.guest_id === user.id;
-    const isHost = booking.listings.host_id === user.id;
+    const isHost = listings.host_id === user.id;
 
     if (!isGuest && !isHost) {
       return NextResponse.json(

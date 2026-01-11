@@ -107,36 +107,6 @@ export async function POST(request: NextRequest) {
         break;
       }
 
-      case "payment_intent.captured": {
-        // Payment was captured (manual or automatic)
-        const paymentIntent = event.data.object as Stripe.PaymentIntent;
-        const bookingId = paymentIntent.metadata.booking_id;
-        const paymentType = paymentIntent.metadata.type;
-
-        if (!bookingId) {
-          break;
-        }
-
-        // Only update status for main booking payment (not deposit)
-        if (paymentType === "booking") {
-          const { error } = await supabase
-            .from("payments")
-            .update({ 
-              status: "captured",
-              auto_capture_scheduled_at: null // Clear scheduled time
-            })
-            .eq("stripe_payment_intent_id", paymentIntent.id);
-
-          if (error) {
-            console.error("[Webhook] Failed to update payment status to captured:", error);
-          } else {
-            console.log(`[Webhook] Payment captured for booking ${bookingId}`);
-          }
-        }
-
-        break;
-      }
-
       case "transfer.created": {
         // Transfer to host was created (for logging/auditing)
         const transfer = event.data.object as Stripe.Transfer;
