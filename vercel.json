@@ -1,3 +1,0 @@
-{
-  "comment": "Cron jobs have been moved to Supabase scheduled Edge Functions. See SUPABASE_SCHEDULER_SETUP.md for details."
-}
