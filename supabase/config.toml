@@ -1,0 +1,5 @@
+[functions.complete-bookings]
+verify_jwt = false
+
+[functions.auto-capture-payments]
+verify_jwt = false

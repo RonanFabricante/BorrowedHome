@@ -432,11 +432,11 @@ Deno.serve(async (req) => {
 
   try {
     // Verify authentication
-    const authHeader = req.headers.get("authorization");
-    const cronSecret = Deno.env.get("SUPABASE_CRON_SECRET");
+    const authHeader = req.headers.get("authorization") ?? "";
+    const cronSecret = Deno.env.get("CRON_SECRET") ?? "";
 
-    if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
-      console.error("[AutoCapture] Unauthorized request");
+    if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
+      console.error("[CRON] Unauthorized request");
       return new Response(
         JSON.stringify({ error: "Unauthorized" }),
         {
