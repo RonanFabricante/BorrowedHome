@@ -86,4 +86,4 @@ ${dayUseRiskClauseMarkdown}
 
 ## Contact
 
-For questions about these Terms, contact: ronan.fabricante@gmail.com`;
+For questions about these Terms, contact: hello@borrowedhome.app`;

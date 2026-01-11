@@ -193,8 +193,8 @@ export default function TermsPage() {
                 <h2 className="text-2xl font-semibold mb-4">14. Contact</h2>
                 <p>
                   For questions about these Terms, contact:{" "}
-                  <a href="mailto:ronan.fabricante@gmail.com" className="text-primary hover:underline">
-                    ronan.fabricante@gmail.com
+                  <a href="mailto:hello@borrowedhome.app" className="text-primary hover:underline">
+                    hello@borrowedhome.app
                   </a>
                 </p>
               </section>
