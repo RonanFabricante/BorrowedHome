@@ -1,6 +1,6 @@
 # BorrowedHome
 
-A marketplace for day-use access to real lived-in homes. Guests can book homes by the hour or in blocks. No overnight stays. No bedrooms.
+BorrowedHome.app is marketplace for day-use access to real lived-in homes. Guests can book homes by the hour or in blocks. No overnight stays. No bedrooms.
 
 ## Tech Stack
 
