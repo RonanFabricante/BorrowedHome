@@ -12,7 +12,7 @@ export default function HomePage() {
       
       {/* Hero Section with Video Background */}
       <section className="relative w-full">
-        <div className="relative w-full h-[85vh] min-h-[600px] max-h-[900px] rounded-2xl overflow-hidden mx-4 sm:mx-6 mt-4 sm:mt-6">
+        <div className="relative w-full h-[70vh] min-h-[500px] sm:min-h-[600px] sm:h-[85vh] max-h-[900px] rounded-2xl overflow-hidden mx-4 sm:mx-6 mt-4 sm:mt-6">
           {/* Video Background */}
           <video
             className="absolute inset-0 w-full h-full object-cover"
@@ -31,16 +31,16 @@ export default function HomePage() {
 
           {/* Content Overlay */}
           <div className="relative h-full flex flex-col">
-            {/* Top Content: Empty space for video background */}
-            <div className="flex-1" />
+            {/* Top Content: Empty space for video background - reduced on mobile */}
+            <div className="flex-1 min-h-0 sm:min-h-[200px]" />
 
             {/* Bottom Content: Tagline and Search Form Overlay */}
-            <div className="absolute inset-x-0 bottom-0 z-10 p-4 sm:p-6">
+            <div className="absolute inset-x-0 bottom-0 z-10 p-3 sm:p-4 md:p-6">
               <div className="max-w-4xl mx-auto">
-                {/* Hero Tagline */}
-                <div className="max-w-3xl mx-auto text-center mb-6 sm:mb-8 -translate-y-6 sm:-translate-y-10">
+                {/* Hero Tagline - Reduced spacing on mobile */}
+                <div className="max-w-3xl mx-auto text-center mb-4 sm:mb-6 md:mb-8 -translate-y-2 sm:-translate-y-6 md:-translate-y-10">
                   {/* Logo */}
-                  <div className="flex justify-center mb-3 sm:mb-4">
+                  <div className="flex justify-center mb-2 sm:mb-3 md:mb-4">
                     <Logo 
                       size="md" 
                       variant="reversed" 
@@ -49,20 +49,20 @@ export default function HomePage() {
                     />
                   </div>
                   
-                  {/* Primary Tagline */}
-                  <h1 className="text-white font-semibold text-3xl sm:text-4xl lg:text-5xl tracking-tight leading-tight drop-shadow-lg">
+                  {/* Primary Tagline - Smaller on mobile */}
+                  <h1 className="text-white font-semibold text-2xl sm:text-3xl md:text-4xl lg:text-5xl tracking-tight leading-tight drop-shadow-lg">
                     Borrow space. Just for the day.
                   </h1>
                   
                   {/* Supporting Sub-line */}
-                  <p className="text-white/80 text-sm sm:text-base mt-2 sm:mt-3 max-w-xl mx-auto drop-shadow-md">
+                  <p className="text-white/80 text-xs sm:text-sm md:text-base mt-1.5 sm:mt-2 md:mt-3 max-w-xl mx-auto drop-shadow-md">
                     Day-use homes for work, cooking, and gatherings — no overnight stays.
                   </p>
                 </div>
                 
-                {/* Search Form Card */}
-                <div className="-translate-y-6 sm:-translate-y-10">
-                  <div className="bg-white/90 backdrop-blur-md shadow-lg ring-1 ring-black/5 rounded-2xl p-6 sm:p-8">
+                {/* Search Form Card - Less translate on mobile */}
+                <div className="-translate-y-2 sm:-translate-y-6 md:-translate-y-10">
+                  <div className="bg-white/90 backdrop-blur-md shadow-lg ring-1 ring-black/5 rounded-2xl p-4 sm:p-6 md:p-8">
                     <SearchForm />
                   </div>
                 </div>
