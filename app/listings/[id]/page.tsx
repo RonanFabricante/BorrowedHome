@@ -73,6 +73,34 @@ export default async function ListingDetailPage({
     })
   );
 
+  // Get review summary
+  const { data: reviewSummary } = await supabase.rpc("get_listing_review_summary", {
+    p_listing_id: id,
+  });
+
+  // Get latest reviews
+  const { data: reviews } = await supabase.rpc("get_listing_reviews", {
+    p_listing_id: id,
+    p_limit: 10,
+    p_offset: 0,
+  });
+
+  // Get host review summary (if listing has a host)
+  let hostReviewSummary = null;
+  let hostReviewSnippets: any[] = [];
+  if (listing.host_id) {
+    const { data: hostSummary } = await supabase.rpc("get_host_review_summary", {
+      p_host_id: listing.host_id,
+    });
+    hostReviewSummary = hostSummary?.[0] || null;
+
+    const { data: snippets } = await supabase.rpc("get_host_review_snippets", {
+      p_host_id: listing.host_id,
+      p_limit: 3,
+    });
+    hostReviewSnippets = snippets || [];
+  }
+
   return (
     <div className="min-h-screen">
       <Nav />
@@ -87,6 +115,10 @@ export default async function ListingDetailPage({
           }}
           userId={user?.id}
           hasActiveBookings={hasActiveBookings}
+          reviewSummary={reviewSummary?.[0] || null}
+          reviews={reviews || []}
+          hostReviewSummary={hostReviewSummary}
+          hostReviewSnippets={hostReviewSnippets}
         />
       </main>
     </div>

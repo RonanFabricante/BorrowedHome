@@ -11,6 +11,10 @@ import Image from "next/image";
 import Link from "next/link";
 import { BookingDialog } from "@/components/booking-dialog";
 import { DayUseWarning } from "@/components/day-use-warning";
+import { ListingReviews } from "@/components/listing-reviews";
+import { HostReviewSummary } from "@/components/host-review-summary";
+import { Star } from "lucide-react";
+import Link from "next/link";
 
 const spaceIcons = {
   KITCHEN: ChefHat,
@@ -30,10 +34,18 @@ export function ListingDetail({
   listing,
   userId,
   hasActiveBookings = false,
+  reviewSummary,
+  reviews = [],
+  hostReviewSummary,
+  hostReviewSnippets = [],
 }: {
   listing: Listing;
   userId?: string;
   hasActiveBookings?: boolean;
+  reviewSummary?: { average_rating: number | null; review_count: number } | null;
+  reviews?: any[];
+  hostReviewSummary?: { average_rating: number | null; review_count: number } | null;
+  hostReviewSnippets?: any[];
 }) {
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState(0);
   const [showBookingDialog, setShowBookingDialog] = useState(false);
@@ -75,8 +87,31 @@ export function ListingDetail({
             )
           )}
         </div>
-        <h1 className="text-4xl font-bold mb-2">{listing.title}</h1>
-        <p className="text-muted-foreground">{listing.location_text}</p>
+        <div className="flex items-start justify-between">
+          <div>
+            <h1 className="text-4xl font-bold mb-2">{listing.title}</h1>
+            <p className="text-muted-foreground">{listing.location_text}</p>
+          </div>
+          {reviewSummary && reviewSummary.review_count > 0 ? (
+            <Link 
+              href="#reviews" 
+              className="flex items-center gap-1 text-lg hover:underline"
+            >
+              <Star className="w-5 h-5 fill-yellow-400 text-yellow-400" />
+              <span className="font-semibold">{reviewSummary.average_rating?.toFixed(1)}</span>
+              <span className="text-muted-foreground">·</span>
+              <span className="text-muted-foreground">
+                {reviewSummary.review_count} review{reviewSummary.review_count !== 1 ? "s" : ""}
+              </span>
+            </Link>
+          ) : (
+            <div className="text-muted-foreground">
+              <span className="text-sm">New</span>
+              <span className="mx-1">·</span>
+              <span className="text-sm">No reviews yet</span>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Day-Use Warning */}
@@ -261,9 +296,16 @@ export function ListingDetail({
               </div>
             </CardContent>
           </Card>
+
+          {/* Reviews Section */}
+          <ListingReviews
+            listingId={listing.id}
+            initialSummary={reviewSummary || undefined}
+            initialReviews={reviews}
+          />
         </div>
 
-        <div>
+        <div className="space-y-6">
           <Card className="sticky top-4">
             <CardHeader>
               <CardTitle>Pricing</CardTitle>
@@ -318,6 +360,16 @@ export function ListingDetail({
               </div>
             </CardContent>
           </Card>
+
+          {/* Host Review Summary */}
+          {listing.host && (
+            <HostReviewSummary
+              hostId={listing.host_id}
+              hostName={listing.host.full_name}
+              summary={hostReviewSummary || undefined}
+              snippets={hostReviewSnippets}
+            />
+          )}
         </div>
       </div>
 

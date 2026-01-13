@@ -20,7 +20,12 @@ export default async function ReviewPage({
     .from("bookings")
     .select(`
       *,
-      listings!inner(id, title, host_id),
+      listings!inner(
+        id,
+        title,
+        host_id,
+        listing_spaces(space_type)
+      ),
       profiles!bookings_guest_id_fkey(id, full_name)
     `)
     .eq("id", id)
@@ -30,11 +35,8 @@ export default async function ReviewPage({
     notFound();
   }
 
-  const hasAccess =
-    booking.guest_id === user.id ||
-    booking.listings.host_id === user.id;
-
-  if (!hasAccess) {
+  // Only guests can review (listing-scoped reviews)
+  if (booking.guest_id !== user.id) {
     notFound();
   }
 
@@ -44,29 +46,38 @@ export default async function ReviewPage({
   }
 
   // Check if user has already submitted a review
-  const isGuest = booking.guest_id === user.id;
-  const revieweeId = isGuest
-    ? booking.listings.host_id
-    : booking.guest_id;
-
   const { data: existingReview } = await supabase
     .from("reviews")
     .select("id")
     .eq("booking_id", id)
-    .eq("reviewer_id", user.id)
-    .eq("reviewee_id", revieweeId)
     .single();
 
   if (existingReview) {
-    // User has already reviewed - redirect to bookings page
-    redirect("/my-bookings");
+    // User has already reviewed - redirect to listing page
+    redirect(`/listings/${booking.listings.id}#reviews`);
   }
+
+  // Get space label from listing spaces
+  const spaces = booking.listings.listing_spaces || [];
+  const spaceLabels: Record<string, string> = {
+    KITCHEN: "Kitchen",
+    DINING: "Dining",
+    LIVING: "Living Room",
+    GARDEN: "Garden/Pool",
+  };
+  const spaceLabel = spaces
+    .map((s: any) => spaceLabels[s.space_type] || s.space_type)
+    .join(" + ") || "Space";
 
   return (
     <div className="min-h-screen">
       <Nav />
       <main className="container mx-auto px-4 py-8">
-        <ReviewForm booking={booking} userId={user.id} />
+        <ReviewForm 
+          booking={booking} 
+          userId={user.id}
+          spaceLabel={spaceLabel}
+        />
       </main>
     </div>
   );

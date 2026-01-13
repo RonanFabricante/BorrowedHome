@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatCurrency } from "@/lib/utils";
 import { format } from "date-fns";
-import { AlertCircle, Clock, XCircle, CheckCircle2 } from "lucide-react";
+import { AlertCircle, Clock, XCircle, CheckCircle2, Star } from "lucide-react";
 import { PaymentForm } from "@/components/payment-form";
 import { createClient } from "@/lib/supabase/client";
 
@@ -21,6 +21,23 @@ export function BookingConfirmation({ booking, isHost = false }: { booking: any;
   const isPending = booking.status === "PENDING";
   const isDeclined = booking.status === "DECLINED";
   const isCancelled = booking.status === "CANCELLED";
+  const isCompleted = booking.status === "COMPLETED";
+  
+  const [hasReview, setHasReview] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    // Check if review exists for completed bookings (guests only)
+    if (isCompleted && !isHost) {
+      supabase
+        .from("reviews")
+        .select("id")
+        .eq("booking_id", booking.id)
+        .single()
+        .then(({ data }) => {
+          setHasReview(!!data);
+        });
+    }
+  }, [isCompleted, isHost, booking.id, supabase]);
   
   const [payment, setPayment] = useState<any>(null);
   const [paymentLoading, setPaymentLoading] = useState(true);
@@ -284,6 +301,83 @@ export function BookingConfirmation({ booking, isHost = false }: { booking: any;
             </div>
           </CardContent>
         </Card>
+
+        <div className="flex gap-4">
+          <Button variant="outline" asChild>
+            <Link href={isHost ? "/my-listings" : "/my-bookings"}>
+              {isHost ? "Back to My Listings" : "View All Bookings"}
+            </Link>
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // COMPLETED status - show completed booking with review prompt
+  if (isCompleted) {
+    return (
+      <div className="max-w-3xl mx-auto">
+        <div className="mb-6">
+          <Badge variant="secondary" className="mb-4">
+            <CheckCircle2 className="h-3 w-3 mr-1" />
+            Completed
+          </Badge>
+          <h1 className="text-4xl font-bold mb-2">
+            {isHost ? "Booking Completed" : "Your booking is completed!"}
+          </h1>
+          <p className="text-muted-foreground">
+            {listing.title} • {listing.location_text}
+          </p>
+        </div>
+
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle>Booking Details</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <p className="text-sm text-muted-foreground">Date & Time</p>
+              <p className="font-semibold">
+                {format(startDate, "EEEE, MMMM d, yyyy")}
+              </p>
+              <p className="font-semibold">
+                {format(startDate, "h:mm a")} - {format(endDate, "h:mm a")}
+              </p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Guests</p>
+              <p className="font-semibold">{booking.guests_count} guest{booking.guests_count !== 1 ? "s" : ""}</p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Total Amount</p>
+              <p className="font-semibold text-2xl">
+                {formatCurrency(booking.total_amount)}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Leave Review Prompt for Guests */}
+        {!isHost && hasReview === false && (
+          <Card className="mb-6 border-blue-200 bg-blue-50">
+            <CardContent className="pt-6">
+              <div className="flex gap-3">
+                <Star className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                <div className="flex-1">
+                  <h3 className="font-semibold mb-2">Share your experience</h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Help future guests choose with confidence. Leave a review of your day-use booking.
+                  </p>
+                  <Button asChild>
+                    <Link href={`/bookings/${booking.id}/review`}>
+                      Leave Review
+                    </Link>
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         <div className="flex gap-4">
           <Button variant="outline" asChild>
