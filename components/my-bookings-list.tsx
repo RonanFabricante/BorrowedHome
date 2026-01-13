@@ -100,14 +100,6 @@ export function MyBookingsList({ bookings }: { bookings: any[] }) {
                         {formatCurrency(booking.total_amount)}
                       </span>
                     </div>
-                    <div className="flex items-center gap-2 ml-auto">
-                      <Button asChild variant="ghost" size="sm" className="flex items-center gap-2">
-                        <Link href={`/bookings/${booking.id}/confirm`}>
-                          <Eye className="w-4 h-4" />
-                          View Details
-                        </Link>
-                      </Button>
-                    </div>
                   </div>
                 </div>
                 <div className="flex flex-col gap-2">
@@ -127,6 +119,12 @@ export function MyBookingsList({ bookings }: { bookings: any[] }) {
                       </Link>
                     </Button>
                   )}
+                  <Button asChild variant="ghost" size="sm" className="flex items-center gap-2">
+                    <Link href={`/bookings/${booking.id}/confirm`}>
+                      <Eye className="w-4 h-4" />
+                      View Details
+                    </Link>
+                  </Button>
                 </div>
               </div>
             </CardContent>
