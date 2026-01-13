@@ -100,14 +100,33 @@ function normalizeMapboxResult(feature: any): {
 
   // Determine place type
   const placeType = feature.place_type?.[0] || feature.properties?.category || "unknown";
+  const featureText = feature.text || feature.place_name?.split(",")[0] || "";
 
-  // Build display label
-  const parts: string[] = [];
-  if (suburb) parts.push(suburb);
-  if (city && city !== suburb) parts.push(city);
-  if (region) parts.push(region);
-  if (country) parts.push(country);
-  const label = parts.length > 0 ? parts.join(", ") : feature.place_name || feature.text || "";
+  // Build display label - use feature's own text as primary label
+  let label: string;
+  if (placeType === "neighborhood" || placeType === "locality" || placeType === "district") {
+    // For suburbs/localities: "Suburb, Region, Country"
+    const parts: string[] = [featureText];
+    if (region && region !== featureText) parts.push(region);
+    if (country) parts.push(country);
+    label = parts.join(", ");
+  } else if (placeType === "place") {
+    // For cities: "City, Region, Country"
+    const parts: string[] = [featureText];
+    if (region && region !== featureText) parts.push(region);
+    if (country) parts.push(country);
+    label = parts.join(", ");
+  } else {
+    // Fallback: use place_name if available
+    label = feature.place_name || featureText || "";
+  }
+
+  // Set suburb/city based on place type
+  if (placeType === "neighborhood" || placeType === "locality" || placeType === "district") {
+    suburb = suburb || featureText;
+  } else if (placeType === "place") {
+    city = city || featureText;
+  }
 
   return {
     id: feature.id || feature.properties?.mapbox_id || "",
@@ -115,8 +134,8 @@ function normalizeMapboxResult(feature: any): {
     placeType,
     country,
     region,
-    city: city || (placeType === "place" ? feature.text : null),
-    suburb: suburb || (placeType === "neighborhood" || placeType === "locality" ? feature.text : null),
+    city,
+    suburb,
     postcode,
     lng: feature.geometry?.coordinates?.[0] || 0,
     lat: feature.geometry?.coordinates?.[1] || 0,
@@ -187,11 +206,12 @@ export async function GET(request: NextRequest) {
     const endpoint = process.env.MAPBOX_ENDPOINT || "https://api.mapbox.com/geocoding/v5/mapbox.places";
 
     // Build Mapbox API URL
+    // Prioritize suburbs/localities by ordering types (neighborhood and locality first)
     const encodedQuery = encodeURIComponent(trimmedQ);
     const mapboxUrl = new URL(`${endpoint}/${encodedQuery}.json`);
     mapboxUrl.searchParams.set("access_token", mapboxToken);
     mapboxUrl.searchParams.set("autocomplete", "true");
-    mapboxUrl.searchParams.set("types", "place,locality,neighborhood,district");
+    mapboxUrl.searchParams.set("types", "neighborhood,locality,district,place");
     mapboxUrl.searchParams.set("limit", limit.toString());
     mapboxUrl.searchParams.set("language", language);
 
@@ -230,7 +250,20 @@ export async function GET(request: NextRequest) {
       const features = data.features || [];
 
       // Normalize results
-      const normalized = features.map(normalizeMapboxResult);
+      let normalized = features.map(normalizeMapboxResult);
+
+      // Sort to prioritize suburbs/localities over cities/places
+      normalized.sort((a, b) => {
+        const priorityOrder: Record<string, number> = {
+          neighborhood: 0,
+          locality: 1,
+          district: 2,
+          place: 3,
+        };
+        const aPriority = priorityOrder[a.placeType] ?? 99;
+        const bPriority = priorityOrder[b.placeType] ?? 99;
+        return aPriority - bPriority;
+      });
 
       // Cache results
       cache.set(cacheKey, {
