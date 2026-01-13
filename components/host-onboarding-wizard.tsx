@@ -19,6 +19,7 @@ import { ChefHat, UtensilsCrossed, Home, Trees, Upload, X } from "lucide-react";
 import Image from "next/image";
 import { HostDeclarationModal } from "@/components/host-declaration-modal";
 import { onboardingSummaryHost, TERMS_VERSION } from "@/lib/legal/terms-au";
+import { PlaceAutocomplete, NormalizedPlace } from "@/components/place-autocomplete";
 
 const spaceOptions: { value: SpaceType; label: string; icon: any }[] = [
   { value: "KITCHEN", label: "Kitchen", icon: ChefHat },
@@ -458,10 +459,20 @@ export function HostOnboardingWizard() {
       </div>
       <div>
         <Label htmlFor="location_text">Location (Public)</Label>
-        <Input
+        <PlaceAutocomplete
           id="location_text"
-          {...form.register("location_text")}
-          placeholder="e.g., Downtown, Seattle"
+          value={form.watch("location_text") || ""}
+          onChangeValue={(value) => {
+            form.setValue("location_text", value, { shouldValidate: true });
+          }}
+          onSelectPlace={(place) => {
+            setLocationPlace(place);
+            if (place) {
+              form.setValue("location_text", place.label, { shouldValidate: true });
+            }
+          }}
+          placeholder="e.g., Surry Hills, NSW"
+          country="au"
         />
         {form.formState.errors.location_text && (
           <p className="text-sm text-destructive mt-1">
@@ -471,10 +482,20 @@ export function HostOnboardingWizard() {
       </div>
       <div>
         <Label htmlFor="address_text">Full Address (Private)</Label>
-        <Input
+        <PlaceAutocomplete
           id="address_text"
-          {...form.register("address_text")}
-          placeholder="123 Main St, Seattle, WA 98101"
+          value={form.watch("address_text") || ""}
+          onChangeValue={(value) => {
+            form.setValue("address_text", value, { shouldValidate: true });
+          }}
+          onSelectPlace={(place) => {
+            setAddressPlace(place);
+            if (place) {
+              form.setValue("address_text", place.label, { shouldValidate: true });
+            }
+          }}
+          placeholder="e.g., 123 Main St, Surry Hills"
+          country="au"
         />
         {form.formState.errors.address_text && (
           <p className="text-sm text-destructive mt-1">
