@@ -72,24 +72,43 @@ export function MyBookingsList({ bookings }: { bookings: any[] }) {
                   <p className="text-muted-foreground mb-2">
                     {listing.location_text}
                   </p>
-                  <p className="text-sm mb-1 flex items-center gap-2">
-                    <Calendar className="w-4 h-4 text-muted-foreground" />
-                    <span className="font-semibold">Date:</span>{" "}
-                    {format(startDate, "EEEE, MMMM d, yyyy")}
-                  </p>
-                  <p className="text-sm mb-1 flex items-center gap-2">
-                    <Clock className="w-4 h-4 text-muted-foreground" />
-                    <span className="font-semibold">Time:</span>{" "}
-                    {format(startDate, "h:mm a")} - {format(endDate, "h:mm a")}
-                  </p>
-                  <p className="text-sm mb-2 flex items-center gap-2">
-                    <Users className="w-4 h-4 text-muted-foreground" />
-                    <span className="font-semibold">Guests:</span> {booking.guests_count}
-                  </p>
-                  <p className="font-semibold text-lg flex items-center gap-2">
-                    <DollarSign className="w-4 h-4" />
-                    {formatCurrency(booking.total_amount)}
-                  </p>
+                  <div className="flex flex-wrap items-center gap-4 mb-4">
+                    <div className="flex items-center gap-2">
+                      <Calendar className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                      <span className="text-sm">
+                        <span className="font-semibold">Date:</span>{" "}
+                        {format(startDate, "EEEE, MMMM d, yyyy")}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Clock className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                      <span className="text-sm">
+                        <span className="font-semibold">Time:</span>{" "}
+                        {format(startDate, "h:mm a")} - {format(endDate, "h:mm a")}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Users className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                      <span className="text-sm">
+                        <span className="font-semibold">Guests:</span> {booking.guests_count}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <DollarSign className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                      <span className="text-sm">
+                        <span className="font-semibold">Total:</span>{" "}
+                        {formatCurrency(booking.total_amount)}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 ml-auto">
+                      <Button asChild variant="ghost" size="sm" className="flex items-center gap-2">
+                        <Link href={`/bookings/${booking.id}/confirm`}>
+                          <Eye className="w-4 h-4" />
+                          View Details
+                        </Link>
+                      </Button>
+                    </div>
+                  </div>
                 </div>
                 <div className="flex flex-col gap-2">
                   {booking.status === "CONFIRMED" && (
@@ -108,12 +127,6 @@ export function MyBookingsList({ bookings }: { bookings: any[] }) {
                       </Link>
                     </Button>
                   )}
-                  <Button asChild variant="ghost" size="sm" className="flex items-center gap-2">
-                    <Link href={`/bookings/${booking.id}/confirm`}>
-                      <Eye className="w-4 h-4" />
-                      View Details
-                    </Link>
-                  </Button>
                 </div>
               </div>
             </CardContent>

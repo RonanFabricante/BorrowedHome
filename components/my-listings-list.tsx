@@ -132,26 +132,42 @@ export function MyListingsList({
           </div>
         </CardHeader>
         <CardContent>
-          <div className="space-y-2 mb-4">
-            <p className="text-sm flex items-center gap-2">
-              <Calendar className="w-4 h-4 text-muted-foreground" />
-              <span className="font-semibold">Date:</span>{" "}
-              {format(startDate, "EEEE, MMMM d, yyyy")}
-            </p>
-            <p className="text-sm flex items-center gap-2">
-              <Clock className="w-4 h-4 text-muted-foreground" />
-              <span className="font-semibold">Time:</span>{" "}
-              {format(startDate, "h:mm a")} - {format(endDate, "h:mm a")}
-            </p>
-            <p className="text-sm flex items-center gap-2">
-              <Users className="w-4 h-4 text-muted-foreground" />
-              <span className="font-semibold">Guests:</span> {booking.guests_count}
-            </p>
-            <p className="text-sm flex items-center gap-2">
-              <DollarSign className="w-4 h-4 text-muted-foreground" />
-              <span className="font-semibold">Total:</span>{" "}
-              {formatCurrency(booking.total_amount)}
-            </p>
+          <div className="flex flex-wrap items-center gap-4 mb-4">
+            <div className="flex items-center gap-2">
+              <Calendar className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+              <span className="text-sm">
+                <span className="font-semibold">Date:</span>{" "}
+                {format(startDate, "EEEE, MMMM d, yyyy")}
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Clock className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+              <span className="text-sm">
+                <span className="font-semibold">Time:</span>{" "}
+                {format(startDate, "h:mm a")} - {format(endDate, "h:mm a")}
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Users className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+              <span className="text-sm">
+                <span className="font-semibold">Guests:</span> {booking.guests_count}
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <DollarSign className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+              <span className="text-sm">
+                <span className="font-semibold">Total:</span>{" "}
+                {formatCurrency(booking.total_amount)}
+              </span>
+            </div>
+            <div className="flex items-center gap-2 ml-auto">
+              <Button asChild variant="ghost" size="sm" className="flex items-center gap-2">
+                <Link href={`/bookings/${booking.id}/confirm`}>
+                  <Eye className="w-4 h-4" />
+                  View Details
+                </Link>
+              </Button>
+            </div>
           </div>
           <div className="flex gap-2">
             {showActions && booking.status === "PENDING" && (
@@ -185,12 +201,6 @@ export function MyListingsList({
                 </Link>
               </Button>
             )}
-            <Button asChild variant="ghost" size="sm" className="flex items-center gap-2">
-              <Link href={`/bookings/${booking.id}/confirm`}>
-                <Eye className="w-4 h-4" />
-                View Details
-              </Link>
-            </Button>
           </div>
         </CardContent>
       </Card>
