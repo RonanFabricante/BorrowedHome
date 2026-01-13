@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { parse, differenceInHours, differenceInMinutes, isToday } from "date-fns";
 import { useMemo } from "react";
 import { cn } from "@/lib/utils";
+import { PlaceAutocomplete, NormalizedPlace } from "@/components/place-autocomplete";
 
 const TIMEZONE = "Australia/Sydney";
 
@@ -29,6 +30,7 @@ export function SearchForm() {
   const router = useRouter();
   const [activePreset, setActivePreset] = useState<PresetType>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [selectedPlace, setSelectedPlace] = useState<NormalizedPlace | null>(null);
   
   const {
     register,
@@ -152,6 +154,23 @@ export function SearchForm() {
       endTime: data.endTime,
       tz: TIMEZONE,
     });
+
+    // Add lat/lng if place was selected
+    if (selectedPlace) {
+      params.set("lat", selectedPlace.lat.toString());
+      params.set("lng", selectedPlace.lng.toString());
+      // Optionally add other place metadata
+      if (selectedPlace.placeType) {
+        params.set("placeType", selectedPlace.placeType);
+      }
+      if (selectedPlace.country) {
+        params.set("country", selectedPlace.country);
+      }
+      if (selectedPlace.region) {
+        params.set("region", selectedPlace.region);
+      }
+    }
+
     router.push(`/listings?${params.toString()}`);
   };
 
@@ -163,12 +182,22 @@ export function SearchForm() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
         <div className="w-full space-y-1.5">
           <Label htmlFor="location" className="text-sm font-medium">Suburb or City</Label>
-          <Input
+          <PlaceAutocomplete
             id="location"
             data-testid="location-input"
+            value={location || ""}
+            onChangeValue={(value) => {
+              setValue("location", value, { shouldValidate: true });
+            }}
+            onSelectPlace={(place) => {
+              setSelectedPlace(place);
+              if (place) {
+                setValue("location", place.label, { shouldValidate: true });
+              }
+            }}
             placeholder="Suburb or City"
+            country="au"
             className="w-full"
-            {...register("location")}
           />
         </div>
         <div className="w-full space-y-1.5">
