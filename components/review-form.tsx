@@ -15,6 +15,7 @@ export function ReviewForm({ booking, userId }: { booking: any; userId: string }
   const supabase = createClient();
   const [rating, setRating] = useState(5);
   const [body, setBody] = useState("");
+  const [error, setError] = useState<string | null>(null);
 
   const isGuest = booking.guest_id === userId;
   const revieweeName = isGuest
@@ -23,22 +24,57 @@ export function ReviewForm({ booking, userId }: { booking: any; userId: string }
 
   const createReview = useMutation({
     mutationFn: async () => {
+      setError(null);
+      
       const revieweeId = isGuest
         ? booking.listings.host_id
         : booking.guest_id;
 
-      const { error } = await supabase.from("reviews").insert({
-        booking_id: booking.id,
-        reviewer_id: userId,
-        reviewee_id: revieweeId,
-        rating,
-        body: body.trim() || null,
-      });
+      if (!revieweeId) {
+        throw new Error("Unable to determine who to review");
+      }
 
-      if (error) throw error;
+      const { data, error: insertError } = await supabase
+        .from("reviews")
+        .insert({
+          booking_id: booking.id,
+          reviewer_id: userId,
+          reviewee_id: revieweeId,
+          rating,
+          body: body.trim() || null,
+        })
+        .select()
+        .single();
+
+      if (insertError) {
+        console.error("[ReviewForm] Error creating review:", insertError);
+        
+        // Handle specific error cases
+        if (insertError.code === "23505") {
+          // Unique constraint violation - review already exists
+          throw new Error("You have already submitted a review for this booking.");
+        } else if (insertError.code === "42501") {
+          // RLS policy violation
+          throw new Error("You don't have permission to review this booking. Make sure the booking is completed.");
+        } else if (insertError.message) {
+          throw new Error(insertError.message);
+        }
+        
+        throw insertError;
+      }
+
+      return data;
     },
     onSuccess: () => {
       router.push("/my-bookings");
+      router.refresh();
+    },
+    onError: (error: any) => {
+      console.error("[ReviewForm] Review submission failed:", error);
+      setError(
+        error.message || 
+        "Failed to submit review. Please try again."
+      );
     },
   });
 
@@ -54,6 +90,11 @@ export function ReviewForm({ booking, userId }: { booking: any; userId: string }
             {booking.listings.title}
           </p>
           <div className="space-y-4">
+            {error && (
+              <div className="p-3 text-sm text-destructive bg-destructive/10 rounded-md">
+                {error}
+              </div>
+            )}
             <div>
               <Label htmlFor="rating">Rating</Label>
               <Select
@@ -83,6 +124,7 @@ export function ReviewForm({ booking, userId }: { booking: any; userId: string }
                 variant="outline"
                 onClick={() => router.back()}
                 className="flex-1"
+                disabled={createReview.isPending}
               >
                 Cancel
               </Button>

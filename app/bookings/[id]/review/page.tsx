@@ -38,6 +38,30 @@ export default async function ReviewPage({
     notFound();
   }
 
+  // Check if booking is completed (required for reviews)
+  if (booking.status !== "COMPLETED") {
+    notFound();
+  }
+
+  // Check if user has already submitted a review
+  const isGuest = booking.guest_id === user.id;
+  const revieweeId = isGuest
+    ? booking.listings.host_id
+    : booking.guest_id;
+
+  const { data: existingReview } = await supabase
+    .from("reviews")
+    .select("id")
+    .eq("booking_id", id)
+    .eq("reviewer_id", user.id)
+    .eq("reviewee_id", revieweeId)
+    .single();
+
+  if (existingReview) {
+    // User has already reviewed - redirect to bookings page
+    redirect("/my-bookings");
+  }
+
   return (
     <div className="min-h-screen">
       <Nav />
