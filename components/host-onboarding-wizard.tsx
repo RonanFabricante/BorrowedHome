@@ -95,6 +95,8 @@ export function HostOnboardingWizard() {
   const [uploading, setUploading] = useState(false);
   const [showDeclarationModal, setShowDeclarationModal] = useState(false);
   const [hostDeclarationAccepted, setHostDeclarationAccepted] = useState(false);
+  const [locationPlace, setLocationPlace] = useState<NormalizedPlace | null>(null);
+  const [addressPlace, setAddressPlace] = useState<NormalizedPlace | null>(null);
 
   const form = useForm<OnboardingFormData>({
     resolver: zodResolver(onboardingSchema),

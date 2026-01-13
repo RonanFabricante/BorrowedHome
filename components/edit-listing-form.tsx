@@ -86,6 +86,8 @@ export function EditListingForm({ listing }: { listing: any }) {
   const [uploading, setUploading] = useState(false);
   const [showDeclarationModal, setShowDeclarationModal] = useState(false);
   const [hostDeclarationConfirmed, setHostDeclarationConfirmed] = useState(false);
+  const [locationPlace, setLocationPlace] = useState<NormalizedPlace | null>(null);
+  const [addressPlace, setAddressPlace] = useState<NormalizedPlace | null>(null);
 
   const form = useForm<EditFormData>({
     resolver: zodResolver(editSchema),
