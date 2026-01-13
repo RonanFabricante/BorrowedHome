@@ -14,7 +14,6 @@ import { DayUseWarning } from "@/components/day-use-warning";
 import { ListingReviews } from "@/components/listing-reviews";
 import { HostReviewSummary } from "@/components/host-review-summary";
 import { Star } from "lucide-react";
-import Link from "next/link";
 
 const spaceIcons = {
   KITCHEN: ChefHat,
