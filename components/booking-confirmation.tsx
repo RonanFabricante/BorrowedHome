@@ -122,7 +122,7 @@ export function BookingConfirmation({ booking, isHost = false }: { booking: any;
     } else {
       setPaymentLoading(false);
     }
-  }, [booking.id, isConfirmed, supabase]);
+  }, [booking.id, isConfirmed, isHost, supabase]);
 
   const needsPayment = isConfirmed && (!payment || payment.status === "pending");
   const paymentAuthorised = payment && payment.status === "authorised";

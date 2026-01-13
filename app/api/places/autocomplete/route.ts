@@ -253,7 +253,8 @@ export async function GET(request: NextRequest) {
       let normalized = features.map(normalizeMapboxResult);
 
       // Sort to prioritize suburbs/localities over cities/places
-      normalized.sort((a, b) => {
+      type NormalizedPlace = ReturnType<typeof normalizeMapboxResult>;
+      normalized.sort((a: NormalizedPlace, b: NormalizedPlace) => {
         const priorityOrder: Record<string, number> = {
           neighborhood: 0,
           locality: 1,
