@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
 import { Logo } from "@/components/logo";
+import { Calendar, LayoutList, DollarSign, UserPlus, LogOut } from "lucide-react";
 
 export function Nav() {
   const router = useRouter();
@@ -67,20 +68,33 @@ export function Nav() {
           {user ? (
             <>
               <Link href="/my-bookings">
-                <Button variant="ghost">My Bookings</Button>
+                <Button variant="ghost" className="flex items-center gap-2">
+                  <Calendar className="w-4 h-4" />
+                  My Bookings
+                </Button>
               </Link>
               <Link href="/my-listings">
-                <Button variant="ghost">My Listings</Button>
+                <Button variant="ghost" className="flex items-center gap-2">
+                  <LayoutList className="w-4 h-4" />
+                  My Listings
+                </Button>
               </Link>
               {isHost && (
                 <Link href="/host/payouts">
-                  <Button variant="ghost">Host Payouts</Button>
+                  <Button variant="ghost" className="flex items-center gap-2">
+                    <DollarSign className="w-4 h-4" />
+                    Host Payouts
+                  </Button>
                 </Link>
               )}
               <Link href="/host/onboard">
-                <Button variant="outline">Become a Host</Button>
+                <Button variant="outline" className="flex items-center gap-2">
+                  <UserPlus className="w-4 h-4" />
+                  Become a Host
+                </Button>
               </Link>
-              <Button variant="ghost" onClick={handleSignOut}>
+              <Button variant="ghost" onClick={handleSignOut} className="flex items-center gap-2">
+                <LogOut className="w-4 h-4" />
                 Sign Out
               </Button>
             </>

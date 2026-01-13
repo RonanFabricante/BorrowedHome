@@ -10,6 +10,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatCurrency } from "@/lib/utils";
 import { format } from "date-fns";
+import { 
+  Building2, Calendar, Clock, Users, DollarSign, 
+  CheckCircle2, Eye, XCircle, AlertCircle, Edit, ExternalLink, 
+  MessageCircle, HomeX, Plus 
+} from "lucide-react";
 
 export function MyListingsList({ 
   listings, 
@@ -97,15 +102,18 @@ export function MyListingsList({
       >
         <CardHeader>
           <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="text-lg">{listing.title}</CardTitle>
-              <p className="text-sm text-muted-foreground mt-1">
-                {booking.status === "PENDING" && `Request from ${guest?.full_name || "Guest"}`}
-                {booking.status === "CONFIRMED" && `Confirmed booking with ${guest?.full_name || "Guest"}`}
-                {booking.status === "DECLINED" && `Declined request from ${guest?.full_name || "Guest"}`}
-                {!["PENDING", "CONFIRMED", "DECLINED"].includes(booking.status) && 
-                  `Booking with ${guest?.full_name || "Guest"}`}
-              </p>
+            <div className="flex items-center gap-2">
+              <Building2 className="w-5 h-5 text-muted-foreground" />
+              <div>
+                <CardTitle className="text-lg">{listing.title}</CardTitle>
+                <p className="text-sm text-muted-foreground mt-1">
+                  {booking.status === "PENDING" && `Request from ${guest?.full_name || "Guest"}`}
+                  {booking.status === "CONFIRMED" && `Confirmed booking with ${guest?.full_name || "Guest"}`}
+                  {booking.status === "DECLINED" && `Declined request from ${guest?.full_name || "Guest"}`}
+                  {!["PENDING", "CONFIRMED", "DECLINED"].includes(booking.status) && 
+                    `Booking with ${guest?.full_name || "Guest"}`}
+                </p>
+              </div>
             </div>
             <Badge
               variant={
@@ -114,25 +122,33 @@ export function MyListingsList({
                 booking.status === "DECLINED" ? "destructive" :
                 "secondary"
               }
+              className="flex items-center gap-1"
             >
+              {booking.status === "COMPLETED" && <CheckCircle2 className="w-3 h-3" />}
+              {booking.status === "PENDING" && <AlertCircle className="w-3 h-3" />}
+              {booking.status === "DECLINED" && <XCircle className="w-3 h-3" />}
               {booking.status}
             </Badge>
           </div>
         </CardHeader>
         <CardContent>
           <div className="space-y-2 mb-4">
-            <p className="text-sm">
+            <p className="text-sm flex items-center gap-2">
+              <Calendar className="w-4 h-4 text-muted-foreground" />
               <span className="font-semibold">Date:</span>{" "}
               {format(startDate, "EEEE, MMMM d, yyyy")}
             </p>
-            <p className="text-sm">
+            <p className="text-sm flex items-center gap-2">
+              <Clock className="w-4 h-4 text-muted-foreground" />
               <span className="font-semibold">Time:</span>{" "}
               {format(startDate, "h:mm a")} - {format(endDate, "h:mm a")}
             </p>
-            <p className="text-sm">
+            <p className="text-sm flex items-center gap-2">
+              <Users className="w-4 h-4 text-muted-foreground" />
               <span className="font-semibold">Guests:</span> {booking.guests_count}
             </p>
-            <p className="text-sm">
+            <p className="text-sm flex items-center gap-2">
+              <DollarSign className="w-4 h-4 text-muted-foreground" />
               <span className="font-semibold">Total:</span>{" "}
               {formatCurrency(booking.total_amount)}
             </p>
@@ -144,7 +160,9 @@ export function MyListingsList({
                   onClick={() => acceptBooking.mutate(booking.id)}
                   disabled={acceptBooking.isPending || declineBooking.isPending}
                   size="sm"
+                  className="flex items-center gap-2"
                 >
+                  <CheckCircle2 className="w-4 h-4" />
                   {acceptBooking.isPending ? "Accepting..." : "Accept"}
                 </Button>
                 <Button
@@ -152,20 +170,24 @@ export function MyListingsList({
                   disabled={acceptBooking.isPending || declineBooking.isPending}
                   variant="destructive"
                   size="sm"
+                  className="flex items-center gap-2"
                 >
+                  <XCircle className="w-4 h-4" />
                   {declineBooking.isPending ? "Declining..." : "Decline"}
                 </Button>
               </>
             )}
             {booking.status === "CONFIRMED" && (
-              <Button asChild variant="outline" size="sm">
+              <Button asChild variant="outline" size="sm" className="flex items-center gap-2">
                 <Link href={`/bookings/${booking.id}/messages`}>
+                  <MessageCircle className="w-4 h-4" />
                   Message Guest
                 </Link>
               </Button>
             )}
-            <Button asChild variant="ghost" size="sm">
+            <Button asChild variant="ghost" size="sm" className="flex items-center gap-2">
               <Link href={`/bookings/${booking.id}/confirm`}>
+                <Eye className="w-4 h-4" />
                 View Details
               </Link>
             </Button>
@@ -221,11 +243,15 @@ export function MyListingsList({
         <h2 className="text-2xl font-semibold mb-4">My Listings</h2>
         {listings.length === 0 ? (
           <div className="text-center py-12">
+            <HomeX className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
             <p className="text-muted-foreground mb-4">
               You don&apos;t have any listings yet.
             </p>
-            <Button asChild>
-              <Link href="/host/onboard">Create Your First Listing</Link>
+            <Button asChild className="flex items-center gap-2 mx-auto">
+              <Link href="/host/onboard">
+                <Plus className="w-4 h-4" />
+                Create Your First Listing
+              </Link>
             </Button>
           </div>
         ) : (
@@ -236,6 +262,7 @@ export function MyListingsList({
             <div className="flex items-start justify-between">
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-2">
+                  <Building2 className="w-5 h-5 text-muted-foreground" />
                   <h3 className="text-xl font-semibold">{listing.title}</h3>
                   {listing.published ? (
                     <Badge>Published</Badge>
@@ -256,13 +283,17 @@ export function MyListingsList({
                   <span className="font-semibold">Max guests:</span>{" "}
                   {listing.max_guests}
                 </p>
-                <p className="font-semibold">
+                <p className="font-semibold flex items-center gap-1">
+                  <DollarSign className="w-4 h-4" />
                   From {formatCurrency(listing.hourly_rate)}/hr
                 </p>
               </div>
               <div className="flex flex-col gap-2">
-                <Button asChild variant="outline" size="sm">
-                  <Link href={`/listings/${listing.id}`}>View</Link>
+                <Button asChild variant="outline" size="sm" className="flex items-center gap-2">
+                  <Link href={`/listings/${listing.id}`}>
+                    <ExternalLink className="w-4 h-4" />
+                    View
+                  </Link>
                 </Button>
                 {listingsWithActiveBookings.has(listing.id) ? (
                   <Button 
@@ -270,12 +301,17 @@ export function MyListingsList({
                     size="sm" 
                     disabled
                     title="Cannot edit listing with active or confirmed bookings"
+                    className="flex items-center gap-2"
                   >
+                    <Edit className="w-4 h-4" />
                     Edit (Disabled)
                   </Button>
                 ) : (
-                  <Button asChild variant="ghost" size="sm">
-                    <Link href={`/listings/${listing.id}/edit`}>Edit</Link>
+                  <Button asChild variant="ghost" size="sm" className="flex items-center gap-2">
+                    <Link href={`/listings/${listing.id}/edit`}>
+                      <Edit className="w-4 h-4" />
+                      Edit
+                    </Link>
                   </Button>
                 )}
               </div>
