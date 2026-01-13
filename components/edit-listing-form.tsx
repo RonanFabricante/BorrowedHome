@@ -454,6 +454,7 @@ export function EditListingForm({ listing }: { listing: any }) {
                     }}
                     placeholder="e.g., 123 Main St, Surry Hills"
                     country="au"
+                    types="address"
                   />
                   {form.formState.errors.address_text && (
                     <p className="text-sm text-destructive mt-1">

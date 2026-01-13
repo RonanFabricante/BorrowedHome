@@ -35,6 +35,7 @@ export function PlaceAutocomplete({
   onSelectPlace,
   placeholder = "Suburb or City",
   country,
+  types,
   className,
   id,
   "data-testid": testId,
@@ -72,6 +73,10 @@ export function PlaceAutocomplete({
         params.set("country", country);
       }
 
+      if (types) {
+        params.set("types", types);
+      }
+
       const response = await fetch(`/api/places/autocomplete?${params.toString()}`);
 
       if (!response.ok) {
@@ -99,7 +104,7 @@ export function PlaceAutocomplete({
     } finally {
       setIsLoading(false);
     }
-  }, [country]);
+  }, [country, types]);
 
   // Handle input change with debounce
   useEffect(() => {

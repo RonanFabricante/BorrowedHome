@@ -56,9 +56,10 @@ function getCacheKey(
   limit: number,
   language: string,
   country?: string,
-  proximity?: string
+  proximity?: string,
+  types?: string
 ): string {
-  return `autocomplete:${q.toLowerCase().trim()}:${limit}:${language}:${country || ""}:${proximity || ""}`;
+  return `autocomplete:${q.toLowerCase().trim()}:${limit}:${language}:${country || ""}:${proximity || ""}:${types || ""}`;
 }
 
 function normalizeMapboxResult(feature: any): {
@@ -104,7 +105,10 @@ function normalizeMapboxResult(feature: any): {
 
   // Build display label - use feature's own text as primary label
   let label: string;
-  if (placeType === "neighborhood" || placeType === "locality" || placeType === "district") {
+  if (placeType === "address") {
+    // For addresses: use the full place_name (e.g., "123 Main St, Surry Hills, NSW, Australia")
+    label = feature.place_name || featureText || "";
+  } else if (placeType === "neighborhood" || placeType === "locality" || placeType === "district") {
     // For suburbs/localities: "Suburb, Region, Country"
     const parts: string[] = [featureText];
     if (region && region !== featureText) parts.push(region);
@@ -160,6 +164,7 @@ export async function GET(request: NextRequest) {
     const language = searchParams.get("language") || process.env.MAPBOX_DEFAULT_LANGUAGE || "en";
     const country = searchParams.get("country");
     const proximity = searchParams.get("proximity");
+    const types = searchParams.get("types"); // Optional: e.g., "address" for street addresses
 
     // Validation
     if (!q) {
@@ -187,7 +192,7 @@ export async function GET(request: NextRequest) {
     const limit = Math.min(Math.max(1, parseInt(limitParam || "6", 10)), 10);
 
     // Check cache
-    const cacheKey = getCacheKey(trimmedQ, limit, language, country || undefined, proximity || undefined);
+    const cacheKey = getCacheKey(trimmedQ, limit, language, country || undefined, proximity || undefined, types || undefined);
     const cached = cache.get(cacheKey);
     if (cached && Date.now() < cached.expiresAt) {
       return NextResponse.json({ results: cached.data });
@@ -206,12 +211,12 @@ export async function GET(request: NextRequest) {
     const endpoint = process.env.MAPBOX_ENDPOINT || "https://api.mapbox.com/geocoding/v5/mapbox.places";
 
     // Build Mapbox API URL
-    // Prioritize suburbs/localities by ordering types (neighborhood and locality first)
+    // Use provided types, or default to suburbs/localities (neighborhood and locality first)
     const encodedQuery = encodeURIComponent(trimmedQ);
     const mapboxUrl = new URL(`${endpoint}/${encodedQuery}.json`);
     mapboxUrl.searchParams.set("access_token", mapboxToken);
     mapboxUrl.searchParams.set("autocomplete", "true");
-    mapboxUrl.searchParams.set("types", "neighborhood,locality,district,place");
+    mapboxUrl.searchParams.set("types", types || "neighborhood,locality,district,place");
     mapboxUrl.searchParams.set("limit", limit.toString());
     mapboxUrl.searchParams.set("language", language);
 
