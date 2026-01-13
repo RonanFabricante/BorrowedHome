@@ -24,6 +24,7 @@ interface PlaceAutocompleteProps {
   onSelectPlace: (place: NormalizedPlace | null) => void;
   placeholder?: string;
   country?: string;
+  types?: string; // Mapbox types parameter (e.g., "address" for street addresses)
   className?: string;
   id?: string;
   "data-testid"?: string;
