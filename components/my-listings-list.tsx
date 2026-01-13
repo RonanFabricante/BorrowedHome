@@ -13,7 +13,7 @@ import { format } from "date-fns";
 import { 
   Building2, Calendar, Clock, Users, DollarSign, 
   CheckCircle2, Eye, XCircle, AlertCircle, Edit, ExternalLink, 
-  MessageCircle, HomeX, Plus 
+  MessageCircle, Inbox, Plus 
 } from "lucide-react";
 
 export function MyListingsList({ 
@@ -243,7 +243,7 @@ export function MyListingsList({
         <h2 className="text-2xl font-semibold mb-4">My Listings</h2>
         {listings.length === 0 ? (
           <div className="text-center py-12">
-            <HomeX className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+            <Inbox className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
             <p className="text-muted-foreground mb-4">
               You don&apos;t have any listings yet.
             </p>

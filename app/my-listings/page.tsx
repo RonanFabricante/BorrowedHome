@@ -2,7 +2,7 @@ import { Nav } from "@/components/nav";
 import { MyListingsList } from "@/components/my-listings-list";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-import { Plus } from "lucide-react";
+import { Plus, LayoutList } from "lucide-react";
 
 export default async function MyListingsPage() {
   const supabase = await createClient();
