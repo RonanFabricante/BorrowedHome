@@ -12,7 +12,7 @@ import { AlertCircle, Clock, XCircle, CheckCircle2 } from "lucide-react";
 import { PaymentForm } from "@/components/payment-form";
 import { createClient } from "@/lib/supabase/client";
 
-export function BookingConfirmation({ booking }: { booking: any }) {
+export function BookingConfirmation({ booking, isHost = false }: { booking: any; isHost?: boolean }) {
   const supabase = createClient();
   const listing = booking.listings;
   const startDate = new Date(booking.start_at);
@@ -27,7 +27,8 @@ export function BookingConfirmation({ booking }: { booking: any }) {
   const [paymentInitError, setPaymentInitError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (isConfirmed) {
+    // Only fetch payment info if user is guest (hosts don't need payment forms)
+    if (isConfirmed && !isHost) {
       // Fetch payment status
       supabase
         .from("payments")
@@ -176,7 +177,9 @@ export function BookingConfirmation({ booking }: { booking: any }) {
 
         <div className="flex gap-4">
           <Button variant="outline" asChild>
-            <Link href="/my-bookings">View All Bookings</Link>
+            <Link href={isHost ? "/my-listings" : "/my-bookings"}>
+              {isHost ? "Back to My Listings" : "View All Bookings"}
+            </Link>
           </Button>
         </div>
       </div>
@@ -191,7 +194,9 @@ export function BookingConfirmation({ booking }: { booking: any }) {
             <XCircle className="h-3 w-3 mr-1" />
             Declined
           </Badge>
-          <h1 className="text-4xl font-bold mb-2">Booking Request Declined</h1>
+          <h1 className="text-4xl font-bold mb-2">
+            {isHost ? "Booking Declined" : "Booking Request Declined"}
+          </h1>
           <p className="text-muted-foreground">
             {listing.title} • {listing.location_text}
           </p>
@@ -202,10 +207,13 @@ export function BookingConfirmation({ booking }: { booking: any }) {
             <div className="flex gap-3">
               <XCircle className="h-5 w-5 text-red-600 mt-0.5 flex-shrink-0" />
               <div>
-                <h3 className="font-semibold mb-2">Request Not Accepted</h3>
+                <h3 className="font-semibold mb-2">
+                  {isHost ? "You Declined This Request" : "Request Not Accepted"}
+                </h3>
                 <p className="text-sm text-muted-foreground">
-                  Unfortunately, the host has declined your booking request for this time slot.
-                  The address has not been revealed. You can browse other listings or try a different time.
+                  {isHost
+                    ? "You have declined this booking request. The guest has been notified."
+                    : "Unfortunately, the host has declined your booking request for this time slot. The address has not been revealed. You can browse other listings or try a different time."}
                 </p>
               </div>
             </div>
@@ -234,11 +242,15 @@ export function BookingConfirmation({ booking }: { booking: any }) {
         </Card>
 
         <div className="flex gap-4">
-          <Button asChild>
-            <Link href="/listings">Browse Other Listings</Link>
-          </Button>
+          {!isHost && (
+            <Button asChild>
+              <Link href="/listings">Browse Other Listings</Link>
+            </Button>
+          )}
           <Button variant="outline" asChild>
-            <Link href="/my-bookings">View All Bookings</Link>
+            <Link href={isHost ? "/my-listings" : "/my-bookings"}>
+              {isHost ? "Back to My Listings" : "View All Bookings"}
+            </Link>
           </Button>
         </div>
       </div>
@@ -275,7 +287,9 @@ export function BookingConfirmation({ booking }: { booking: any }) {
 
         <div className="flex gap-4">
           <Button variant="outline" asChild>
-            <Link href="/my-bookings">View All Bookings</Link>
+            <Link href={isHost ? "/my-listings" : "/my-bookings"}>
+              {isHost ? "Back to My Listings" : "View All Bookings"}
+            </Link>
           </Button>
         </div>
       </div>
@@ -325,8 +339,8 @@ export function BookingConfirmation({ booking }: { booking: any }) {
         </CardContent>
       </Card>
 
-      {/* Payment Initiation Error */}
-      {paymentInitError && (
+      {/* Payment Initiation Error - Only show to guests */}
+      {paymentInitError && !isHost && (
         <Card className="mb-6 border-destructive bg-destructive/10">
           <CardContent className="pt-6">
             <div className="flex gap-3">
@@ -347,8 +361,8 @@ export function BookingConfirmation({ booking }: { booking: any }) {
         </Card>
       )}
 
-      {/* Payment Form - Show if CONFIRMED but payment not authorised and no error */}
-      {needsPayment && !paymentLoading && !paymentInitError && (
+      {/* Payment Form - Show if CONFIRMED but payment not authorised and no error (guests only) */}
+      {needsPayment && !paymentLoading && !paymentInitError && !isHost && (
         <PaymentForm
           bookingId={booking.id}
           amount={booking.total_amount}
@@ -367,7 +381,7 @@ export function BookingConfirmation({ booking }: { booking: any }) {
         />
       )}
 
-      {/* Payment Status */}
+      {/* Payment Status - Show to both guest and host */}
       {paymentAuthorised && (
         <Card className="mb-6 border-green-200 bg-green-50">
           <CardContent className="pt-6">
@@ -384,8 +398,8 @@ export function BookingConfirmation({ booking }: { booking: any }) {
         </Card>
       )}
 
-      {/* Address - Only show if payment is authorised */}
-      {isConfirmed && paymentAuthorised && (
+      {/* Address - Show to host always, or to guest if payment is authorised */}
+      {isConfirmed && (isHost || paymentAuthorised) && (
         <Card className="mb-6">
           <CardHeader>
             <CardTitle>Address</CardTitle>
@@ -393,7 +407,9 @@ export function BookingConfirmation({ booking }: { booking: any }) {
           <CardContent>
             <p className="font-semibold text-lg">{listing.address_text}</p>
             <p className="text-sm text-muted-foreground mt-2">
-              This address is only visible to you and the host.
+              {isHost 
+                ? "This is your property address for this booking."
+                : "This address is only visible to you and the host."}
             </p>
           </CardContent>
         </Card>
@@ -432,13 +448,24 @@ export function BookingConfirmation({ booking }: { booking: any }) {
 
       {isConfirmed && (
         <div className="flex gap-4">
-          <Button asChild>
-            <Link href={`/bookings/${booking.id}/messages`}>
-              Message Host
-            </Link>
-          </Button>
+          {!isHost && (
+            <Button asChild>
+              <Link href={`/bookings/${booking.id}/messages`}>
+                Message Host
+              </Link>
+            </Button>
+          )}
+          {isHost && (
+            <Button asChild>
+              <Link href={`/bookings/${booking.id}/messages`}>
+                Message Guest
+              </Link>
+            </Button>
+          )}
           <Button variant="outline" asChild>
-            <Link href="/my-bookings">View All Bookings</Link>
+            <Link href={isHost ? "/my-listings" : "/my-bookings"}>
+              {isHost ? "Back to My Listings" : "View All Bookings"}
+            </Link>
           </Button>
         </div>
       )}

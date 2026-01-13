@@ -19,6 +19,7 @@ export default async function BookingConfirmPage({
   // Auto-update past CONFIRMED bookings to COMPLETED
   await supabase.rpc("mark_past_bookings_completed");
 
+  // Fetch booking - allow both guest and host to view
   const { data: booking } = await supabase
     .from("bookings")
     .select(`
@@ -28,18 +29,27 @@ export default async function BookingConfirmPage({
         title,
         location_text,
         address_text,
+        host_id,
         host_present,
         cooking_allowed,
         alcohol_allowed,
         noise_tolerance,
         cleaning_expectations
-      )
+      ),
+      profiles!bookings_guest_id_fkey(id, full_name)
     `)
     .eq("id", id)
-    .eq("guest_id", user.id)
     .single();
 
   if (!booking) {
+    notFound();
+  }
+
+  // Verify user has access (either guest or host)
+  const isGuest = booking.guest_id === user.id;
+  const isHost = booking.listings.host_id === user.id;
+
+  if (!isGuest && !isHost) {
     notFound();
   }
 
@@ -47,7 +57,7 @@ export default async function BookingConfirmPage({
     <div className="min-h-screen">
       <Nav />
       <main className="container mx-auto px-4 py-8">
-        <BookingConfirmation booking={booking} />
+        <BookingConfirmation booking={booking} isHost={isHost} />
       </main>
     </div>
   );
