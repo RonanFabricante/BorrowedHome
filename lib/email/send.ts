@@ -17,7 +17,7 @@ export interface BookingEmailData {
   endTime: string;
   totalAmount: number;
   paymentDeadline?: string;
-  bookingUrl: string;
+  bookingUrl?: string; // Optional - some emails construct URL from bookingId
 }
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://borrowedhome.app";
