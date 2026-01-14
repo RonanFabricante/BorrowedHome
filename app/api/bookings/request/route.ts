@@ -205,6 +205,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Create in-app notification for host (async - don't wait)
+    const { createNotification } = await import("@/lib/notifications/create");
+    createNotification({
+      userId: listing.host_id,
+      type: "BOOKING_REQUESTED",
+      title: "New booking request",
+      body: `${guestProfile?.full_name || "A guest"} requested to book "${listing.title}"`,
+      href: `/host/dashboard?tab=requests`,
+      entityType: "booking",
+      entityId: booking.id,
+      dedupeKey: `booking:${booking.id}:requested`,
+    }).catch((notifError) => {
+      console.error("[Booking Request] Failed to create notification:", notifError);
+      // Don't fail the request if notification fails
+    });
+
     return NextResponse.json({
       success: true,
       booking,

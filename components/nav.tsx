@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
 import { Logo } from "@/components/logo";
 import { Calendar, LayoutList, DollarSign, UserPlus, LogOut } from "lucide-react";
+import { NotificationsBell } from "@/components/notifications-bell";
 
 export function Nav() {
   const router = useRouter();
@@ -67,6 +68,7 @@ export function Nav() {
         <div className="flex items-center gap-4">
           {user ? (
             <>
+              <NotificationsBell />
               <Link href="/my-bookings">
                 <Button variant="ghost" className="flex items-center gap-2">
                   <Calendar className="w-4 h-4" />

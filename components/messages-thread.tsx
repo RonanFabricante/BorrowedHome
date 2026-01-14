@@ -41,12 +41,22 @@ export function MessagesThread({
 
   const sendMessage = useMutation({
     mutationFn: async (body: string) => {
-      const { error } = await supabase.from("messages").insert({
-        booking_id: bookingId,
-        sender_id: userId,
-        body,
+      // Use API route to send message (which handles notifications)
+      const response = await fetch("/api/messages/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          booking_id: bookingId,
+          message_body: body,
+        }),
       });
-      if (error) throw error;
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Failed to send message");
+      }
+
+      return response.json();
     },
     onSuccess: () => {
       setMessage("");

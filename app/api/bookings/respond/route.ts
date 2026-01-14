@@ -281,6 +281,21 @@ export async function POST(request: NextRequest) {
         );
       }
 
+      // Create in-app notification for guest (payment required)
+      const { createNotification } = await import("@/lib/notifications/create");
+      createNotification({
+        userId: acceptedBooking.guest_id,
+        type: "PAYMENT_REQUIRED",
+        title: "Payment required",
+        body: `Complete payment for "${listing.title}" to confirm your booking`,
+        href: `/bookings/${booking_id}/confirm?action=pay`,
+        entityType: "booking",
+        entityId: booking_id,
+        dedupeKey: `booking:${booking_id}:payment_required`,
+      }).catch((notifError) => {
+        console.error("[Booking Respond] Failed to create payment notification:", notifError);
+      });
+
       return NextResponse.json({
         success: true,
         booking: acceptedBooking,

@@ -166,6 +166,33 @@ export async function POST(request: NextRequest) {
                       (err) => console.error("[Webhook] Failed to send host confirmation email:", err)
                     );
                   }
+
+                  // Create in-app notifications (don't await - fire and forget)
+                  const { createNotificationsForUsers } = await import("@/lib/notifications/create");
+                  createNotificationsForUsers([
+                    {
+                      userId: booking.guest_id,
+                      type: "BOOKING_CONFIRMED",
+                      title: "Booking confirmed",
+                      body: `Your booking for "${listingResult.data.title}" is confirmed`,
+                      href: `/bookings/${bookingId}/confirm`,
+                      entityType: "booking",
+                      entityId: bookingId,
+                      dedupeKey: `booking:${bookingId}:confirmed:guest`,
+                    },
+                    {
+                      userId: listingResult.data.host_id,
+                      type: "BOOKING_CONFIRMED",
+                      title: "Booking confirmed",
+                      body: `Booking for "${listingResult.data.title}" is confirmed`,
+                      href: `/bookings/${bookingId}/confirm`,
+                      entityType: "booking",
+                      entityId: bookingId,
+                      dedupeKey: `booking:${bookingId}:confirmed:host`,
+                    },
+                  ]).catch((err) => {
+                    console.error("[Webhook] Failed to create confirmation notifications:", err);
+                  });
                 }
               }).catch((err) => {
                 console.error("[Webhook] Failed to fetch user data for emails:", err);
