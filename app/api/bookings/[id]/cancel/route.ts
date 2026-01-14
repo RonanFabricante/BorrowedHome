@@ -128,9 +128,11 @@ export async function POST(
         policyResult.refundableAmountCents
       );
 
+      // Log payment processing result but don't fail cancellation if payment processing fails
       if (!paymentResult.success) {
-        // Log error but continue with cancellation (payment can be retried)
         console.error("[Cancel Booking] Payment processing failed:", paymentResult.error);
+        // Continue with cancellation even if payment processing fails
+        // Payment can be handled manually later
       }
     }
 
@@ -147,6 +149,9 @@ export async function POST(
         } else {
           paymentStatus = "REFUNDED";
         }
+      } else if (paymentResult.action === "none") {
+        // Payment was never authorized, keep existing status or set to NONE
+        paymentStatus = booking.payment_status || "NONE";
       }
     }
 
@@ -181,13 +186,21 @@ export async function POST(
       .update(updateData)
       .eq("id", bookingId)
       .select()
-      .single();
+      .maybeSingle(); // Use maybeSingle() instead of single() to handle case where booking might not exist
 
     if (updateError) {
       console.error("[Cancel Booking] Failed to update booking:", updateError);
       return NextResponse.json(
         { error: "Failed to cancel booking" },
         { status: 500 }
+      );
+    }
+
+    if (!updatedBooking) {
+      console.error("[Cancel Booking] Booking not found after update");
+      return NextResponse.json(
+        { error: "Booking not found" },
+        { status: 404 }
       );
     }
 

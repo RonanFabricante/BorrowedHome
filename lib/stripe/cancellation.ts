@@ -37,6 +37,16 @@ export async function processCancellationPayment(
       };
     }
 
+    // If payment was never completed (requires_payment_method), nothing to void/refund
+    if (paymentIntent.status === "requires_payment_method") {
+      return {
+        success: true,
+        action: "none",
+        stripePaymentIntentId,
+        amountCents: 0, // No amount to refund since payment was never authorized
+      };
+    }
+
     // If payment is only authorized (not captured), void it
     if (paymentIntent.status === "requires_capture") {
       try {
