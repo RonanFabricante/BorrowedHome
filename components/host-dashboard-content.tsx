@@ -16,7 +16,7 @@ import {
   MessageCircle,
   Eye
 } from "lucide-react";
-import { HostDashboardSummary } from "@/lib/host/dashboard";
+import type { HostDashboardSummary, HostBooking } from "@/lib/host/dashboard";
 import { HostDashboardRequests } from "@/components/host-dashboard-requests";
 import { HostDashboardBookings } from "@/components/host-dashboard-bookings";
 import { HostDashboardCalendar } from "@/components/host-dashboard-calendar";
@@ -27,13 +27,14 @@ interface HostDashboardContentProps {
   hostId: string;
   summary: HostDashboardSummary;
   activeTab: string;
-  initialRequests?: any[];
+  initialRequests?: HostBooking[];
 }
 
 export function HostDashboardContent({
   hostId,
   summary,
   activeTab,
+  initialRequests,
 }: HostDashboardContentProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
