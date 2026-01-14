@@ -36,12 +36,10 @@ export function NotificationsPageContent({ userId }: NotificationsPageContentPro
     },
   });
 
-  const notifications = notificationsData?.notifications || [];
-
-  const notifications = data?.pages.flatMap((page: any) => page.notifications || []) || [];
+  const allNotifications = notificationsData?.notifications || [];
   const filteredNotifications = filter === "unread"
-    ? notifications.filter((n: Notification) => !n.read_at)
-    : notifications;
+    ? allNotifications.filter((n: Notification) => !n.read_at)
+    : allNotifications;
 
   const markReadMutation = useMutation({
     mutationFn: async (ids: string[]) => {
