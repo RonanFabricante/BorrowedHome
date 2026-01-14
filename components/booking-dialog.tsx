@@ -113,6 +113,13 @@ export function BookingDialog({
 
       const start = parse(`${data.date} ${data.startTime}`, "yyyy-MM-dd HH:mm", new Date());
       const end = parse(`${data.date} ${data.endTime}`, "yyyy-MM-dd HH:mm", new Date());
+      const now = new Date();
+
+      // Validate minimum lead time (4 hours)
+      const hoursUntilStart = (start.getTime() - now.getTime()) / (1000 * 60 * 60);
+      if (hoursUntilStart < 4) {
+        throw new Error("Bookings must be requested at least 4 hours before the start time.");
+      }
 
       // Check minimum 2 hours
       const hours = differenceInHours(end, start);
@@ -161,43 +168,28 @@ export function BookingDialog({
         throw new Error("Selected time is outside available hours");
       }
 
-      // Check for overlaps (only against CONFIRMED bookings - PENDING doesn't block inventory)
-      const { data: overlapping } = await supabase
-        .rpc("check_booking_overlap", {
-          p_listing_id: listing.id,
-          p_start_at: start.toISOString(),
-          p_end_at: end.toISOString(),
-          p_booking_id: null,
-        });
+      // Use new API route for booking request (validates lead time and availability server-side)
+      const response = await fetch("/api/bookings/request", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          listing_id: listing.id,
+          start_time: start.toISOString(),
+          end_time: end.toISOString(),
+          guests_count: data.guestsCount,
+          message: null, // Optional message can be added later
+        }),
+      });
 
-      if (overlapping) {
-        throw new Error("This time slot is already booked");
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || errorData.error || "Failed to create booking request");
       }
 
-      // Create booking with PENDING status (requires host approval)
-      const { data: booking, error } = await supabase
-        .from("bookings")
-        .insert({
-          listing_id: listing.id,
-          guest_id: user.id,
-          start_at: start.toISOString(),
-          end_at: end.toISOString(),
-          status: "PENDING",
-          accepted_rules_at: new Date().toISOString(),
-          guest_ack_toilet_access: data.guest_ack_toilet_access,
-          guest_ack_consumables_policy: data.guest_ack_consumables_policy,
-          ack_version: "2026-01-08", // Policy version for auditing
-          guests_count: data.guestsCount,
-          total_amount: priceBreakdown.total,
-          platform_fee_amount: priceBreakdown.fee,
-          deposit_amount: priceBreakdown.deposit,
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      return booking;
+      const result = await response.json();
+      return result.booking;
     },
     onSuccess: (booking) => {
       router.push(`/bookings/${booking.id}/confirm`);

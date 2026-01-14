@@ -18,8 +18,11 @@ export function BookingConfirmation({ booking, isHost = false }: { booking: any;
   const startDate = new Date(booking.start_at);
   const endDate = new Date(booking.end_at);
   const isConfirmed = booking.status === "CONFIRMED";
-  const isPending = booking.status === "PENDING";
-  const isDeclined = booking.status === "DECLINED";
+  const isRequested = booking.status === "REQUESTED";
+  const isPending = booking.status === "PENDING" || booking.status === "REQUESTED"; // Support both for backward compatibility
+  const isPaymentPending = booking.status === "PAYMENT_PENDING";
+  const isDeclined = booking.status === "DECLINED" || booking.status === "REJECTED";
+  const isExpired = booking.status === "EXPIRED";
   const isCancelled = booking.status === "CANCELLED";
   const isCompleted = booking.status === "COMPLETED";
   

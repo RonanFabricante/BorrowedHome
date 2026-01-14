@@ -67,12 +67,99 @@ export async function POST(request: NextRequest) {
           console.error("Failed to update payment status:", error);
         }
 
-        // If this is the booking payment (not deposit), ensure booking is CONFIRMED
+        // If this is the booking payment (not deposit), confirm the booking
         if (paymentType === "booking") {
-          await supabase
+          // Check if booking is PAYMENT_PENDING and within deadline
+          const { data: booking } = await supabase
             .from("bookings")
-            .update({ status: "CONFIRMED" })
-            .eq("id", bookingId);
+            .select("status, payment_deadline_at, guest_id, listing_id, start_at, end_at, total_amount")
+            .eq("id", bookingId)
+            .single();
+
+          if (booking) {
+            const now = new Date();
+            const deadline = booking.payment_deadline_at ? new Date(booking.payment_deadline_at) : null;
+            
+            // Only confirm if status is PAYMENT_PENDING and within deadline (or deadline not set)
+            if (booking.status === "PAYMENT_PENDING" && (!deadline || now <= deadline)) {
+              await supabase
+                .from("bookings")
+                .update({ 
+                  status: "CONFIRMED",
+                  paid_at: now.toISOString(),
+                })
+                .eq("id", bookingId);
+
+              // Log event
+              try {
+                await supabase.rpc("log_booking_event", {
+                  p_booking_id: bookingId,
+                  p_event_type: "PAID",
+                  p_actor_id: booking.guest_id,
+                  p_payload: { payment_intent_id: paymentIntent.id },
+                });
+              } catch (eventError) {
+                console.error("[Webhook] Failed to log PAID event:", eventError);
+              }
+
+              // Send confirmation emails (async)
+              const { sendGuestBookingConfirmedEmail, sendHostBookingConfirmedEmail } = await import("@/lib/email/send");
+              const { createAdminClient } = await import("@/lib/supabase/admin");
+              const adminClient = createAdminClient();
+
+              // Fetch guest and host profiles/emails
+              Promise.all([
+                adminClient.auth.admin.getUserById(booking.guest_id),
+                supabase.from("listings").select("host_id, title").eq("id", booking.listing_id).single(),
+              ]).then(async ([guestUserResult, listingResult]) => {
+                if (guestUserResult.data?.user?.email && listingResult.data) {
+                  const guestEmail = guestUserResult.data.user.email;
+                  const { data: guestProfile } = await supabase
+                    .from("profiles")
+                    .select("full_name")
+                    .eq("id", booking.guest_id)
+                    .single();
+
+                  const { data: hostProfile } = await supabase
+                    .from("profiles")
+                    .select("full_name")
+                    .eq("id", listingResult.data.host_id)
+                    .single();
+
+                  const { data: hostUserResult } = await adminClient.auth.admin.getUserById(listingResult.data.host_id);
+                  const hostEmail = hostUserResult?.user?.email;
+
+                  const emailData = {
+                    bookingId,
+                    guestName: guestProfile?.full_name || "Guest",
+                    hostName: hostProfile?.full_name || "Host",
+                    listingTitle: listingResult.data.title,
+                    startTime: booking.start_at,
+                    endTime: booking.end_at,
+                    totalAmount: booking.total_amount,
+                  };
+
+                  // Send emails (don't await - fire and forget)
+                  if (guestEmail) {
+                    sendGuestBookingConfirmedEmail(guestEmail, guestProfile?.full_name || "Guest", emailData).catch(
+                      (err) => console.error("[Webhook] Failed to send guest confirmation email:", err)
+                    );
+                  }
+
+                  if (hostEmail) {
+                    sendHostBookingConfirmedEmail(hostEmail, hostProfile?.full_name || "Host", emailData).catch(
+                      (err) => console.error("[Webhook] Failed to send host confirmation email:", err)
+                    );
+                  }
+                }
+              }).catch((err) => {
+                console.error("[Webhook] Failed to fetch user data for emails:", err);
+              });
+            } else if (booking.status === "EXPIRED") {
+              // Payment arrived after expiry - log for review but don't confirm
+              console.warn(`[Webhook] Payment received for expired booking ${bookingId}. Manual review may be needed.`);
+            }
+          }
         }
 
         break;
