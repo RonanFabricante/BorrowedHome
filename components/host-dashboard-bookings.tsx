@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -38,11 +38,7 @@ export function HostDashboardBookings({ hostId }: HostDashboardBookingsProps) {
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const [searchQuery, setSearchQuery] = useState("");
 
-  useEffect(() => {
-    loadBookings();
-  }, [hostId, statusFilter, searchQuery]);
-
-  const loadBookings = async () => {
+  const loadBookings = useCallback(async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams();
@@ -63,7 +59,11 @@ export function HostDashboardBookings({ hostId }: HostDashboardBookingsProps) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [hostId, statusFilter, searchQuery]);
+
+  useEffect(() => {
+    loadBookings();
+  }, [loadBookings]);
 
   const getStatusBadge = (status: string) => {
     const variants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {

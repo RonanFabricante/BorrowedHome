@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -19,11 +19,7 @@ export function HostDashboardCalendar({ hostId }: HostDashboardCalendarProps) {
   const [loading, setLoading] = useState(true);
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
 
-  useEffect(() => {
-    loadCalendarEvents();
-  }, [hostId, currentMonth]);
-
-  const loadCalendarEvents = async () => {
+  const loadCalendarEvents = useCallback(async () => {
     setLoading(true);
     try {
       const monthStart = startOfMonth(currentMonth);
@@ -41,7 +37,11 @@ export function HostDashboardCalendar({ hostId }: HostDashboardCalendarProps) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [hostId, currentMonth]);
+
+  useEffect(() => {
+    loadCalendarEvents();
+  }, [loadCalendarEvents]);
 
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(currentMonth);

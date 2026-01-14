@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
@@ -31,14 +31,7 @@ export function HostDashboardRequests({ hostId, initialRequests = [] }: HostDash
   const [loading, setLoading] = useState(false);
   const [processing, setProcessing] = useState<string | null>(null);
 
-  useEffect(() => {
-    // Only load if no initial data provided
-    if (!initialRequests || initialRequests.length === 0) {
-      loadRequests();
-    }
-  }, [hostId]);
-
-  const loadRequests = async () => {
+  const loadRequests = useCallback(async () => {
     setLoading(true);
     try {
       const response = await fetch(`/api/host/bookings?status=REQUESTED`);
@@ -51,7 +44,14 @@ export function HostDashboardRequests({ hostId, initialRequests = [] }: HostDash
     } finally {
       setLoading(false);
     }
-  };
+  }, [hostId]);
+
+  useEffect(() => {
+    // Only load if no initial data provided
+    if (!initialRequests || initialRequests.length === 0) {
+      loadRequests();
+    }
+  }, [hostId, initialRequests, loadRequests]);
 
   const handleAccept = async (bookingId: string) => {
     setProcessing(bookingId);
@@ -125,7 +125,7 @@ export function HostDashboardRequests({ hostId, initialRequests = [] }: HostDash
           <Clock className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
           <h3 className="text-lg font-semibold mb-2">No Pending Requests</h3>
           <p className="text-muted-foreground">
-            You don't have any pending booking requests at the moment.
+            You don&apos;t have any pending booking requests at the moment.
           </p>
         </CardContent>
       </Card>
