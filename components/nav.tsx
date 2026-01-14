@@ -80,12 +80,20 @@ export function Nav() {
                 </Button>
               </Link>
               {isHost && (
-                <Link href="/host/payouts">
-                  <Button variant="ghost" className="flex items-center gap-2">
-                    <DollarSign className="w-4 h-4" />
-                    Host Payouts
-                  </Button>
-                </Link>
+                <>
+                  <Link href="/host/dashboard">
+                    <Button variant="ghost" className="flex items-center gap-2">
+                      <LayoutList className="w-4 h-4" />
+                      Host Dashboard
+                    </Button>
+                  </Link>
+                  <Link href="/host/payouts">
+                    <Button variant="ghost" className="flex items-center gap-2">
+                      <DollarSign className="w-4 h-4" />
+                      Host Payouts
+                    </Button>
+                  </Link>
+                </>
               )}
               <Link href="/host/onboard">
                 <Button variant="outline" className="flex items-center gap-2">
