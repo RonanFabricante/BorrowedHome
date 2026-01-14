@@ -256,6 +256,8 @@ export async function POST(request: NextRequest) {
         .single();
 
       // Fetch guest email using admin client
+      const { createAdminClient } = await import("@/lib/supabase/admin");
+      const adminClient = createAdminClient();
       const { data: guestUser } = await adminClient.auth.admin.getUserById(acceptedBooking.guest_id);
       const guestEmail = guestUser?.user?.email;
 
