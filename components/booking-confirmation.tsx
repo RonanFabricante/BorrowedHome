@@ -29,6 +29,14 @@ export function BookingConfirmation({ booking, isHost = false }: { booking: any;
   const isCompleted = booking.status === "COMPLETED";
   
   const [hasReview, setHasReview] = useState<boolean | null>(null);
+  const [payment, setPayment] = useState<any>(null);
+  const [paymentLoading, setPaymentLoading] = useState(true);
+  const [paymentInitError, setPaymentInitError] = useState<string | null>(null);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancellationPolicy, setCancellationPolicy] = useState<{
+    refundAmount: number;
+    message: string;
+  } | null>(null);
 
   useEffect(() => {
     // Check if review exists for completed bookings (guests only)
@@ -61,15 +69,6 @@ export function BookingConfirmation({ booking, isHost = false }: { booking: any;
       }
     }
   }, [isCompleted, isHost, booking.id, booking.status, booking.total_amount, booking.cancellation_policy_version, showCancelModal, startDate, supabase]);
-  
-  const [payment, setPayment] = useState<any>(null);
-  const [paymentLoading, setPaymentLoading] = useState(true);
-  const [paymentInitError, setPaymentInitError] = useState<string | null>(null);
-  const [showCancelModal, setShowCancelModal] = useState(false);
-  const [cancellationPolicy, setCancellationPolicy] = useState<{
-    refundAmount: number;
-    message: string;
-  } | null>(null);
 
   useEffect(() => {
     // Only fetch payment info if user is guest (hosts don't need payment forms)
