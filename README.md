@@ -68,9 +68,12 @@ Create a `.env.local` file in the root directory:
 ```env
 NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+NEXT_PUBLIC_SITE_URL=http://localhost:3000
 ```
 
-You can find these in your Supabase project settings under API.
+**Note:**
+- `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` can be found in your Supabase project settings under API
+- `NEXT_PUBLIC_SITE_URL` should be `http://localhost:3000` for local development and `https://borrowedhome.app` for production
 
 ### 4. Run Development Server
 
@@ -141,6 +144,8 @@ tsx scripts/seed.ts
 ### Authentication
 - `/auth/login` - Login page
 - `/auth/signup` - Sign up page
+- `/auth/reset-password` - Request password reset
+- `/auth/update-password` - Set new password (from email link)
 
 ### Bookings
 - `/bookings/[id]/confirm` - Booking confirmation (address revealed)
@@ -186,6 +191,7 @@ All tables have Row Level Security (RLS) policies enabled.
 3. Add environment variables:
    - `NEXT_PUBLIC_SUPABASE_URL`
    - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+   - `NEXT_PUBLIC_SITE_URL` (e.g., `https://borrowedhome.app`)
    - `STRIPE_SECRET_KEY` (for payments)
    - `STRIPE_WEBHOOK_SECRET` (for webhooks)
    - `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`
