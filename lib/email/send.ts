@@ -19,7 +19,7 @@ export interface BookingEmailData {
   paymentDeadline?: string;
   bookingUrl?: string; // Optional - some emails construct URL from bookingId
   refundAmount?: number; // For cancellation emails
-  paymentAction?: "voided" | "refunded" | "none"; // For cancellation emails
+  paymentAction?: "voided" | "refunded" | "none" | "failed"; // For cancellation emails
 }
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://borrowedhome.app";

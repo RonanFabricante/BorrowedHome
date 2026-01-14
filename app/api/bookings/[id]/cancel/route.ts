@@ -243,7 +243,7 @@ export async function POST(
       endTime: booking.end_at,
       totalAmount: booking.total_amount,
       refundAmount: policyResult.refundableAmountCents,
-      paymentAction: paymentResult?.action || "none",
+      paymentAction: paymentResult?.action === "failed" ? "none" : (paymentResult?.action || "none"),
     };
 
     // Check if notifications were already sent (idempotency)
