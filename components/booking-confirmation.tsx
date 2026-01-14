@@ -11,6 +11,8 @@ import { format } from "date-fns";
 import { AlertCircle, Clock, XCircle, CheckCircle2, Star } from "lucide-react";
 import { PaymentForm } from "@/components/payment-form";
 import { createClient } from "@/lib/supabase/client";
+import { CancelBookingModal } from "@/components/cancel-booking-modal";
+import { canCancelBooking, computeCancellationPolicy } from "@/lib/cancellation/policy";
 
 export function BookingConfirmation({ booking, isHost = false }: { booking: any; isHost?: boolean }) {
   const supabase = createClient();
@@ -40,11 +42,34 @@ export function BookingConfirmation({ booking, isHost = false }: { booking: any;
           setHasReview(!!data);
         });
     }
-  }, [isCompleted, isHost, booking.id, supabase]);
+
+    // Compute cancellation policy when modal opens
+    if (showCancelModal) {
+      const check = canCancelBooking(booking.status, startDate);
+      if (check.canCancel) {
+        const policy = computeCancellationPolicy({
+          actor: isHost ? "host" : "guest",
+          bookingStartTime: startDate,
+          cancelledAt: new Date(),
+          totalAmountCents: booking.total_amount,
+          policyVersion: booking.cancellation_policy_version || "v1",
+        });
+        setCancellationPolicy({
+          refundAmount: policy.refundableAmountCents,
+          message: policy.message,
+        });
+      }
+    }
+  }, [isCompleted, isHost, booking.id, booking.status, booking.total_amount, booking.cancellation_policy_version, showCancelModal, startDate, supabase]);
   
   const [payment, setPayment] = useState<any>(null);
   const [paymentLoading, setPaymentLoading] = useState(true);
   const [paymentInitError, setPaymentInitError] = useState<string | null>(null);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancellationPolicy, setCancellationPolicy] = useState<{
+    refundAmount: number;
+    message: string;
+  } | null>(null);
 
   useEffect(() => {
     // Only fetch payment info if user is guest (hosts don't need payment forms)
@@ -544,27 +569,61 @@ export function BookingConfirmation({ booking, isHost = false }: { booking: any;
       </Card>
 
       {isConfirmed && (
-        <div className="flex gap-4">
-          {!isHost && (
-            <Button asChild>
-              <Link href={`/bookings/${booking.id}/messages`}>
-                Message Host
+        <div className="space-y-4">
+          {/* Cancel Button - Show if booking can be cancelled */}
+          {canCancelBooking(booking.status, startDate).canCancel && (
+            <div className="flex justify-end">
+              <Button
+                variant="destructive"
+                onClick={() => setShowCancelModal(true)}
+              >
+                Cancel Booking
+              </Button>
+            </div>
+          )}
+
+          {/* Action Buttons */}
+          <div className="flex gap-4">
+            {!isHost && (
+              <Button asChild>
+                <Link href={`/bookings/${booking.id}/messages`}>
+                  Message Host
+                </Link>
+              </Button>
+            )}
+            {isHost && (
+              <Button asChild>
+                <Link href={`/bookings/${booking.id}/messages`}>
+                  Message Guest
+                </Link>
+              </Button>
+            )}
+            <Button variant="outline" asChild>
+              <Link href={isHost ? "/my-listings" : "/my-bookings"}>
+                {isHost ? "Back to My Listings" : "View All Bookings"}
               </Link>
             </Button>
-          )}
-          {isHost && (
-            <Button asChild>
-              <Link href={`/bookings/${booking.id}/messages`}>
-                Message Guest
-              </Link>
-            </Button>
-          )}
-          <Button variant="outline" asChild>
-            <Link href={isHost ? "/my-listings" : "/my-bookings"}>
-              {isHost ? "Back to My Listings" : "View All Bookings"}
-            </Link>
-          </Button>
+          </div>
         </div>
+      )}
+
+      {/* Cancel Booking Modal */}
+      {showCancelModal && cancellationPolicy && (
+        <CancelBookingModal
+          open={showCancelModal}
+          onClose={() => {
+            setShowCancelModal(false);
+            setCancellationPolicy(null);
+          }}
+          bookingId={booking.id}
+          totalAmount={booking.total_amount}
+          refundAmount={cancellationPolicy.refundAmount}
+          refundMessage={cancellationPolicy.message}
+          onSuccess={() => {
+            // Refresh page to show updated status
+            window.location.reload();
+          }}
+        />
       )}
     </div>
   );

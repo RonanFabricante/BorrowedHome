@@ -72,21 +72,36 @@ export async function POST(request: NextRequest) {
           // Check if booking is PAYMENT_PENDING and within deadline
           const { data: booking } = await supabase
             .from("bookings")
-            .select("status, payment_deadline_at, guest_id, listing_id, start_at, end_at, total_amount")
+            .select("status, payment_deadline_at, guest_id, listing_id, start_at, end_at, total_amount, cancelled_at")
             .eq("id", bookingId)
             .single();
 
           if (booking) {
+            // Safety check: Never confirm a cancelled booking
+            if (booking.cancelled_at || booking.status === "CANCELLED") {
+              console.warn(`[Webhook] Ignoring payment for cancelled booking ${bookingId}. Manual review may be needed.`);
+              break;
+            }
+
             const now = new Date();
             const deadline = booking.payment_deadline_at ? new Date(booking.payment_deadline_at) : null;
             
             // Only confirm if status is PAYMENT_PENDING and within deadline (or deadline not set)
             if (booking.status === "PAYMENT_PENDING" && (!deadline || now <= deadline)) {
+              // Update payment_authorized_at if not set
+              if (!booking.payment_authorized_at) {
+                await supabase
+                  .from("bookings")
+                  .update({ payment_authorized_at: now.toISOString() })
+                  .eq("id", bookingId);
+              }
               await supabase
                 .from("bookings")
                 .update({ 
                   status: "CONFIRMED",
                   paid_at: now.toISOString(),
+                  payment_status: "AUTHORIZED", // Will be CAPTURED later
+                  payment_authorized_at: now.toISOString(),
                 })
                 .eq("id", bookingId);
 
@@ -189,6 +204,54 @@ export async function POST(request: NextRequest) {
             .from("payments")
             .update({ status: "released" })
             .eq("stripe_payment_intent_id", paymentIntent.id);
+        }
+
+        break;
+      }
+
+      case "charge.captured": {
+        // Payment was captured (manual capture completed)
+        const charge = event.data.object as Stripe.Charge;
+        const paymentIntentId = typeof charge.payment_intent === "string" 
+          ? charge.payment_intent 
+          : charge.payment_intent?.id;
+
+        if (!paymentIntentId) break;
+
+        // Retrieve PaymentIntent to get booking_id
+        const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+        const bookingId = paymentIntent.metadata?.booking_id;
+        
+        if (!bookingId) break;
+
+        // Check if booking is cancelled (safety guard)
+        const { data: booking } = await supabase
+          .from("bookings")
+          .select("status, cancelled_at, payment_status")
+          .eq("id", bookingId)
+          .single();
+
+        if (booking?.cancelled_at || booking?.status === "CANCELLED") {
+          console.warn(`[Webhook] Ignoring capture for cancelled booking ${bookingId}. Manual review may be needed.`);
+          break;
+        }
+
+        // Only update to CAPTURED if it was previously AUTHORIZED
+        if (booking?.payment_status === "AUTHORIZED") {
+          // Update payment status to CAPTURED
+          await supabase
+            .from("bookings")
+            .update({
+              payment_status: "CAPTURED",
+              payment_captured_at: new Date().toISOString(),
+            })
+            .eq("id", bookingId);
+
+          // Update payment record
+          await supabase
+            .from("payments")
+            .update({ status: "captured" })
+            .eq("stripe_payment_intent_id", paymentIntentId);
         }
 
         break;
