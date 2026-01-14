@@ -8,7 +8,7 @@ interface EmailOptions {
   text?: string;
 }
 
-interface BookingEmailData {
+export interface BookingEmailData {
   bookingId: string;
   guestName?: string;
   hostName?: string;
