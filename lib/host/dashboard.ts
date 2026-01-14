@@ -77,17 +77,30 @@ export async function getHostDashboardSummary(
 ): Promise<HostDashboardSummary> {
   const supabase = await createClient();
 
+  // Get listing IDs for this host
+  const { data: listings } = await supabase
+    .from("listings")
+    .select("id")
+    .eq("host_id", hostId);
+
+  if (!listings || listings.length === 0) {
+    return {
+      pendingRequestsCount: 0,
+      awaitingPaymentCount: 0,
+      todaysBookingsCount: 0,
+      upcomingBookingsCount: 0,
+      expiringPaymentsCount: 0,
+    };
+  }
+
+  const listingIds = listings.map((l) => l.id);
+
   // Get pending requests (REQUESTED)
   const { count: pendingRequestsCount } = await supabase
     .from("bookings")
     .select("*", { count: "exact", head: true })
     .eq("status", "REQUESTED")
-    .in("listing_id", 
-      supabase
-        .from("listings")
-        .select("id")
-        .eq("host_id", hostId)
-    );
+    .in("listing_id", listingIds);
 
   // Get awaiting payment (PAYMENT_PENDING)
   const { count: awaitingPaymentCount } = await supabase
