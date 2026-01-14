@@ -409,3 +409,240 @@ export async function sendGuestPaymentExpiredEmail(
     html,
   });
 }
+
+/**
+ * Send booking cancelled by guest notification to host
+ */
+export async function sendHostBookingCancelledByGuestEmail(
+  hostEmail: string,
+  hostName: string,
+  data: BookingEmailData
+): Promise<void> {
+  const bookingUrl = `${SITE_URL}/bookings/${data.bookingId}/confirm`;
+  const refundInfo = data.paymentAction === "voided"
+    ? "The payment authorization was voided and funds will be released by your bank (typically within a few business days)."
+    : data.paymentAction === "refunded"
+    ? `A refund of ${formatCurrency(data.refundAmount || data.totalAmount)} has been initiated and may take 5-10 business days depending on your bank.`
+    : "Payment processing is pending.";
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+        .button { display: inline-block; padding: 12px 24px; background: #007bff; color: white; text-decoration: none; border-radius: 4px; margin: 10px 0; }
+        .footer { margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; font-size: 12px; color: #666; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1>Booking Cancelled by Guest</h1>
+        </div>
+        <p>Hi ${hostName},</p>
+        <p>The guest has cancelled their booking for <strong>${data.listingTitle}</strong>.</p>
+        <p><strong>Booking Details:</strong></p>
+        <ul>
+          <li>Guest: ${data.guestName || "Guest"}</li>
+          <li>Date & Time: ${formatDateTime(data.startTime)} - ${formatDateTime(data.endTime)}</li>
+          <li>Total Amount: ${formatCurrency(data.totalAmount)}</li>
+        </ul>
+        <p><strong>Refund Information:</strong></p>
+        <p>${refundInfo}</p>
+        <p>The time slot is now available again for other bookings.</p>
+        <a href="${bookingUrl}" class="button">View Booking Details</a>
+        <div class="footer">
+          <p>This is an automated email from BorrowedHome. Please do not reply to this email.</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  await sendEmail({
+    to: hostEmail,
+    subject: `Booking Cancelled: ${data.listingTitle}`,
+    html,
+  });
+}
+
+/**
+ * Send booking cancelled by guest notification to guest
+ */
+export async function sendGuestBookingCancelledByGuestEmail(
+  guestEmail: string,
+  guestName: string,
+  data: BookingEmailData
+): Promise<void> {
+  const bookingUrl = `${SITE_URL}/bookings/${data.bookingId}/confirm`;
+  const refundInfo = data.paymentAction === "voided"
+    ? "The payment authorization was voided and funds will be released by your bank (typically within a few business days)."
+    : data.paymentAction === "refunded"
+    ? `A refund of ${formatCurrency(data.refundAmount || data.totalAmount)} has been initiated and may take 5-10 business days depending on your bank.`
+    : "Payment processing is pending.";
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+        .button { display: inline-block; padding: 12px 24px; background: #007bff; color: white; text-decoration: none; border-radius: 4px; margin: 10px 0; }
+        .footer { margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; font-size: 12px; color: #666; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1>Booking Cancelled</h1>
+        </div>
+        <p>Hi ${guestName},</p>
+        <p>Your booking for <strong>${data.listingTitle}</strong> has been cancelled.</p>
+        <p><strong>Booking Details:</strong></p>
+        <ul>
+          <li>Date & Time: ${formatDateTime(data.startTime)} - ${formatDateTime(data.endTime)}</li>
+          <li>Total Amount: ${formatCurrency(data.totalAmount)}</li>
+        </ul>
+        <p><strong>Refund Information:</strong></p>
+        <p>${refundInfo}</p>
+        <a href="${bookingUrl}" class="button">View Booking Details</a>
+        <div class="footer">
+          <p>This is an automated email from BorrowedHome. Please do not reply to this email.</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  await sendEmail({
+    to: guestEmail,
+    subject: `Booking Cancelled: ${data.listingTitle}`,
+    html,
+  });
+}
+
+/**
+ * Send booking cancelled by host notification to guest
+ */
+export async function sendGuestBookingCancelledByHostEmail(
+  guestEmail: string,
+  guestName: string,
+  data: BookingEmailData
+): Promise<void> {
+  const bookingUrl = `${SITE_URL}/bookings/${data.bookingId}/confirm`;
+  const refundInfo = data.paymentAction === "voided"
+    ? "The payment authorization was voided and funds will be released by your bank (typically within a few business days)."
+    : data.paymentAction === "refunded"
+    ? `A full refund of ${formatCurrency(data.refundAmount || data.totalAmount)} has been initiated and may take 5-10 business days depending on your bank.`
+    : "Payment processing is pending.";
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: #fff3cd; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+        .button { display: inline-block; padding: 12px 24px; background: #007bff; color: white; text-decoration: none; border-radius: 4px; margin: 10px 0; }
+        .footer { margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; font-size: 12px; color: #666; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1>Booking Cancelled by Host</h1>
+        </div>
+        <p>Hi ${guestName},</p>
+        <p>Unfortunately, the host has cancelled your booking for <strong>${data.listingTitle}</strong>.</p>
+        <p><strong>Booking Details:</strong></p>
+        <ul>
+          <li>Date & Time: ${formatDateTime(data.startTime)} - ${formatDateTime(data.endTime)}</li>
+          <li>Total Amount: ${formatCurrency(data.totalAmount)}</li>
+        </ul>
+        <p><strong>Refund Information:</strong></p>
+        <p>${refundInfo}</p>
+        <p>We apologize for any inconvenience. You can browse other available listings or try a different time.</p>
+        <a href="${SITE_URL}/listings" class="button">Browse Listings</a>
+        <div class="footer">
+          <p>This is an automated email from BorrowedHome. Please do not reply to this email.</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  await sendEmail({
+    to: guestEmail,
+    subject: `Booking Cancelled by Host: ${data.listingTitle}`,
+    html,
+  });
+}
+
+/**
+ * Send booking cancelled by host notification to host
+ */
+export async function sendHostBookingCancelledByHostEmail(
+  hostEmail: string,
+  hostName: string,
+  data: BookingEmailData
+): Promise<void> {
+  const bookingUrl = `${SITE_URL}/bookings/${data.bookingId}/confirm`;
+  const refundInfo = data.paymentAction === "voided"
+    ? "The payment authorization was voided and funds will be released to the guest's bank (typically within a few business days)."
+    : data.paymentAction === "refunded"
+    ? `A full refund of ${formatCurrency(data.refundAmount || data.totalAmount)} has been initiated and may take 5-10 business days depending on the guest's bank.`
+    : "Payment processing is pending.";
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+        .button { display: inline-block; padding: 12px 24px; background: #007bff; color: white; text-decoration: none; border-radius: 4px; margin: 10px 0; }
+        .footer { margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; font-size: 12px; color: #666; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1>Booking Cancelled</h1>
+        </div>
+        <p>Hi ${hostName},</p>
+        <p>You have cancelled the booking for <strong>${data.listingTitle}</strong>.</p>
+        <p><strong>Booking Details:</strong></p>
+        <ul>
+          <li>Guest: ${data.guestName || "Guest"}</li>
+          <li>Date & Time: ${formatDateTime(data.startTime)} - ${formatDateTime(data.endTime)}</li>
+          <li>Total Amount: ${formatCurrency(data.totalAmount)}</li>
+        </ul>
+        <p><strong>Refund Information:</strong></p>
+        <p>${refundInfo}</p>
+        <p>The time slot is now available again for other bookings.</p>
+        <a href="${bookingUrl}" class="button">View Booking Details</a>
+        <div class="footer">
+          <p>This is an automated email from BorrowedHome. Please do not reply to this email.</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  await sendEmail({
+    to: hostEmail,
+    subject: `Booking Cancelled: ${data.listingTitle}`,
+    html,
+  });
+}
