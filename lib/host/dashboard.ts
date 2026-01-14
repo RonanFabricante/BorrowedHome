@@ -89,7 +89,7 @@ export async function getHostDashboardSummary(
       awaitingPaymentCount: 0,
       todaysBookingsCount: 0,
       upcomingBookingsCount: 0,
-      expiringPaymentsCount: 0,
+      expiringPayments: [],
     };
   }
 
