@@ -68,7 +68,7 @@ supabase secrets set SUPABASE_CRON_SECRET=your_secure_random_secret
 - `SUPABASE_URL`: Your Supabase project URL (same for both functions)
 - `SUPABASE_SERVICE_ROLE_KEY`: Service role key from Supabase Dashboard → Settings → API (server-side only, bypasses RLS)
 - `STRIPE_SECRET_KEY`: Your Stripe secret key (live or test)
-- `SUPABASE_CRON_SECRET`: A secure random string used to authenticate scheduler requests (generate with `openssl rand -hex 32`)
+- `CRON_SECRET`: A secure random string used to authenticate scheduler requests (generate with `openssl rand -hex 32`)
 
 **Via Dashboard:**
 1. Go to Project Settings → Edge Functions
