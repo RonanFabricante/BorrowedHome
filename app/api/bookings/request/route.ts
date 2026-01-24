@@ -132,8 +132,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Calculate pricing
-    const hours = (endAt.getTime() - startAt.getTime()) / (1000 * 60 * 60);
+    // Calculate pricing (hours already calculated above for validation)
     let basePrice = 0;
     if (hours >= 8) {
       basePrice = listing.full_day_rate;
