@@ -44,11 +44,12 @@ export function isDayUse(startDateTime: Date, endDateTime: Date): boolean {
 
 /**
  * Check if end time is before or at the cutoff (21:00)
+ * Uses minutes-from-midnight for reliable comparison
  */
 export function isEndBeforeCutoff(endDateTime: Date, cutoffHour: number = END_TIME_CUTOFF_HOUR): boolean {
-  const endHour = endDateTime.getHours();
-  const endMinutes = endDateTime.getMinutes();
-  return endHour < cutoffHour || (endHour === cutoffHour && endMinutes === 0);
+  const endMinutes = endDateTime.getHours() * 60 + endDateTime.getMinutes();
+  const cutoffMinutes = cutoffHour * 60; // 21 * 60 = 1260
+  return endMinutes <= cutoffMinutes;
 }
 
 /**

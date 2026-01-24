@@ -23,6 +23,7 @@ import {
   LATEST_START_HOUR,
   BOOKING_DURATION_MINUTES,
 } from "@/lib/bookingRules";
+import { validateDayUseBooking, endTimeExceedsCutoff } from "@/lib/timeRules";
 
 const bookingSchema = z.object({
   date: z.string().min(1, "Date is required"),
@@ -87,18 +88,30 @@ export function BookingDialog({
     }
   }, [startTime, endTime]);
 
-  // Validate booking in real-time
+  // Validate booking in real-time using minutes-from-midnight for reliable time checks
   const validation = useMemo(() => {
     if (!date || !startTime || !endTime) {
       return { valid: false, errors: [] };
     }
 
     try {
+      // First, validate time rules using minutes-from-midnight (more reliable)
+      const timeValidation = validateDayUseBooking({ date, startTime, endTime });
+      
+      // Then, validate full booking request (includes lead time, duration, etc.)
       const startDateTime = parse(`${date} ${startTime}`, "yyyy-MM-dd HH:mm", new Date());
       const endDateTime = parse(`${date} ${endTime}`, "yyyy-MM-dd HH:mm", new Date());
       const now = new Date();
 
-      return validateBookingRequest({ startDateTime, endDateTime, now });
+      const bookingValidation = validateBookingRequest({ startDateTime, endDateTime, now });
+      
+      // Combine errors, prioritizing time validation errors
+      const allErrors = [...timeValidation.errors, ...bookingValidation.errors];
+      
+      return {
+        valid: timeValidation.ok && bookingValidation.valid,
+        errors: allErrors,
+      };
     } catch (err) {
       return { valid: false, errors: ["Invalid date or time format"] };
     }
@@ -243,6 +256,14 @@ export function BookingDialog({
                   <li key={idx}>{err}</li>
                 ))}
               </ul>
+            </div>
+          )}
+
+          {/* Debug info in development */}
+          {process.env.NODE_ENV === 'development' && date && startTime && endTime && (
+            <div className="p-2 text-xs bg-muted rounded text-muted-foreground">
+              <strong>Debug:</strong> Start={startTime}, End={endTime}, 
+              End exceeds cutoff: {endTimeExceedsCutoff(endTime) ? 'YES' : 'NO'}
             </div>
           )}
 
