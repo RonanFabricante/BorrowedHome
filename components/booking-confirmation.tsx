@@ -71,8 +71,8 @@ export function BookingConfirmation({ booking, isHost = false }: { booking: any;
   }, [isCompleted, isHost, booking.id, booking.status, booking.total_amount, booking.cancellation_policy_version, showCancelModal, startDate, supabase]);
 
   useEffect(() => {
-    // Only fetch payment info if user is guest (hosts don't need payment forms)
-    if (isConfirmed && !isHost) {
+    // Fetch payment info if booking is PAYMENT_PENDING (for guests) or CONFIRMED (to show payment status)
+    if ((isPaymentPending || isConfirmed) && !isHost) {
       // Fetch payment status
       supabase
         .from("payments")
@@ -149,9 +149,9 @@ export function BookingConfirmation({ booking, isHost = false }: { booking: any;
     } else {
       setPaymentLoading(false);
     }
-  }, [booking.id, isConfirmed, isHost, supabase]);
+  }, [booking.id, isPaymentPending, isConfirmed, isHost, supabase]);
 
-  const needsPayment = isConfirmed && (!payment || payment.status === "pending");
+  const needsPayment = isPaymentPending && (!payment || payment.status === "pending");
   const paymentAuthorised = payment && payment.status === "authorised";
 
   const rules = [
@@ -301,6 +301,71 @@ export function BookingConfirmation({ booking, isHost = false }: { booking: any;
     );
   }
 
+  if (isExpired) {
+    return (
+      <div className="max-w-3xl mx-auto">
+        <div className="mb-6">
+          <Badge variant="destructive" className="mb-4">
+            <XCircle className="h-3 w-3 mr-1" />
+            Expired
+          </Badge>
+          <h1 className="text-4xl font-bold mb-2">Payment Expired</h1>
+          <p className="text-muted-foreground">
+            {listing.title} • {listing.location_text}
+          </p>
+        </div>
+
+        <Card className="mb-6 border-red-200 bg-red-50">
+          <CardContent className="pt-6">
+            <div className="flex gap-3">
+              <XCircle className="h-5 w-5 text-red-600 mt-0.5 flex-shrink-0" />
+              <div>
+                <h3 className="font-semibold mb-2">Payment Window Expired</h3>
+                <p className="text-sm text-muted-foreground">
+                  The payment window for this booking has expired. The time slot is now available for other guests.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle>Booking Details</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <p className="text-sm text-muted-foreground">Date & Time</p>
+              <p className="font-semibold">
+                {format(startDate, "EEEE, MMMM d, yyyy")}
+              </p>
+              <p className="font-semibold">
+                {format(startDate, "h:mm a")} - {format(endDate, "h:mm a")}
+              </p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Guests</p>
+              <p className="font-semibold">{booking.guests_count} guest{booking.guests_count !== 1 ? "s" : ""}</p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <div className="flex gap-4">
+          {!isHost && (
+            <Button asChild>
+              <Link href="/listings">Browse Other Listings</Link>
+            </Button>
+          )}
+          <Button variant="outline" asChild>
+            <Link href={isHost ? "/my-listings" : "/my-bookings"}>
+              {isHost ? "Back to My Listings" : "View All Bookings"}
+            </Link>
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   if (isCancelled) {
     return (
       <div className="max-w-3xl mx-auto">
@@ -328,6 +393,189 @@ export function BookingConfirmation({ booking, isHost = false }: { booking: any;
             </div>
           </CardContent>
         </Card>
+
+        <div className="flex gap-4">
+          <Button variant="outline" asChild>
+            <Link href={isHost ? "/my-listings" : "/my-bookings"}>
+              {isHost ? "Back to My Listings" : "View All Bookings"}
+            </Link>
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // PAYMENT_PENDING status - show payment form and countdown
+  if (isPaymentPending) {
+    const deadline = booking.payment_deadline_at ? new Date(booking.payment_deadline_at) : null;
+    const now = new Date();
+    const timeRemaining = deadline ? Math.max(0, deadline.getTime() - now.getTime()) : 0;
+    const hoursRemaining = Math.floor(timeRemaining / (1000 * 60 * 60));
+    const minutesRemaining = Math.floor((timeRemaining % (1000 * 60 * 60)) / (1000 * 60));
+
+    return (
+      <div className="max-w-3xl mx-auto">
+        <div className="mb-6">
+          <Badge variant="outline" className="mb-4 border-amber-500 text-amber-700">
+            <Clock className="h-3 w-3 mr-1" />
+            Payment Required
+          </Badge>
+          <h1 className="text-4xl font-bold mb-2">
+            {isHost ? "Payment Pending" : "Complete Payment to Confirm"}
+          </h1>
+          <p className="text-muted-foreground">
+            {listing.title} • {listing.location_text}
+          </p>
+        </div>
+
+        {!isHost && deadline && timeRemaining > 0 && (
+          <Card className="mb-6 border-amber-200 bg-amber-50">
+            <CardContent className="pt-6">
+              <div className="flex gap-3">
+                <Clock className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
+                <div>
+                  <h3 className="font-semibold mb-2">Payment Deadline</h3>
+                  <p className="text-sm text-muted-foreground mb-1">
+                    Complete payment within{" "}
+                    {hoursRemaining > 0 && `${hoursRemaining} hour${hoursRemaining !== 1 ? "s" : ""} `}
+                    {minutesRemaining > 0 && `${minutesRemaining} minute${minutesRemaining !== 1 ? "s" : ""}`}
+                    {hoursRemaining === 0 && minutesRemaining === 0 && "less than a minute"}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Deadline: {format(deadline, "MMM d, yyyy 'at' h:mm a")}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {!isHost && deadline && timeRemaining <= 0 && (
+          <Card className="mb-6 border-red-200 bg-red-50">
+            <CardContent className="pt-6">
+              <div className="flex gap-3">
+                <AlertCircle className="h-5 w-5 text-red-600 mt-0.5 flex-shrink-0" />
+                <div>
+                  <h3 className="font-semibold mb-2 text-red-700">Payment Deadline Passed</h3>
+                  <p className="text-sm text-muted-foreground">
+                    The payment deadline has passed. This booking may expire soon.
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle>Booking Details</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <p className="text-sm text-muted-foreground">Date & Time</p>
+              <p className="font-semibold">
+                {format(startDate, "EEEE, MMMM d, yyyy")}
+              </p>
+              <p className="font-semibold">
+                {format(startDate, "h:mm a")} - {format(endDate, "h:mm a")}
+              </p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Guests</p>
+              <p className="font-semibold">{booking.guests_count} guest{booking.guests_count !== 1 ? "s" : ""}</p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Total Amount</p>
+              <p className="font-semibold text-2xl">
+                {formatCurrency(booking.total_amount)}
+              </p>
+              {booking.deposit_amount > 0 && (
+                <p className="text-sm text-muted-foreground">
+                  Includes {formatCurrency(booking.deposit_amount)} deposit
+                </p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Payment Initiation Error - Only show to guests */}
+        {paymentInitError && !isHost && (
+          <Card className="mb-6 border-destructive bg-destructive/10">
+            <CardContent className="pt-6">
+              <div className="flex gap-3">
+                <AlertCircle className="h-5 w-5 text-destructive mt-0.5 flex-shrink-0" />
+                <div>
+                  <h3 className="font-semibold text-destructive mb-1">Payment Setup Required</h3>
+                  <p className="text-sm text-muted-foreground mb-3">
+                    {paymentInitError}
+                  </p>
+                  {paymentInitError.includes("/host/payouts") && (
+                    <p className="text-xs text-muted-foreground">
+                      The host needs to complete Stripe onboarding before payments can be processed.
+                    </p>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Payment Form - Show if payment is needed (guests only) */}
+        {needsPayment && !paymentLoading && !paymentInitError && !isHost && (
+          <PaymentForm
+            bookingId={booking.id}
+            amount={booking.total_amount}
+            depositAmount={booking.deposit_amount || 0}
+            onSuccess={() => {
+              // Refresh payment status
+              supabase
+                .from("payments")
+                .select("*")
+                .eq("booking_id", booking.id)
+                .single()
+                .then(({ data }) => {
+                  if (data) setPayment(data);
+                });
+            }}
+          />
+        )}
+
+        {/* Payment Status - Show if payment is authorised */}
+        {paymentAuthorised && !isHost && (
+          <Card className="mb-6 border-green-200 bg-green-50">
+            <CardContent className="pt-6">
+              <div className="flex gap-3">
+                <CheckCircle2 className="h-5 w-5 text-green-600 mt-0.5 flex-shrink-0" />
+                <div>
+                  <h3 className="font-semibold mb-2">Payment Authorised</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Your payment has been authorised. Your booking will be confirmed shortly.
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Host view - show waiting message */}
+        {isHost && (
+          <Card className="mb-6 border-blue-200 bg-blue-50">
+            <CardContent className="pt-6">
+              <div className="flex gap-3">
+                <Clock className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                <div>
+                  <h3 className="font-semibold mb-2">Waiting for Guest Payment</h3>
+                  <p className="text-sm text-muted-foreground">
+                    The guest has {hoursRemaining > 0 && `${hoursRemaining} hour${hoursRemaining !== 1 ? "s" : ""} `}
+                    {minutesRemaining > 0 && `${minutesRemaining} minute${minutesRemaining !== 1 ? "s" : ""}`}
+                    {hoursRemaining === 0 && minutesRemaining === 0 && "less than a minute"} to complete payment.
+                    The booking will be confirmed once payment is received.
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         <div className="flex gap-4">
           <Button variant="outline" asChild>
@@ -482,24 +730,21 @@ export function BookingConfirmation({ booking, isHost = false }: { booking: any;
         </Card>
       )}
 
-      {/* Payment Form - Show if CONFIRMED but payment not authorised and no error (guests only) */}
+      {/* Payment Form - Should not show for CONFIRMED status, but keep as fallback */}
       {needsPayment && !paymentLoading && !paymentInitError && !isHost && (
-        <PaymentForm
-          bookingId={booking.id}
-          amount={booking.total_amount}
-          depositAmount={booking.deposit_amount || 0}
-          onSuccess={() => {
-            // Refresh payment status
-            supabase
-              .from("payments")
-              .select("*")
-              .eq("booking_id", booking.id)
-              .single()
-              .then(({ data }) => {
-                if (data) setPayment(data);
-              });
-          }}
-        />
+        <Card className="mb-6 border-amber-200 bg-amber-50">
+          <CardContent className="pt-6">
+            <div className="flex gap-3">
+              <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
+              <div>
+                <h3 className="font-semibold mb-2">Payment Processing</h3>
+                <p className="text-sm text-muted-foreground">
+                  Your booking is confirmed, but payment is still being processed. This should resolve shortly.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* Payment Status - Show to both guest and host */}
