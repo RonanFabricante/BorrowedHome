@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -14,13 +14,19 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { formatCurrency } from "@/lib/utils";
-import { addHours, differenceInHours, parse, format } from "date-fns";
+import { parse, format } from "date-fns";
 import { DayUseWarning } from "@/components/day-use-warning";
+import {
+  computeEndTime,
+  validateBookingRequest,
+  wouldExceedCutoff,
+  LATEST_START_HOUR,
+  BOOKING_DURATION_MINUTES,
+} from "@/lib/bookingRules";
 
 const bookingSchema = z.object({
   date: z.string().min(1, "Date is required"),
   startTime: z.string().min(1, "Start time is required"),
-  endTime: z.string().min(1, "End time is required"),
   guestsCount: z.number().min(1).max(100),
   acceptedRules: z.boolean().refine((val) => val === true, {
     message: "You must accept the house rules",
@@ -45,6 +51,7 @@ export function BookingDialog({
   const router = useRouter();
   const supabase = createClient();
   const [error, setError] = useState<string | null>(null);
+  const [validationErrors, setValidationErrors] = useState<string[]>([]);
 
   const {
     register,
@@ -56,7 +63,6 @@ export function BookingDialog({
     resolver: zodResolver(bookingSchema),
     defaultValues: {
       startTime: "07:00",
-      endTime: "18:00",
       guestsCount: 1,
       acceptedRules: false,
       guest_ack_toilet_access: false,
@@ -66,31 +72,50 @@ export function BookingDialog({
 
   const date = watch("date");
   const startTime = watch("startTime");
-  const endTime = watch("endTime");
   const guestsCount = watch("guestsCount");
 
+  // Auto-calculate end time from start time (start + 2 hours)
+  const endTime = useMemo(() => {
+    if (!startTime) return null;
+    return computeEndTime(startTime, BOOKING_DURATION_MINUTES);
+  }, [startTime]);
+
+  // Update end time in form when start time changes
+  useEffect(() => {
+    if (startTime && endTime) {
+      // End time is computed, not user-editable
+    }
+  }, [startTime, endTime]);
+
+  // Validate booking in real-time
+  const validation = useMemo(() => {
+    if (!date || !startTime || !endTime) {
+      return { valid: false, errors: [] };
+    }
+
+    try {
+      const startDateTime = parse(`${date} ${startTime}`, "yyyy-MM-dd HH:mm", new Date());
+      const endDateTime = parse(`${date} ${endTime}`, "yyyy-MM-dd HH:mm", new Date());
+      const now = new Date();
+
+      return validateBookingRequest({ startDateTime, endDateTime, now });
+    } catch (err) {
+      return { valid: false, errors: ["Invalid date or time format"] };
+    }
+  }, [date, startTime, endTime]);
+
+  useEffect(() => {
+    setValidationErrors(validation.errors);
+  }, [validation]);
+
+  // Price calculation (fixed 2-hour duration)
   const priceBreakdown = useMemo(() => {
     if (!date || !startTime || !endTime) {
       return { total: 0, fee: 0, deposit: listing.deposit_amount, basePrice: 0 };
     }
 
-    const start = parse(`${date} ${startTime}`, "yyyy-MM-dd HH:mm", new Date());
-    const end = parse(`${date} ${endTime}`, "yyyy-MM-dd HH:mm", new Date());
-    const hours = differenceInHours(end, start);
-
-    if (hours <= 0) {
-      return { total: 0, fee: 0, deposit: listing.deposit_amount, basePrice: 0 };
-    }
-
-    let basePrice = 0;
-    if (hours >= 8) {
-      basePrice = listing.full_day_rate;
-    } else if (hours >= 4) {
-      basePrice = listing.half_day_rate;
-    } else {
-      basePrice = listing.hourly_rate * hours;
-    }
-
+    // Fixed 2-hour duration - use hourly rate * 2
+    const basePrice = listing.hourly_rate * 2;
     const platformFee = Math.round(basePrice * 0.1); // 10% platform fee
     const total = basePrice + platformFee;
 
@@ -100,7 +125,7 @@ export function BookingDialog({
       deposit: listing.deposit_amount,
       basePrice,
     };
-  }, [date, startTime, endTime, listing.hourly_rate, listing.half_day_rate, listing.full_day_rate, listing.deposit_amount]);
+  }, [date, startTime, endTime, listing.hourly_rate, listing.deposit_amount]);
 
   const createBooking = useMutation({
     mutationFn: async (data: BookingFormData) => {
@@ -111,35 +136,18 @@ export function BookingDialog({
         throw new Error(`Maximum ${listing.max_guests} guests allowed`);
       }
 
+      if (!endTime) {
+        throw new Error("End time calculation failed");
+      }
+
       const start = parse(`${data.date} ${data.startTime}`, "yyyy-MM-dd HH:mm", new Date());
-      const end = parse(`${data.date} ${data.endTime}`, "yyyy-MM-dd HH:mm", new Date());
+      const end = parse(`${data.date} ${endTime}`, "yyyy-MM-dd HH:mm", new Date());
       const now = new Date();
 
-      // Validate minimum lead time (4 hours)
-      const hoursUntilStart = (start.getTime() - now.getTime()) / (1000 * 60 * 60);
-      if (hoursUntilStart < 4) {
-        throw new Error("Bookings must be requested at least 4 hours before the start time.");
-      }
-
-      // Check minimum 2 hours
-      const hours = differenceInHours(end, start);
-      if (hours < 2) {
-        throw new Error("Minimum booking duration is 2 hours");
-      }
-
-      // Check maximum 11 hours
-      if (hours > 11) {
-        throw new Error("Maximum booking duration is 11 hours");
-      }
-
-      // Check start time is at or after 7am
-      if (start.getHours() < 7) {
-        throw new Error("Earliest start time is 7:00 AM");
-      }
-
-      // Check end time is at or before 9pm
-      if (end.getHours() > 21) {
-        throw new Error("Latest end time is 9:00 PM (day use only, no overnight)");
+      // Validate using shared validation function
+      const validationResult = validateBookingRequest({ startDateTime: start, endDateTime: end, now });
+      if (!validationResult.valid) {
+        throw new Error(validationResult.errors[0] || "Invalid booking request");
       }
 
       // Check availability
@@ -156,19 +164,14 @@ export function BookingDialog({
       }
 
       const availStart = parse(availability.start_time, "HH:mm:ss", new Date());
-      const availEnd = parse(availability.end_time, "HH:mm:ss", new Date());
       const bookingStart = parse(data.startTime, "HH:mm", new Date());
-      const bookingEnd = parse(data.endTime, "HH:mm", new Date());
 
-      if (
-        bookingStart < availStart ||
-        bookingEnd > availEnd ||
-        bookingStart >= bookingEnd
-      ) {
+      // Check that booking starts within availability window
+      if (bookingStart < availStart) {
         throw new Error("Selected time is outside available hours");
       }
 
-      // Use new API route for booking request (validates lead time and availability server-side)
+      // Use API route for booking request (validates server-side)
       const response = await fetch("/api/bookings/request", {
         method: "POST",
         headers: {
@@ -179,7 +182,7 @@ export function BookingDialog({
           start_time: start.toISOString(),
           end_time: end.toISOString(),
           guests_count: data.guestsCount,
-          message: null, // Optional message can be added later
+          message: null,
         }),
       });
 
@@ -201,8 +204,24 @@ export function BookingDialog({
 
   const onSubmit = (data: BookingFormData) => {
     setError(null);
+    setValidationErrors([]);
+
+    // Final validation check
+    if (!endTime) {
+      setError("End time calculation failed");
+      return;
+    }
+
+    if (!validation.valid) {
+      setError(validation.errors[0] || "Invalid booking request");
+      return;
+    }
+
     createBooking.mutate(data);
   };
+
+  // Get max start time for date picker (19:00)
+  const maxStartTime = `${String(LATEST_START_HOUR).padStart(2, '0')}:00`;
 
   return (
     <Dialog open onOpenChange={onClose}>
@@ -214,6 +233,16 @@ export function BookingDialog({
           {error && (
             <div className="p-3 text-sm text-destructive bg-destructive/10 rounded-md">
               {error}
+            </div>
+          )}
+
+          {validationErrors.length > 0 && (
+            <div className="p-3 text-sm text-destructive bg-destructive/10 rounded-md">
+              <ul className="list-disc list-inside space-y-1">
+                {validationErrors.map((err, idx) => (
+                  <li key={idx}>{err}</li>
+                ))}
+              </ul>
             </div>
           )}
 
@@ -240,7 +269,7 @@ export function BookingDialog({
                 id="startTime"
                 type="time"
                 min="07:00"
-                max="21:00"
+                max={maxStartTime}
                 {...register("startTime")}
               />
               {errors.startTime && (
@@ -248,21 +277,23 @@ export function BookingDialog({
                   {errors.startTime.message}
                 </p>
               )}
+              <p className="text-xs text-muted-foreground mt-1">
+                Latest: {maxStartTime} (ends at 9:00 PM)
+              </p>
             </div>
             <div>
               <Label htmlFor="endTime">End Time</Label>
               <Input
                 id="endTime"
                 type="time"
-                min="07:00"
-                max="21:00"
-                {...register("endTime")}
+                value={endTime || ""}
+                disabled
+                readOnly
+                className="bg-muted cursor-not-allowed"
               />
-              {errors.endTime && (
-                <p className="text-sm text-destructive mt-1">
-                  {errors.endTime.message}
-                </p>
-              )}
+              <p className="text-xs text-muted-foreground mt-1">
+                Automatically set (2 hours)
+              </p>
             </div>
           </div>
 
@@ -289,7 +320,7 @@ export function BookingDialog({
             <h3 className="font-semibold mb-3">Price Breakdown</h3>
             <div className="space-y-2">
               <div className="flex justify-between">
-                <span>Base price</span>
+                <span>Base price (2 hours)</span>
                 <span>{formatCurrency(priceBreakdown.basePrice)}</span>
               </div>
               <div className="flex justify-between">
@@ -387,7 +418,7 @@ export function BookingDialog({
             />
             <Label htmlFor="acceptedRules" className="cursor-pointer">
               I agree to the house rules and day-use terms. I understand this is
-              day-use only (7am–6pm, no overnight) and I will return the space as I found it.
+              day-use only (bookings must end by 9:00 PM, no overnight) and I will return the space as I found it.
             </Label>
           </div>
           {errors.acceptedRules && (
@@ -407,7 +438,7 @@ export function BookingDialog({
             </Button>
             <Button
               type="submit"
-              disabled={createBooking.isPending}
+              disabled={createBooking.isPending || !validation.valid}
               className="flex-1"
             >
               {createBooking.isPending ? "Sending Request..." : "Request Booking"}

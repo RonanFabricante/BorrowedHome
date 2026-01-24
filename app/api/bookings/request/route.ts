@@ -4,10 +4,9 @@ import {
   sendHostBookingRequestedEmail,
   type BookingEmailData,
 } from "@/lib/email/send";
+import { validateBookingRequest, BOOKING_DURATION_MINUTES } from "@/lib/bookingRules";
 
 export const dynamic = "force-dynamic";
-
-const MINIMUM_LEAD_TIME_HOURS = 4;
 
 export async function POST(request: NextRequest) {
   try {
@@ -33,57 +32,15 @@ export async function POST(request: NextRequest) {
     const endAt = new Date(end_time);
     const now = new Date();
 
-    // Validate minimum lead time (4 hours)
-    const hoursUntilStart = (startAt.getTime() - now.getTime()) / (1000 * 60 * 60);
-    if (hoursUntilStart < MINIMUM_LEAD_TIME_HOURS) {
+    // Validate using shared validation function
+    const validationResult = validateBookingRequest({ startDateTime: startAt, endDateTime: endAt, now });
+    
+    if (!validationResult.valid) {
       return NextResponse.json(
         {
-          error: "MINIMUM_LEAD_TIME_VIOLATION",
-          message: `Bookings must be requested at least ${MINIMUM_LEAD_TIME_HOURS} hours before the start time.`,
+          error: validationResult.errors[0] || "Invalid booking request",
+          errors: validationResult.errors,
         },
-        { status: 400 }
-      );
-    }
-
-    // Validate end > start
-    if (endAt <= startAt) {
-      return NextResponse.json(
-        { error: "End time must be after start time" },
-        { status: 400 }
-      );
-    }
-
-    // Validate minimum duration (2 hours)
-    const hours = (endAt.getTime() - startAt.getTime()) / (1000 * 60 * 60);
-    if (hours < 2) {
-      return NextResponse.json(
-        { error: "Minimum booking duration is 2 hours" },
-        { status: 400 }
-      );
-    }
-
-    // Validate maximum duration (11 hours)
-    if (hours > 11) {
-      return NextResponse.json(
-        { error: "Maximum booking duration is 11 hours" },
-        { status: 400 }
-      );
-    }
-
-    // Validate start time is at or after 7am
-    const startHour = startAt.getHours();
-    if (startHour < 7) {
-      return NextResponse.json(
-        { error: "Earliest start time is 7:00 AM (day-use only)" },
-        { status: 400 }
-      );
-    }
-
-    // Validate day-use constraint (end by 9pm)
-    const endHour = endAt.getHours();
-    if (endHour > 21) {
-      return NextResponse.json(
-        { error: "Bookings must end by 9:00 PM (day-use only)" },
         { status: 400 }
       );
     }
@@ -131,16 +88,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Calculate pricing (hours already calculated above for validation)
-    let basePrice = 0;
-    if (hours >= 8) {
-      basePrice = listing.full_day_rate;
-    } else if (hours >= 4) {
-      basePrice = listing.half_day_rate;
-    } else {
-      basePrice = Math.round(listing.hourly_rate * hours);
-    }
-
+    // Calculate pricing (fixed 2-hour duration)
+    const basePrice = listing.hourly_rate * 2; // Fixed 2-hour booking
     const platformFee = Math.round(basePrice * 0.1); // 10% platform fee
     const totalAmount = basePrice + platformFee;
     const depositAmount = listing.deposit_amount || 0;

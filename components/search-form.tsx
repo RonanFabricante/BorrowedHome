@@ -4,14 +4,18 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { parse, differenceInHours, differenceInMinutes, isToday } from "date-fns";
-import { useMemo } from "react";
-import { cn } from "@/lib/utils";
+import { parse, isToday } from "date-fns";
 import { PlaceAutocomplete, NormalizedPlace } from "@/components/place-autocomplete";
+import {
+  computeEndTime,
+  validateBookingRequest,
+  LATEST_START_HOUR,
+  BOOKING_DURATION_MINUTES,
+} from "@/lib/bookingRules";
 
 const TIMEZONE = "Australia/Sydney";
 
@@ -19,16 +23,12 @@ const searchSchema = z.object({
   location: z.string().min(1, "Location is required"),
   date: z.string().min(1, "Date is required"),
   startTime: z.string().min(1, "Start time is required"),
-  endTime: z.string().min(1, "End time is required"),
 });
 
 type SearchFormData = z.infer<typeof searchSchema>;
 
-type PresetType = "morning" | "afternoon" | "fullday" | null;
-
 export function SearchForm() {
   const router = useRouter();
-  const [activePreset, setActivePreset] = useState<PresetType>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
   const [selectedPlace, setSelectedPlace] = useState<NormalizedPlace | null>(null);
   
@@ -42,16 +42,20 @@ export function SearchForm() {
     resolver: zodResolver(searchSchema),
     defaultValues: {
       startTime: "07:00",
-      endTime: "18:00",
     },
   });
 
   const location = watch("location");
   const date = watch("date");
   const startTime = watch("startTime");
-  const endTime = watch("endTime");
 
-  // Validate form and compute disabled state using useMemo
+  // Auto-calculate end time from start time (start + 2 hours)
+  const endTime = useMemo(() => {
+    if (!startTime) return null;
+    return computeEndTime(startTime, BOOKING_DURATION_MINUTES);
+  }, [startTime]);
+
+  // Validate form using booking rules
   const validation = useMemo((): { isValid: boolean; error: string | null } => {
     // Location validation
     if (!location || location.trim().length < 2) {
@@ -68,82 +72,39 @@ export function SearchForm() {
       return { isValid: false, error: null }; // Let Zod handle required fields
     }
 
-    const start = parse(startTime, "HH:mm", new Date());
-    const end = parse(endTime, "HH:mm", new Date());
-
-    // Business hours validation
-    if (start.getHours() < 7) {
-      return { isValid: false, error: "Day use hours are 7:00 AM to 9:00 PM." };
-    }
-    if (end.getHours() > 21) {
-      return { isValid: false, error: "Day use hours are 7:00 AM to 9:00 PM." };
-    }
-
-    // End must be after start
-    if (end <= start) {
-      return { isValid: false, error: "End time must be after start time." };
-    }
-
-    // Duration validation
-    const startDateTime = parse(`${date} ${startTime}`, "yyyy-MM-dd HH:mm", new Date());
-    const endDateTime = parse(`${date} ${endTime}`, "yyyy-MM-dd HH:mm", new Date());
-    const hours = differenceInHours(endDateTime, startDateTime);
-    
-    if (hours > 11) {
-      return { isValid: false, error: "Bookings can be up to 11 hours." };
-    }
-
-    // Same-day booking rule
-    const selectedDate = parse(date, "yyyy-MM-dd", new Date());
-    if (isToday(selectedDate)) {
+    try {
+      const startDateTime = parse(`${date} ${startTime}`, "yyyy-MM-dd HH:mm", new Date());
+      const endDateTime = parse(`${date} ${endTime}`, "yyyy-MM-dd HH:mm", new Date());
       const now = new Date();
-      const bookingStart = parse(`${date} ${startTime}`, "yyyy-MM-dd HH:mm", new Date());
-      const minutesUntilStart = differenceInMinutes(bookingStart, now);
+
+      const validationResult = validateBookingRequest({ startDateTime, endDateTime, now });
       
-      if (minutesUntilStart < 30) {
-        return { isValid: false, error: "Start time must be at least 30 minutes from now." };
+      if (!validationResult.valid) {
+        return { isValid: false, error: validationResult.errors[0] || "Invalid booking time" };
       }
+    } catch (err) {
+      return { isValid: false, error: "Invalid date or time format" };
     }
 
     return { isValid: true, error: null };
   }, [location, date, startTime, endTime]);
 
-  const isFormValid = validation.isValid && !errors.location && !errors.date && !errors.startTime && !errors.endTime;
+  const isFormValid = validation.isValid && !errors.location && !errors.date && !errors.startTime;
 
   // Update validation error when form values change
   useEffect(() => {
     setValidationError(validation.error);
   }, [validation.error]);
 
-  // Track preset state - clear if times don't match
-  useEffect(() => {
-    if (activePreset === "morning" && (startTime !== "07:00" || endTime !== "11:00")) {
-      setActivePreset(null);
-    } else if (activePreset === "afternoon" && (startTime !== "12:00" || endTime !== "16:00")) {
-      setActivePreset(null);
-    } else if (activePreset === "fullday" && (startTime !== "07:00" || endTime !== "18:00")) {
-      setActivePreset(null);
-    }
-  }, [startTime, endTime, activePreset]);
-
-  const handlePreset = (preset: PresetType, start: string, end: string) => {
-    setValue("startTime", start);
-    setValue("endTime", end);
-    setActivePreset(preset);
-  };
-
-  const handleTimeChange = (field: "startTime" | "endTime", value: string) => {
-    setValue(field, value);
-    // Clear preset if manually edited
-    if (activePreset) {
-      setActivePreset(null);
-    }
-  };
-
   const onSubmit = (data: SearchFormData) => {
-    // Final validation before submit (use current validation state)
+    // Final validation before submit
     if (!validation.isValid) {
       setValidationError(validation.error);
+      return;
+    }
+
+    if (!endTime) {
+      setValidationError("End time calculation failed");
       return;
     }
 
@@ -151,7 +112,7 @@ export function SearchForm() {
       location: data.location.trim(),
       date: data.date,
       startTime: data.startTime,
-      endTime: data.endTime,
+      endTime: endTime,
       tz: TIMEZONE,
     });
 
@@ -159,7 +120,6 @@ export function SearchForm() {
     if (selectedPlace) {
       params.set("lat", selectedPlace.lat.toString());
       params.set("lng", selectedPlace.lng.toString());
-      // Optionally add other place metadata
       if (selectedPlace.placeType) {
         params.set("placeType", selectedPlace.placeType);
       }
@@ -176,6 +136,9 @@ export function SearchForm() {
 
   const selectedDate = date ? parse(date, "yyyy-MM-dd", new Date()) : null;
   const isSameDay = selectedDate && isToday(selectedDate);
+
+  // Get max start time (19:00)
+  const maxStartTime = `${String(LATEST_START_HOUR).padStart(2, '0')}:00`;
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-3 sm:space-y-4">
@@ -219,11 +182,12 @@ export function SearchForm() {
             type="time"
             className="w-full"
             min="07:00"
-            max="18:00"
-            {...register("startTime", {
-              onChange: (e) => handleTimeChange("startTime", e.target.value),
-            })}
+            max={maxStartTime}
+            {...register("startTime")}
           />
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Latest: {maxStartTime} (ends at 9:00 PM)
+          </p>
         </div>
         <div className="w-full space-y-1.5">
           <Label htmlFor="endTime" className="text-sm font-medium">End Time</Label>
@@ -231,54 +195,21 @@ export function SearchForm() {
             id="endTime"
             data-testid="end-time-input"
             type="time"
-            className="w-full"
-            min="07:00"
-            max="18:00"
-            {...register("endTime", {
-              onChange: (e) => handleTimeChange("endTime", e.target.value),
-            })}
+            className="w-full bg-muted cursor-not-allowed"
+            value={endTime || ""}
+            disabled
+            readOnly
           />
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Automatically set (2 hours)
+          </p>
         </div>
-      </div>
-      
-      {/* Preset Time Buttons */}
-      <div className="flex flex-wrap gap-2 pt-1">
-        <Button
-          type="button"
-          variant={activePreset === "morning" ? "default" : "outline"}
-          size="sm"
-          data-testid="preset-morning"
-          onClick={() => handlePreset("morning", "07:00", "11:00")}
-          className={cn("text-xs", activePreset === "morning" && "bg-primary text-primary-foreground")}
-        >
-          Morning (7am–11am)
-        </Button>
-        <Button
-          type="button"
-          variant={activePreset === "afternoon" ? "default" : "outline"}
-          size="sm"
-          data-testid="preset-afternoon"
-          onClick={() => handlePreset("afternoon", "12:00", "16:00")}
-          className={cn("text-xs", activePreset === "afternoon" && "bg-primary text-primary-foreground")}
-        >
-          Afternoon (12pm–4pm)
-        </Button>
-        <Button
-          type="button"
-          variant={activePreset === "fullday" ? "default" : "outline"}
-          size="sm"
-          data-testid="preset-fullday"
-          onClick={() => handlePreset("fullday", "07:00", "18:00")}
-          className={cn("text-xs", activePreset === "fullday" && "bg-primary text-primary-foreground")}
-        >
-          Full Day (7am–6pm)
-        </Button>
       </div>
 
       {/* Same-day helper text */}
       {isSameDay && (
         <p data-testid="helper-same-day" className="text-xs text-muted-foreground mt-1.5">
-          Same-day bookings must start at least 30 minutes from now.
+          Same-day bookings must be requested at least 4 hours before the start time.
         </p>
       )}
 
@@ -288,13 +219,12 @@ export function SearchForm() {
           {validationError || 
            errors.location?.message || 
            errors.date?.message || 
-           errors.startTime?.message || 
-           errors.endTime?.message}
+           errors.startTime?.message}
         </div>
       )}
 
       <div className="text-xs text-muted-foreground mt-1.5">
-        Day use only · 7am–6pm · No overnight stays
+        Day use only · Bookings must end by 9:00 PM · No overnight stays · Fixed 2-hour duration
       </div>
 
       <Button 
