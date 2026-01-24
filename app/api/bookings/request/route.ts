@@ -79,12 +79,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate day-use constraint (end by 6pm)
+    // Validate day-use constraint (end by 9pm)
     const endHour = endAt.getHours();
-    const endMinutes = endAt.getMinutes();
-    if (endHour > 18 || (endHour === 18 && endMinutes > 0)) {
+    if (endHour > 21) {
       return NextResponse.json(
-        { error: "Bookings must end by 6:00 PM (day-use only)" },
+        { error: "Bookings must end by 9:00 PM (day-use only)" },
         { status: 400 }
       );
     }

@@ -137,9 +137,9 @@ export function BookingDialog({
         throw new Error("Earliest start time is 7:00 AM");
       }
 
-      // Check end time is at or before 6pm
-      if (end.getHours() > 18 || (end.getHours() === 18 && end.getMinutes() > 0)) {
-        throw new Error("Latest end time is 6:00 PM (day use only, no overnight)");
+      // Check end time is at or before 9pm
+      if (end.getHours() > 21) {
+        throw new Error("Latest end time is 9:00 PM (day use only, no overnight)");
       }
 
       // Check availability
@@ -240,7 +240,7 @@ export function BookingDialog({
                 id="startTime"
                 type="time"
                 min="07:00"
-                max="18:00"
+                max="21:00"
                 {...register("startTime")}
               />
               {errors.startTime && (
@@ -255,7 +255,7 @@ export function BookingDialog({
                 id="endTime"
                 type="time"
                 min="07:00"
-                max="18:00"
+                max="21:00"
                 {...register("endTime")}
               />
               {errors.endTime && (

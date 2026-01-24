@@ -544,7 +544,7 @@ export function HostOnboardingWizard() {
       <div className="space-y-4">
         <h2 className="text-2xl font-bold mb-4">Availability</h2>
         <p className="text-muted-foreground mb-6">
-          Set when your space is available. Remember: day-use only, end by 6pm.
+          Set when your space is available. Remember: day-use only, end by 9pm.
         </p>
         {days.map((day, index) => {
           const dayAvail = availability.find((a) => a.day_of_week === index);
@@ -1015,7 +1015,7 @@ export function HostOnboardingWizard() {
         <p className="text-sm font-semibold mb-2">Confirm Day-Use Only</p>
         <p className="text-sm text-muted-foreground">
           By publishing this listing, you confirm this is for day-use only.
-          All bookings must end by 6pm. No overnight stays.
+          All bookings must end by 9pm. No overnight stays.
         </p>
       </div>
     </div>

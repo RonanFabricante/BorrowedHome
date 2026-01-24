@@ -73,10 +73,10 @@ export function SearchForm() {
 
     // Business hours validation
     if (start.getHours() < 7) {
-      return { isValid: false, error: "Day use hours are 7:00 AM to 6:00 PM." };
+      return { isValid: false, error: "Day use hours are 7:00 AM to 9:00 PM." };
     }
-    if (end.getHours() > 18 || (end.getHours() === 18 && end.getMinutes() > 0)) {
-      return { isValid: false, error: "Day use hours are 7:00 AM to 6:00 PM." };
+    if (end.getHours() > 21) {
+      return { isValid: false, error: "Day use hours are 7:00 AM to 9:00 PM." };
     }
 
     // End must be after start
