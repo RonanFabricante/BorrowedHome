@@ -53,11 +53,38 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate day-use constraint (end by 9pm)
-    const endHour = endAt.getHours();
-    if (endHour > 21) {
+    // Validate minimum duration (2 hours)
+    const hours = (endAt.getTime() - startAt.getTime()) / (1000 * 60 * 60);
+    if (hours < 2) {
       return NextResponse.json(
-        { error: "Bookings must end by 9:00 PM (day-use only)" },
+        { error: "Minimum booking duration is 2 hours" },
+        { status: 400 }
+      );
+    }
+
+    // Validate maximum duration (11 hours)
+    if (hours > 11) {
+      return NextResponse.json(
+        { error: "Maximum booking duration is 11 hours" },
+        { status: 400 }
+      );
+    }
+
+    // Validate start time is at or after 7am
+    const startHour = startAt.getHours();
+    if (startHour < 7) {
+      return NextResponse.json(
+        { error: "Earliest start time is 7:00 AM (day-use only)" },
+        { status: 400 }
+      );
+    }
+
+    // Validate day-use constraint (end by 6pm)
+    const endHour = endAt.getHours();
+    const endMinutes = endAt.getMinutes();
+    if (endHour > 18 || (endHour === 18 && endMinutes > 0)) {
+      return NextResponse.json(
+        { error: "Bookings must end by 6:00 PM (day-use only)" },
         { status: 400 }
       );
     }
