@@ -134,7 +134,7 @@ export function BookingDialog({
   // Validate booking in real-time
   const validation = useMemo(() => {
     if (!date || !startTime || !endTime) {
-      return { valid: false, errors: [] };
+      return { ok: false, errors: [] };
     }
 
     try {
@@ -144,7 +144,7 @@ export function BookingDialog({
 
       return validateBookingTime({ date, startMinutes, endMinutes, now });
     } catch (err) {
-      return { valid: false, errors: ["Invalid date or time format"] };
+      return { ok: false, errors: ["Invalid date or time format"] };
     }
   }, [date, startTime, endTime]);
 
