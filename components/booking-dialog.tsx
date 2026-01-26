@@ -17,17 +17,19 @@ import { formatCurrency } from "@/lib/utils";
 import { parse, format } from "date-fns";
 import { DayUseWarning } from "@/components/day-use-warning";
 import {
-  computeEndTime,
-  validateBookingRequest,
-  wouldExceedCutoff,
-  LATEST_START_HOUR,
-  BOOKING_DURATION_MINUTES,
-} from "@/lib/bookingRules";
-import { validateDayUseBooking, endTimeExceedsCutoff } from "@/lib/timeRules";
+  toMinutes,
+  fromMinutes,
+  minEndMinutes,
+  CUTOFF_MINUTES,
+  LATEST_START_MINUTES,
+  validate as validateBookingTime,
+  normalize,
+} from "@/lib/bookingTimeRules";
 
 const bookingSchema = z.object({
   date: z.string().min(1, "Date is required"),
   startTime: z.string().min(1, "Start time is required"),
+  endTime: z.string().min(1, "End time is required"),
   guestsCount: z.number().min(1).max(100),
   acceptedRules: z.boolean().refine((val) => val === true, {
     message: "You must accept the house rules",
@@ -53,6 +55,7 @@ export function BookingDialog({
   const supabase = createClient();
   const [error, setError] = useState<string | null>(null);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
+  const [adjustmentNote, setAdjustmentNote] = useState<string | null>(null);
 
   const {
     register,
@@ -64,6 +67,7 @@ export function BookingDialog({
     resolver: zodResolver(bookingSchema),
     defaultValues: {
       startTime: "07:00",
+      endTime: "09:00", // Default to 2 hours after start
       guestsCount: 1,
       acceptedRules: false,
       guest_ack_toilet_access: false,
@@ -73,45 +77,72 @@ export function BookingDialog({
 
   const date = watch("date");
   const startTime = watch("startTime");
+  const endTime = watch("endTime");
   const guestsCount = watch("guestsCount");
 
-  // Auto-calculate end time from start time (start + 2 hours)
-  const endTime = useMemo(() => {
-    if (!startTime) return null;
-    return computeEndTime(startTime, BOOKING_DURATION_MINUTES);
+  // Calculate min/max for end time picker
+  const endTimeConstraints = useMemo(() => {
+    if (!startTime) {
+      return { min: "07:00", max: fromMinutes(CUTOFF_MINUTES) };
+    }
+
+    try {
+      const startMinutes = toMinutes(startTime);
+      const minEnd = minEndMinutes(startMinutes);
+      const maxEnd = CUTOFF_MINUTES;
+
+      return {
+        min: fromMinutes(minEnd),
+        max: fromMinutes(maxEnd),
+      };
+    } catch {
+      return { min: "07:00", max: fromMinutes(CUTOFF_MINUTES) };
+    }
   }, [startTime]);
 
-  // Update end time in form when start time changes
+  // Auto-adjust end time when start time changes
   useEffect(() => {
-    if (startTime && endTime) {
-      // End time is computed, not user-editable
-    }
-  }, [startTime, endTime]);
+    if (!date || !startTime || !endTime) return;
 
-  // Validate booking in real-time using minutes-from-midnight for reliable time checks
+    try {
+      const startMinutes = toMinutes(startTime);
+      const currentEndMinutes = toMinutes(endTime);
+      
+      const normalized = normalize({
+        startMinutes,
+        endMinutes: currentEndMinutes,
+      });
+
+      // If adjustment was needed, update end time and show note
+      if (normalized.endMinutes !== currentEndMinutes || normalized.startMinutes !== startMinutes) {
+        const newEndTime = fromMinutes(normalized.endMinutes);
+        setValue("endTime", newEndTime, { shouldValidate: true });
+        
+        if (normalized.adjustments.length > 0) {
+          setAdjustmentNote(normalized.adjustments[0]);
+          // Clear note after 5 seconds
+          setTimeout(() => setAdjustmentNote(null), 5000);
+        }
+      } else {
+        setAdjustmentNote(null);
+      }
+    } catch (err) {
+      // Invalid time format, skip adjustment
+    }
+  }, [date, startTime, endTime, setValue]);
+
+  // Validate booking in real-time
   const validation = useMemo(() => {
     if (!date || !startTime || !endTime) {
       return { valid: false, errors: [] };
     }
 
     try {
-      // First, validate time rules using minutes-from-midnight (more reliable)
-      const timeValidation = validateDayUseBooking({ date, startTime, endTime });
-      
-      // Then, validate full booking request (includes lead time, duration, etc.)
-      const startDateTime = parse(`${date} ${startTime}`, "yyyy-MM-dd HH:mm", new Date());
-      const endDateTime = parse(`${date} ${endTime}`, "yyyy-MM-dd HH:mm", new Date());
+      const startMinutes = toMinutes(startTime);
+      const endMinutes = toMinutes(endTime);
       const now = new Date();
 
-      const bookingValidation = validateBookingRequest({ startDateTime, endDateTime, now });
-      
-      // Combine errors, prioritizing time validation errors
-      const allErrors = [...timeValidation.errors, ...bookingValidation.errors];
-      
-      return {
-        valid: timeValidation.ok && bookingValidation.valid,
-        errors: allErrors,
-      };
+      return validateBookingTime({ date, startMinutes, endMinutes, now });
     } catch (err) {
       return { valid: false, errors: ["Invalid date or time format"] };
     }
@@ -121,24 +152,41 @@ export function BookingDialog({
     setValidationErrors(validation.errors);
   }, [validation]);
 
-  // Price calculation (fixed 2-hour duration)
+  // Price calculation based on actual duration
   const priceBreakdown = useMemo(() => {
     if (!date || !startTime || !endTime) {
       return { total: 0, fee: 0, deposit: listing.deposit_amount, basePrice: 0 };
     }
 
-    // Fixed 2-hour duration - use hourly rate * 2
-    const basePrice = listing.hourly_rate * 2;
-    const platformFee = Math.round(basePrice * 0.1); // 10% platform fee
-    const total = basePrice + platformFee;
+    try {
+      const startMinutes = toMinutes(startTime);
+      const endMinutes = toMinutes(endTime);
+      const durationHours = (endMinutes - startMinutes) / 60;
 
-    return {
-      total,
-      fee: platformFee,
-      deposit: listing.deposit_amount,
-      basePrice,
-    };
-  }, [date, startTime, endTime, listing.hourly_rate, listing.deposit_amount]);
+      // Calculate base price based on duration
+      let basePrice = 0;
+      if (durationHours >= 8) {
+        basePrice = listing.full_day_rate;
+      } else if (durationHours >= 4) {
+        basePrice = listing.half_day_rate;
+      } else {
+        basePrice = Math.round(listing.hourly_rate * durationHours);
+      }
+
+      const platformFee = Math.round(basePrice * 0.1); // 10% platform fee
+      const total = basePrice + platformFee;
+
+      return {
+        total,
+        fee: platformFee,
+        deposit: listing.deposit_amount,
+        basePrice,
+        durationHours,
+      };
+    } catch {
+      return { total: 0, fee: 0, deposit: listing.deposit_amount, basePrice: 0, durationHours: 0 };
+    }
+  }, [date, startTime, endTime, listing.hourly_rate, listing.half_day_rate, listing.full_day_rate, listing.deposit_amount]);
 
   const createBooking = useMutation({
     mutationFn: async (data: BookingFormData) => {
@@ -149,17 +197,16 @@ export function BookingDialog({
         throw new Error(`Maximum ${listing.max_guests} guests allowed`);
       }
 
-      if (!endTime) {
-        throw new Error("End time calculation failed");
-      }
-
       const start = parse(`${data.date} ${data.startTime}`, "yyyy-MM-dd HH:mm", new Date());
-      const end = parse(`${data.date} ${endTime}`, "yyyy-MM-dd HH:mm", new Date());
+      const end = parse(`${data.date} ${data.endTime}`, "yyyy-MM-dd HH:mm", new Date());
       const now = new Date();
 
       // Validate using shared validation function
-      const validationResult = validateBookingRequest({ startDateTime: start, endDateTime: end, now });
-      if (!validationResult.valid) {
+      const startMinutes = toMinutes(data.startTime);
+      const endMinutes = toMinutes(data.endTime);
+      const validationResult = validateBookingTime({ date: data.date, startMinutes, endMinutes, now });
+      
+      if (!validationResult.ok) {
         throw new Error(validationResult.errors[0] || "Invalid booking request");
       }
 
@@ -220,12 +267,7 @@ export function BookingDialog({
     setValidationErrors([]);
 
     // Final validation check
-    if (!endTime) {
-      setError("End time calculation failed");
-      return;
-    }
-
-    if (!validation.valid) {
+    if (!validation.ok) {
       setError(validation.errors[0] || "Invalid booking request");
       return;
     }
@@ -233,8 +275,8 @@ export function BookingDialog({
     createBooking.mutate(data);
   };
 
-  // Get max start time for date picker (19:00)
-  const maxStartTime = `${String(LATEST_START_HOUR).padStart(2, '0')}:00`;
+  // Get max start time (19:00)
+  const maxStartTime = fromMinutes(LATEST_START_MINUTES);
 
   return (
     <Dialog open onOpenChange={onClose}>
@@ -249,6 +291,14 @@ export function BookingDialog({
             </div>
           )}
 
+          {/* Info banner - always visible */}
+          <div className="p-3 text-sm bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-md">
+            <p className="text-blue-900 dark:text-blue-100">
+              <strong>Day-use only:</strong> Bookings must end by 21:00 (9:00 PM) and be at least 2 hours long.
+            </p>
+          </div>
+
+          {/* Error banner - only when validation fails */}
           {validationErrors.length > 0 && (
             <div className="p-3 text-sm text-destructive bg-destructive/10 rounded-md">
               <ul className="list-disc list-inside space-y-1">
@@ -259,11 +309,10 @@ export function BookingDialog({
             </div>
           )}
 
-          {/* Debug info in development */}
-          {process.env.NODE_ENV === 'development' && date && startTime && endTime && (
-            <div className="p-2 text-xs bg-muted rounded text-muted-foreground">
-              <strong>Debug:</strong> Start={startTime}, End={endTime}, 
-              End exceeds cutoff: {endTimeExceedsCutoff(endTime) ? 'YES' : 'NO'}
+          {/* Adjustment note */}
+          {adjustmentNote && (
+            <div className="p-2 text-sm bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-md">
+              <p className="text-amber-800 dark:text-amber-200">{adjustmentNote}</p>
             </div>
           )}
 
@@ -299,7 +348,7 @@ export function BookingDialog({
                 </p>
               )}
               <p className="text-xs text-muted-foreground mt-1">
-                Latest: {maxStartTime} (ends at 9:00 PM)
+                Latest: {maxStartTime} (to allow 2h minimum ending by 9:00 PM)
               </p>
             </div>
             <div>
@@ -307,13 +356,17 @@ export function BookingDialog({
               <Input
                 id="endTime"
                 type="time"
-                value={endTime || ""}
-                disabled
-                readOnly
-                className="bg-muted cursor-not-allowed"
+                min={endTimeConstraints.min}
+                max={endTimeConstraints.max}
+                {...register("endTime")}
               />
+              {errors.endTime && (
+                <p className="text-sm text-destructive mt-1">
+                  {errors.endTime.message}
+                </p>
+              )}
               <p className="text-xs text-muted-foreground mt-1">
-                Automatically set (2 hours)
+                Min: {endTimeConstraints.min} (2h after start), Max: {endTimeConstraints.max}
               </p>
             </div>
           </div>
@@ -341,7 +394,7 @@ export function BookingDialog({
             <h3 className="font-semibold mb-3">Price Breakdown</h3>
             <div className="space-y-2">
               <div className="flex justify-between">
-                <span>Base price (2 hours)</span>
+                <span>Base price ({priceBreakdown.durationHours?.toFixed(1) || 0} hours)</span>
                 <span>{formatCurrency(priceBreakdown.basePrice)}</span>
               </div>
               <div className="flex justify-between">
@@ -459,7 +512,7 @@ export function BookingDialog({
             </Button>
             <Button
               type="submit"
-              disabled={createBooking.isPending || !validation.valid}
+              disabled={createBooking.isPending || !validation.ok}
               className="flex-1"
             >
               {createBooking.isPending ? "Sending Request..." : "Request Booking"}

@@ -4,7 +4,11 @@ import {
   sendHostBookingRequestedEmail,
   type BookingEmailData,
 } from "@/lib/email/send";
-import { validateBookingRequest, BOOKING_DURATION_MINUTES } from "@/lib/bookingRules";
+import {
+  toMinutes,
+  validate as validateBookingTime,
+  MIN_DURATION_MINUTES,
+} from "@/lib/bookingTimeRules";
 
 export const dynamic = "force-dynamic";
 
@@ -32,10 +36,17 @@ export async function POST(request: NextRequest) {
     const endAt = new Date(end_time);
     const now = new Date();
 
-    // Validate using shared validation function
-    const validationResult = validateBookingRequest({ startDateTime: startAt, endDateTime: endAt, now });
+    // Extract time strings for validation
+    const startTimeStr = `${String(startAt.getHours()).padStart(2, '0')}:${String(startAt.getMinutes()).padStart(2, '0')}`;
+    const endTimeStr = `${String(endAt.getHours()).padStart(2, '0')}:${String(endAt.getMinutes()).padStart(2, '0')}`;
+    const dateStr = startAt.toISOString().split('T')[0];
+
+    // Validate using shared validation function (minutes-from-midnight)
+    const startMinutes = toMinutes(startTimeStr);
+    const endMinutes = toMinutes(endTimeStr);
+    const validationResult = validateBookingTime({ date: dateStr, startMinutes, endMinutes, now });
     
-    if (!validationResult.valid) {
+    if (!validationResult.ok) {
       return NextResponse.json(
         {
           error: validationResult.errors[0] || "Invalid booking request",
@@ -88,8 +99,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Calculate pricing (fixed 2-hour duration)
-    const basePrice = listing.hourly_rate * 2; // Fixed 2-hour booking
+    // Calculate pricing based on actual duration
+    const durationMs = endAt.getTime() - startAt.getTime();
+    const durationHours = durationMs / (1000 * 60 * 60);
+    
+    let basePrice = 0;
+    if (durationHours >= 8) {
+      basePrice = listing.full_day_rate;
+    } else if (durationHours >= 4) {
+      basePrice = listing.half_day_rate;
+    } else {
+      basePrice = Math.round(listing.hourly_rate * durationHours);
+    }
+    
     const platformFee = Math.round(basePrice * 0.1); // 10% platform fee
     const totalAmount = basePrice + platformFee;
     const depositAmount = listing.deposit_amount || 0;

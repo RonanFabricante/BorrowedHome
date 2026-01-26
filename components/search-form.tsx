@@ -8,14 +8,16 @@ import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { parse, isToday } from "date-fns";
+import { isToday } from "date-fns";
 import { PlaceAutocomplete, NormalizedPlace } from "@/components/place-autocomplete";
 import {
-  computeEndTime,
-  validateBookingRequest,
-  LATEST_START_HOUR,
-  BOOKING_DURATION_MINUTES,
-} from "@/lib/bookingRules";
+  toMinutes,
+  fromMinutes,
+  minEndMinutes,
+  CUTOFF_MINUTES,
+  LATEST_START_MINUTES,
+  validate as validateBookingTime,
+} from "@/lib/bookingTimeRules";
 
 const TIMEZONE = "Australia/Sydney";
 
@@ -23,6 +25,7 @@ const searchSchema = z.object({
   location: z.string().min(1, "Location is required"),
   date: z.string().min(1, "Date is required"),
   startTime: z.string().min(1, "Start time is required"),
+  endTime: z.string().min(1, "End time is required"),
 });
 
 type SearchFormData = z.infer<typeof searchSchema>;
@@ -42,20 +45,36 @@ export function SearchForm() {
     resolver: zodResolver(searchSchema),
     defaultValues: {
       startTime: "07:00",
+      endTime: "09:00", // Default to 2 hours after start
     },
   });
 
   const location = watch("location");
   const date = watch("date");
   const startTime = watch("startTime");
+  const endTime = watch("endTime");
 
-  // Auto-calculate end time from start time (start + 2 hours)
-  const endTime = useMemo(() => {
-    if (!startTime) return null;
-    return computeEndTime(startTime, BOOKING_DURATION_MINUTES);
+  // Calculate min/max for end time picker
+  const endTimeConstraints = useMemo(() => {
+    if (!startTime) {
+      return { min: "07:00", max: fromMinutes(CUTOFF_MINUTES) };
+    }
+
+    try {
+      const startMinutes = toMinutes(startTime);
+      const minEnd = minEndMinutes(startMinutes);
+      const maxEnd = CUTOFF_MINUTES;
+
+      return {
+        min: fromMinutes(minEnd),
+        max: fromMinutes(maxEnd),
+      };
+    } catch {
+      return { min: "07:00", max: fromMinutes(CUTOFF_MINUTES) };
+    }
   }, [startTime]);
 
-  // Validate form using booking rules
+  // Validate form using booking time rules
   const validation = useMemo((): { isValid: boolean; error: string | null } => {
     // Location validation
     if (!location || location.trim().length < 2) {
@@ -73,13 +92,13 @@ export function SearchForm() {
     }
 
     try {
-      const startDateTime = parse(`${date} ${startTime}`, "yyyy-MM-dd HH:mm", new Date());
-      const endDateTime = parse(`${date} ${endTime}`, "yyyy-MM-dd HH:mm", new Date());
+      const startMinutes = toMinutes(startTime);
+      const endMinutes = toMinutes(endTime);
       const now = new Date();
 
-      const validationResult = validateBookingRequest({ startDateTime, endDateTime, now });
+      const validationResult = validateBookingTime({ date, startMinutes, endMinutes, now });
       
-      if (!validationResult.valid) {
+      if (!validationResult.ok) {
         return { isValid: false, error: validationResult.errors[0] || "Invalid booking time" };
       }
     } catch (err) {
@@ -89,7 +108,7 @@ export function SearchForm() {
     return { isValid: true, error: null };
   }, [location, date, startTime, endTime]);
 
-  const isFormValid = validation.isValid && !errors.location && !errors.date && !errors.startTime;
+  const isFormValid = validation.isValid && !errors.location && !errors.date && !errors.startTime && !errors.endTime;
 
   // Update validation error when form values change
   useEffect(() => {
@@ -103,16 +122,11 @@ export function SearchForm() {
       return;
     }
 
-    if (!endTime) {
-      setValidationError("End time calculation failed");
-      return;
-    }
-
     const params = new URLSearchParams({
       location: data.location.trim(),
       date: data.date,
       startTime: data.startTime,
-      endTime: endTime,
+      endTime: data.endTime,
       tz: TIMEZONE,
     });
 
@@ -134,11 +148,11 @@ export function SearchForm() {
     router.push(`/listings?${params.toString()}`);
   };
 
-  const selectedDate = date ? parse(date, "yyyy-MM-dd", new Date()) : null;
+  const selectedDate = date ? new Date(date) : null;
   const isSameDay = selectedDate && isToday(selectedDate);
 
   // Get max start time (19:00)
-  const maxStartTime = `${String(LATEST_START_HOUR).padStart(2, '0')}:00`;
+  const maxStartTime = fromMinutes(LATEST_START_MINUTES);
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-3 sm:space-y-4">
@@ -186,7 +200,7 @@ export function SearchForm() {
             {...register("startTime")}
           />
           <p className="text-xs text-muted-foreground mt-0.5">
-            Latest: {maxStartTime} (ends at 9:00 PM)
+            Latest: {maxStartTime}
           </p>
         </div>
         <div className="w-full space-y-1.5">
@@ -195,13 +209,13 @@ export function SearchForm() {
             id="endTime"
             data-testid="end-time-input"
             type="time"
-            className="w-full bg-muted cursor-not-allowed"
-            value={endTime || ""}
-            disabled
-            readOnly
+            className="w-full"
+            min={endTimeConstraints.min}
+            max={endTimeConstraints.max}
+            {...register("endTime")}
           />
           <p className="text-xs text-muted-foreground mt-0.5">
-            Automatically set (2 hours)
+            Min: {endTimeConstraints.min}, Max: {endTimeConstraints.max}
           </p>
         </div>
       </div>
@@ -219,12 +233,13 @@ export function SearchForm() {
           {validationError || 
            errors.location?.message || 
            errors.date?.message || 
-           errors.startTime?.message}
+           errors.startTime?.message ||
+           errors.endTime?.message}
         </div>
       )}
 
       <div className="text-xs text-muted-foreground mt-1.5">
-        Day use only · Bookings must end by 9:00 PM · No overnight stays · Fixed 2-hour duration
+        Day use only · Bookings must end by 9:00 PM · Minimum 2 hours · No overnight stays
       </div>
 
       <Button 
