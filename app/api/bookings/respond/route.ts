@@ -243,10 +243,21 @@ export async function POST(request: NextRequest) {
       }
 
       // Update booking with payment intent ID
-      await supabase
+      const { error: updateBookingError } = await supabase
         .from("bookings")
         .update({ stripe_payment_intent_id: paymentIntent.id })
         .eq("id", booking_id);
+      if (updateBookingError) {
+        // Clean up Stripe intents so we don't leave dangling authorizations
+        await stripe.paymentIntents.cancel(paymentIntent.id);
+        if (depositIntentId) {
+          await stripe.paymentIntents.cancel(depositIntentId);
+        }
+        return NextResponse.json(
+          { error: updateBookingError.message || "Failed to update booking" },
+          { status: 500 }
+        );
+      }
 
       // Fetch guest profile and email
       const { data: guestProfile } = await supabase
