@@ -136,6 +136,9 @@ export async function POST(request: NextRequest) {
 
     // Handle acceptance
     if (action === "accept") {
+      if (process.env.NODE_ENV !== "production") {
+        console.log("[Booking Respond] Accept requested:", { booking_id, actor: user.id });
+      }
       // Check if host has completed Stripe onboarding
       const { data: host } = await supabase
         .from("hosts")
@@ -167,6 +170,14 @@ export async function POST(request: NextRequest) {
           { error: acceptError.message },
           { status: 400 }
         );
+      }
+
+      if (process.env.NODE_ENV !== "production") {
+        console.log("[Booking Respond] Booking accepted:", {
+          booking_id,
+          status: acceptedBooking?.status,
+          payment_deadline_at: acceptedBooking?.payment_deadline_at,
+        });
       }
 
       // Log event

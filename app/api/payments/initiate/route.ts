@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { stripe, PLATFORM_FEE_PERCENTAGE } from "@/lib/stripe/server";
 import { checkAccountStatus, computeOnboardingStatus, findStripeAccountByUserId } from "@/lib/stripe/connect";
+import { isPaymentPending, normalizeBookingStatus } from "@/lib/bookingStatus";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -33,14 +34,37 @@ export async function POST(request: NextRequest) {
         )
       `)
       .eq("id", bookingId)
-      .eq("status", "CONFIRMED")
       .single();
 
     if (bookingError || !booking) {
       return NextResponse.json(
-        { error: "Booking not found or not confirmed" },
+        { error: "Booking not found" },
         { status: 404 }
       );
+    }
+
+    // Guests only: ensure this booking belongs to the authenticated guest
+    if (booking.guest_id !== user.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    }
+
+    const status = normalizeBookingStatus(booking.status);
+    const allowedForPayment = status === "CONFIRMED" || status === "PAYMENT_PENDING";
+
+    if (!allowedForPayment) {
+      return NextResponse.json(
+        { error: `Booking is not awaiting payment. Status: ${status || "UNKNOWN"}` },
+        { status: 400 }
+      );
+    }
+
+    if (process.env.NODE_ENV !== "production") {
+      console.log("[Payment Initiate] Booking loaded:", {
+        bookingId,
+        status,
+        guestId: booking.guest_id,
+        hostId: (booking.listings as any)?.host_id,
+      });
     }
 
     // Extract listings with type assertion (Supabase returns object with .single())
@@ -74,6 +98,15 @@ export async function POST(request: NextRequest) {
         clientSecret: paymentIntent.client_secret,
         depositClientSecret,
       });
+    }
+
+    // If we reached here, there is no payment row yet. This must only happen while awaiting payment.
+    // (Host accept flow should set PAYMENT_PENDING before the guest can initiate.)
+    if (!isPaymentPending(booking)) {
+      return NextResponse.json(
+        { error: `Payment has not been requested for this booking yet. Status: ${status || "UNKNOWN"}` },
+        { status: 400 }
+      );
     }
 
     // Check if host has completed Stripe onboarding

@@ -19,6 +19,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "bookingId is required" }, { status: 400 });
     }
 
+    if (process.env.NODE_ENV !== "production") {
+      console.log("[Accept Booking] Request:", { bookingId, hostId: user.id });
+    }
+
     // Check if host has completed Stripe onboarding
     const { data: host } = await supabase
       .from("hosts")
@@ -47,6 +51,14 @@ export async function POST(request: NextRequest) {
         { error: bookingError.message },
         { status: 400 }
       );
+    }
+
+    if (process.env.NODE_ENV !== "production") {
+      console.log("[Accept Booking] Accepted:", {
+        bookingId,
+        status: booking?.status,
+        payment_deadline_at: booking?.payment_deadline_at,
+      });
     }
 
     // Payment initiation will be handled by frontend calling /api/payments/initiate
