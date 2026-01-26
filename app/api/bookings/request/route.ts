@@ -7,7 +7,6 @@ import {
 import {
   toMinutes,
   validate as validateBookingTime,
-  MIN_DURATION_MINUTES,
 } from "@/lib/bookingTimeRules";
 
 export const dynamic = "force-dynamic";
@@ -99,43 +98,29 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Calculate pricing based on actual duration
-    const durationMs = endAt.getTime() - startAt.getTime();
-    const durationHours = durationMs / (1000 * 60 * 60);
-    
-    let basePrice = 0;
-    if (durationHours >= 8) {
-      basePrice = listing.full_day_rate;
-    } else if (durationHours >= 4) {
-      basePrice = listing.half_day_rate;
-    } else {
-      basePrice = Math.round(listing.hourly_rate * durationHours);
-    }
-    
-    const platformFee = Math.round(basePrice * 0.1); // 10% platform fee
-    const totalAmount = basePrice + platformFee;
-    const depositAmount = listing.deposit_amount || 0;
-
-    // Create booking with REQUESTED status
-    const { data: booking, error: bookingError } = await supabase
-      .from("bookings")
-      .insert({
-        listing_id,
-        guest_id: user.id,
-        start_at: startAt.toISOString(),
-        end_at: endAt.toISOString(),
-        status: "REQUESTED",
-        requested_at: now.toISOString(),
-        guests_count,
-        total_amount: totalAmount,
-        platform_fee_amount: platformFee,
-        deposit_amount: depositAmount,
-      })
-      .select()
-      .single();
+    // Create booking via RPC (derives host/listing, enforces rules, computes pricing)
+    const { data: booking, error: bookingError } = await supabase.rpc(
+      "create_booking_request",
+      {
+        p_listing_id: listing_id,
+        p_start_at: startAt.toISOString(),
+        p_end_at: endAt.toISOString(),
+        p_guests_count: guests_count,
+      }
+    );
 
     if (bookingError) {
       console.error("[Booking Request] Create booking error:", bookingError);
+      // Preserve the existing UI contract for availability conflicts
+      if (bookingError.message?.includes("TIME_SLOT_UNAVAILABLE")) {
+        return NextResponse.json(
+          {
+            error: "TIME_SLOT_UNAVAILABLE",
+            message: "This time slot is no longer available",
+          },
+          { status: 409 }
+        );
+      }
       return NextResponse.json(
         { error: bookingError.message || "Failed to create booking" },
         { status: 500 }
@@ -153,7 +138,7 @@ export async function POST(request: NextRequest) {
           start_time: startAt.toISOString(),
           end_time: endAt.toISOString(),
           guests_count,
-          total_amount: totalAmount,
+          total_amount: booking.total_amount,
         },
       });
     } catch (eventError) {
@@ -190,7 +175,7 @@ export async function POST(request: NextRequest) {
         listingTitle: listing.title,
         startTime: startAt.toISOString(),
         endTime: endAt.toISOString(),
-        totalAmount,
+        totalAmount: booking.total_amount,
       };
 
       sendHostBookingRequestedEmail(hostEmail, hostProfile?.full_name || "Host", emailData).catch(
