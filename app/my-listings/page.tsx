@@ -3,6 +3,9 @@ import { MyListingsList } from "@/components/my-listings-list";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { Plus, LayoutList } from "lucide-react";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { StatusBanner } from "@/components/status-banner";
 
 export default async function MyListingsPage() {
   const supabase = await createClient();
@@ -73,38 +76,32 @@ export default async function MyListingsPage() {
           </h1>
           <div className="flex gap-2">
             {!stripeOnboardingComplete && (
-              <a href="/host/payouts">
-                <button className="px-4 py-2 bg-amber-600 text-white rounded-md hover:bg-amber-700">
-                  Enable Payouts
-                </button>
-              </a>
+              <Button asChild>
+                <Link href="/host/payouts">Enable payouts</Link>
+              </Button>
             )}
-            <a href="/host/onboard">
-              <button className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 flex items-center gap-2">
+            <Button variant="brand" asChild>
+              <Link href="/host/onboard" className="flex items-center gap-2">
                 <Plus className="w-4 h-4" />
-                Create New Listing
-              </button>
-            </a>
+                Create listing
+              </Link>
+            </Button>
           </div>
         </div>
-        
-        {/* Stripe Onboarding Reminder Banner */}
+
         {!stripeOnboardingComplete && (
-          <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-lg">
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <h3 className="font-semibold text-amber-900 mb-1">Enable Payouts to Accept Bookings</h3>
-                <p className="text-sm text-amber-800 mb-3">
-                  To publish your listings and accept booking requests, you need to complete Stripe Connect onboarding to add your bank account details.
-                </p>
-                <a href="/host/payouts">
-                  <button className="px-4 py-2 bg-amber-600 text-white rounded-md hover:bg-amber-700 text-sm">
-                    Set Up Payouts
-                  </button>
-                </a>
-              </div>
-            </div>
-          </div>
+          <StatusBanner
+            variant="warning"
+            title="Enable payouts to accept bookings"
+            className="mb-6"
+          >
+            <p className="mb-3">
+              Complete Stripe Connect onboarding to publish listings and receive booking payments.
+            </p>
+            <Button asChild size="sm">
+              <Link href="/host/payouts">Set up payouts</Link>
+            </Button>
+          </StatusBanner>
         )}
         <MyListingsList 
           listings={listings || []} 

@@ -22,11 +22,13 @@ interface PlaceAutocompleteProps {
   value: string;
   onChangeValue: (value: string) => void;
   onSelectPlace: (place: NormalizedPlace | null) => void;
+  onBlur?: () => void;
   placeholder?: string;
   country?: string;
   types?: string; // Mapbox types parameter (e.g., "address" for street addresses)
   className?: string;
   id?: string;
+  autoFocus?: boolean;
   "data-testid"?: string;
 }
 
@@ -34,11 +36,13 @@ export function PlaceAutocomplete({
   value,
   onChangeValue,
   onSelectPlace,
+  onBlur,
   placeholder = "Suburb or City",
   country,
   types,
   className,
   id,
+  autoFocus,
   "data-testid": testId,
 }: PlaceAutocompleteProps) {
   const [query, setQuery] = useState(value);
@@ -213,6 +217,7 @@ export function PlaceAutocomplete({
     setTimeout(() => {
       setIsOpen(false);
       setSelectedIndex(-1);
+      onBlur?.();
     }, 200);
   };
 
@@ -231,6 +236,7 @@ export function PlaceAutocomplete({
           onBlur={handleInputBlur}
           placeholder={placeholder}
           className={className}
+          autoFocus={autoFocus}
           autoComplete="off"
           aria-autocomplete="list"
           aria-expanded={isOpen}

@@ -10,10 +10,11 @@ import { ChefHat, UtensilsCrossed, Home, Trees, Check } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { BookingDialog } from "@/components/booking-dialog";
-import { DayUseWarning } from "@/components/day-use-warning";
+import { BookingRulesLine } from "@/components/booking-rules-line";
+import { DayArc } from "@/components/day-arc";
 import { ListingReviews } from "@/components/listing-reviews";
 import { HostReviewSummary } from "@/components/host-review-summary";
-import { Star } from "lucide-react";
+import { Star, ShieldCheck } from "lucide-react";
 
 const spaceIcons = {
   KITCHEN: ChefHat,
@@ -96,7 +97,7 @@ export function ListingDetail({
               href="#reviews" 
               className="flex items-center gap-1 text-lg hover:underline"
             >
-              <Star className="w-5 h-5 fill-yellow-400 text-yellow-400" />
+              <Star className="w-5 h-5 fill-warning text-warning" />
               <span className="font-semibold">{reviewSummary.average_rating?.toFixed(1)}</span>
               <span className="text-muted-foreground">·</span>
               <span className="text-muted-foreground">
@@ -113,17 +114,12 @@ export function ListingDetail({
         </div>
       </div>
 
-      {/* Day-Use Warning */}
-      {!isHost && (
-        <div className="mb-6">
-          <DayUseWarning compact />
-        </div>
-      )}
+      <BookingRulesLine className="mb-6" />
 
       {/* Photos */}
       {photos.length > 0 && (
         <div className="mb-8">
-          <div className="relative h-96 bg-muted rounded-lg overflow-hidden mb-4">
+          <div className="relative aspect-[16/10] bg-muted rounded-lg overflow-hidden mb-4">
             {currentPhoto?.url ? (
               <Image
                 src={currentPhoto.url}
@@ -262,7 +258,7 @@ export function ListingDetail({
                     {listing.provides_toilet_paper ? (
                       <Badge variant="default">Toilet paper: Provided</Badge>
                     ) : (
-                      <Badge variant="outline" className="border-amber-300 text-amber-700">
+                      <Badge variant="outline" className="border-warning/40 text-warning">
                         Toilet paper: Bring your own
                       </Badge>
                     )}
@@ -289,7 +285,7 @@ export function ListingDetail({
                 <p className="text-sm text-muted-foreground whitespace-pre-wrap">
                   {listing.consumables_policy}
                 </p>
-                <p className="text-sm font-medium mt-2 text-amber-700">
+                <p className="text-sm font-medium mt-2 text-warning">
                   Bring what you need; only listed inclusions are provided.
                 </p>
               </div>
@@ -304,12 +300,14 @@ export function ListingDetail({
           />
         </div>
 
-        <div className="space-y-6">
-          <Card className="sticky top-4">
+        <div className="space-y-6 md:sticky md:top-24 md:self-start">
+          <Card className="shadow-elevated">
             <CardHeader>
-              <CardTitle>Pricing</CardTitle>
+              <CardTitle>Book this home</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
+              <DayArc />
+              <BookingRulesLine />
               <div>
                 <div className="flex justify-between mb-1">
                   <span>Hourly</span>
@@ -340,10 +338,20 @@ export function ListingDetail({
                   </div>
                 </div>
               )}
-              <div className="pt-4 border-t">
+              <div className="pt-4 border-t border-border">
                 <p className="text-sm text-muted-foreground mb-4">
                   Max {listing.max_guests} guests
                 </p>
+                {listing.host && (
+                  <div className="flex items-center gap-2 mb-4 text-sm">
+                    <ShieldCheck className="h-4 w-4 text-success shrink-0" aria-hidden />
+                    <span>
+                      Hosted by{" "}
+                      <span className="font-medium">{listing.host.full_name}</span>
+                      {listing.published && " · Verified listing"}
+                    </span>
+                  </div>
+                )}
                 {userId ? (
                   <Button
                     className="w-full"

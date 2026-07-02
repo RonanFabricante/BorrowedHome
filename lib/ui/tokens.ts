@@ -1,5 +1,5 @@
-// Design tokens for Host Dashboard UI
-export type BookingStatus = 
+// Design tokens for Host Dashboard UI — maps to global CSS custom properties
+export type BookingStatus =
   | "REQUESTED"
   | "PAYMENT_PENDING"
   | "CONFIRMED"
@@ -18,62 +18,60 @@ export interface StatusStyle {
 export const statusStyles: Record<BookingStatus, StatusStyle> = {
   REQUESTED: {
     label: "Requested",
-    badgeClasses: "bg-amber-50 text-amber-700 border-amber-200",
-    textClasses: "text-amber-700",
-    bgClasses: "bg-amber-50",
-    borderClasses: "border-amber-200",
+    badgeClasses: "bg-warning/10 text-warning border-warning/30",
+    textClasses: "text-warning",
+    bgClasses: "bg-warning/10",
+    borderClasses: "border-warning/30",
   },
   PAYMENT_PENDING: {
     label: "Awaiting Payment",
-    badgeClasses: "bg-purple-50 text-purple-700 border-purple-200",
-    textClasses: "text-purple-700",
-    bgClasses: "bg-purple-50",
-    borderClasses: "border-purple-200",
+    badgeClasses: "bg-primary/10 text-primary border-primary/20",
+    textClasses: "text-primary",
+    bgClasses: "bg-primary/10",
+    borderClasses: "border-primary/20",
   },
   CONFIRMED: {
     label: "Confirmed",
-    badgeClasses: "bg-green-50 text-green-700 border-green-200",
-    textClasses: "text-green-700",
-    bgClasses: "bg-green-50",
-    borderClasses: "border-green-200",
+    badgeClasses: "bg-success/10 text-success border-success/25",
+    textClasses: "text-success",
+    bgClasses: "bg-success/10",
+    borderClasses: "border-success/25",
   },
   COMPLETED: {
     label: "Completed",
-    badgeClasses: "bg-slate-50 text-slate-700 border-slate-200",
-    textClasses: "text-slate-700",
-    bgClasses: "bg-slate-50",
-    borderClasses: "border-slate-200",
+    badgeClasses: "bg-muted text-muted-foreground border-border",
+    textClasses: "text-muted-foreground",
+    bgClasses: "bg-muted",
+    borderClasses: "border-border",
   },
   CANCELLED: {
     label: "Cancelled",
-    badgeClasses: "bg-red-50 text-red-700 border-red-200",
-    textClasses: "text-red-700",
-    bgClasses: "bg-red-50",
-    borderClasses: "border-red-200",
+    badgeClasses: "bg-destructive/10 text-destructive border-destructive/25",
+    textClasses: "text-destructive",
+    bgClasses: "bg-destructive/10",
+    borderClasses: "border-destructive/25",
   },
   EXPIRED: {
     label: "Expired",
-    badgeClasses: "bg-gray-50 text-gray-700 border-gray-200",
-    textClasses: "text-gray-700",
-    bgClasses: "bg-gray-50",
-    borderClasses: "border-gray-200",
+    badgeClasses: "bg-muted text-muted-foreground border-border",
+    textClasses: "text-muted-foreground",
+    bgClasses: "bg-muted",
+    borderClasses: "border-border",
   },
 };
 
-// Surface classes
 export const surfaceClasses = {
-  card: "bg-white border border-slate-200 rounded-2xl",
-  mutedSurface: "bg-slate-50 border border-slate-200 rounded-xl",
-  divider: "border-t border-slate-200",
-  hoverRow: "hover:bg-slate-50 transition-colors",
+  card: "bh-card",
+  mutedSurface: "bg-muted border border-border rounded-lg",
+  divider: "border-t border-border",
+  hoverRow: "hover:bg-accent transition-colors",
 };
 
-// Typography classes
 export const typographyClasses = {
-  h1: "text-3xl font-bold tracking-tight",
-  h2: "text-2xl font-semibold tracking-tight",
-  h3: "text-xl font-semibold",
-  sectionLabel: "text-sm font-medium text-slate-700",
-  mutedText: "text-sm text-slate-600",
-  smallMuted: "text-xs text-slate-500",
+  h1: "font-display text-3xl font-semibold tracking-tight",
+  h2: "font-display text-2xl font-semibold tracking-tight",
+  h3: "font-display text-xl font-semibold",
+  sectionLabel: "text-sm font-medium text-foreground",
+  mutedText: "text-sm text-muted-foreground",
+  smallMuted: "text-xs text-muted-foreground",
 };

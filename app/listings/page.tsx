@@ -1,6 +1,7 @@
 import { Nav } from "@/components/nav";
 import { ListingsGrid } from "@/components/listings-grid";
 import { createClient } from "@/lib/supabase/server";
+import { BookingRulesLine } from "@/components/booking-rules-line";
 
 export default async function ListingsPage({
   searchParams,
@@ -9,8 +10,6 @@ export default async function ListingsPage({
 }) {
   const supabase = await createClient();
 
-  // When date/time filters are present, require a matching availability
-  // window (inner join); otherwise embed availability without filtering.
   const hasTimeFilter = Boolean(
     searchParams.date && searchParams.startTime && searchParams.endTime
   );
@@ -40,7 +39,6 @@ export default async function ListingsPage({
 
   const { data: listings } = await query;
 
-  // Generate signed URLs for photos
   const listingsWithPhotos = await Promise.all(
     (listings || []).map(async (listing: any) => {
       if (!listing.listing_photos || listing.listing_photos.length === 0) {
@@ -67,19 +65,29 @@ export default async function ListingsPage({
   ).then((results) =>
     results.map((listing: any) => ({
       ...listing,
-      // ListingsGrid expects `spaces` as an array of space type strings
       spaces: listing.listing_spaces?.map((s: any) => s.space_type) || [],
     }))
   );
 
+  const count = listingsWithPhotos.length;
+  const locationLabel = searchParams.location?.trim();
+
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-background">
       <Nav />
-      <main className="container mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold mb-8">
-          {searchParams.location ? `Homes in ${searchParams.location}` : "All Homes"}
-        </h1>
-        <ListingsGrid listings={listingsWithPhotos} />
+      <main className="bh-container py-8 sm:py-12">
+        <header className="mb-8">
+          <h1 className="font-display text-3xl sm:text-4xl font-semibold mb-2">
+            {locationLabel ? `Homes in ${locationLabel}` : "Browse homes"}
+          </h1>
+          <p className="text-muted-foreground mb-2">
+            {count === 0
+              ? "No results for your search"
+              : `${count} home${count === 1 ? "" : "s"} available`}
+          </p>
+          <BookingRulesLine />
+        </header>
+        <ListingsGrid listings={listingsWithPhotos} location={locationLabel} />
       </main>
     </div>
   );

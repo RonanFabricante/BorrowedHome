@@ -14,6 +14,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import Link from "next/link";
 import { onboardingSummaryGuest, TERMS_VERSION } from "@/lib/legal/terms-au";
 import { Logo } from "@/components/logo";
+import { Nav } from "@/components/nav";
 import { differenceInYears, parse } from "date-fns";
 
 // Helper function to calculate age from date of birth
@@ -47,19 +48,25 @@ export default function SignupPage() {
   const supabase = createClient();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
 
   const {
     register,
     handleSubmit,
     watch,
     setValue,
-    formState: { errors },
+    formState: { errors, isSubmitted },
   } = useForm<SignupFormData>({
     resolver: zodResolver(signupSchema),
+    mode: "onSubmit",
+    reValidateMode: "onBlur",
     defaultValues: {
       acceptedGuestTerms: false,
     },
   });
+
+  const showFieldError = (field: keyof SignupFormData) =>
+    (isSubmitted || touched[field as string]) && errors[field]?.message;
 
   const onSubmit = async (data: SignupFormData) => {
     setError(null);
@@ -128,79 +135,83 @@ export default function SignupPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-muted p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader>
-          <div className="flex justify-center mb-4">
-            <Logo size="lg" href={null} />
-          </div>
-          <CardTitle className="text-center">Sign Up</CardTitle>
-          <CardDescription>
-            Create your BorrowedHome account
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            {error && (
-              <div className="p-3 text-sm text-destructive bg-destructive/10 rounded-md">
-                {error}
+    <div className="min-h-screen bg-background">
+      <Nav />
+      <div className="flex items-center justify-center p-4 py-12">
+        <Card className="w-full max-w-md shadow-elevated">
+          <CardHeader>
+            <div className="flex justify-center mb-4">
+              <Logo size="lg" href={null} />
+            </div>
+            <CardTitle className="text-center">Sign up</CardTitle>
+            <CardDescription>Create your BorrowedHome account</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
+              {error && (
+                <div className="bh-status-banner bh-status-banner--error text-sm" role="alert">
+                  {error}
+                </div>
+              )}
+              <div className="space-y-1.5">
+                <Label htmlFor="fullName">Full name</Label>
+                <Input
+                  id="fullName"
+                  autoFocus
+                  autoComplete="name"
+                  {...register("fullName", {
+                    onBlur: () => setTouched((t) => ({ ...t, fullName: true })),
+                  })}
+                />
+                {showFieldError("fullName") && (
+                  <p className="bh-form-error" role="alert">{errors.fullName?.message}</p>
+                )}
               </div>
-            )}
-            <div>
-              <Label htmlFor="fullName">Full Name</Label>
-              <Input
-                id="fullName"
-                {...register("fullName")}
-              />
-              {errors.fullName && (
-                <p className="text-sm text-destructive mt-1">
-                  {errors.fullName.message}
+              <div className="space-y-1.5">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  autoComplete="email"
+                  {...register("email", {
+                    onBlur: () => setTouched((t) => ({ ...t, email: true })),
+                  })}
+                />
+                {showFieldError("email") && (
+                  <p className="bh-form-error" role="alert">{errors.email?.message}</p>
+                )}
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="password">Password</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  autoComplete="new-password"
+                  {...register("password", {
+                    onBlur: () => setTouched((t) => ({ ...t, password: true })),
+                  })}
+                />
+                {showFieldError("password") && (
+                  <p className="bh-form-error" role="alert">{errors.password?.message}</p>
+                )}
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="dateOfBirth">Date of birth</Label>
+                <Input
+                  id="dateOfBirth"
+                  type="date"
+                  max={new Date(new Date().setFullYear(new Date().getFullYear() - 18)).toISOString().split("T")[0]}
+                  {...register("dateOfBirth", {
+                    onBlur: () => setTouched((t) => ({ ...t, dateOfBirth: true })),
+                  })}
+                />
+                {showFieldError("dateOfBirth") && (
+                  <p className="bh-form-error" role="alert">{errors.dateOfBirth?.message}</p>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  You must be 18 years or older to use BorrowedHome
                 </p>
-              )}
-            </div>
-            <div>
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                {...register("email")}
-              />
-              {errors.email && (
-                <p className="text-sm text-destructive mt-1">
-                  {errors.email.message}
-                </p>
-              )}
-            </div>
-            <div>
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                {...register("password")}
-              />
-              {errors.password && (
-                <p className="text-sm text-destructive mt-1">
-                  {errors.password.message}
-                </p>
-              )}
-            </div>
-            <div>
-              <Label htmlFor="dateOfBirth">Date of Birth</Label>
-              <Input
-                id="dateOfBirth"
-                type="date"
-                max={new Date(new Date().setFullYear(new Date().getFullYear() - 18)).toISOString().split("T")[0]}
-                {...register("dateOfBirth")}
-              />
-              {errors.dateOfBirth && (
-                <p className="text-sm text-destructive mt-1">
-                  {errors.dateOfBirth.message}
-                </p>
-              )}
-              <p className="text-xs text-muted-foreground mt-1">
-                You must be 18 years or older to use BorrowedHome
-              </p>
-            </div>
+              </div>
 
             {/* Plain-English Summary */}
             <div className="p-4 bg-muted rounded-lg space-y-3">
@@ -235,13 +246,13 @@ export default function SignupPage() {
                 </Link>
               </Label>
             </div>
-            {errors.acceptedGuestTerms && (
-              <p className="text-sm text-destructive">
+            {isSubmitted && errors.acceptedGuestTerms && (
+              <p className="bh-form-error" role="alert">
                 {errors.acceptedGuestTerms.message}
               </p>
             )}
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Creating account..." : "Sign Up"}
+            <Button type="submit" className="w-full" aria-busy={loading}>
+              {loading ? "Creating account…" : "Sign up"}
             </Button>
           </form>
           <p className="mt-4 text-center text-sm text-muted-foreground">
@@ -252,6 +263,7 @@ export default function SignupPage() {
           </p>
         </CardContent>
       </Card>
+      </div>
     </div>
   );
 }

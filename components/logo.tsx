@@ -23,8 +23,9 @@ export function Logo({
   href = "/",
   showText = false,
 }: LogoProps) {
-  // Forest green: #204A36
-  const primaryColor = variant === "reversed" ? "#F7F7F2" : "#204A36";
+  // Brand colors from design tokens
+  const primaryColor =
+    variant === "reversed" ? "hsl(var(--primary-foreground))" : "hsl(var(--primary))";
   
   const logoContent = (
     <div className={cn("flex items-center gap-2", className)}>
@@ -133,7 +134,7 @@ export function Logo({
           size === "md" && "text-base",
           size === "lg" && "text-xl",
           size === "xl" && "text-2xl",
-          variant === "reversed" ? "text-[#F7F7F2]" : "text-[#204A36]"
+          variant === "reversed" ? "text-primary-foreground" : "text-primary"
         )}>
           BorrowedHome
         </span>

@@ -2,199 +2,128 @@ import { Nav } from "@/components/nav";
 import { SearchForm } from "@/components/search-form";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { Home, Users, Clock, X } from "lucide-react";
+import { Home, UtensilsCrossed, Laptop, X } from "lucide-react";
 import { Logo } from "@/components/logo";
+import { BookingRulesLine } from "@/components/booking-rules-line";
+import { DAY_USE_RULES } from "@/lib/constants/copy";
 
 export default function HomePage() {
   return (
-    <main className="bg-background text-foreground min-h-screen">
-      
+    <div className="flex min-h-screen flex-col bg-background text-foreground">
       <Nav />
-      
-      {/* Hero Section with Video Background */}
-      <section className="relative w-full">
-        {/* Mobile: Simple background, Desktop: Video */}
-        <div className="relative w-full sm:h-[70vh] sm:min-h-[600px] sm:h-[85vh] max-h-[900px] rounded-none sm:rounded-2xl overflow-hidden mx-0 sm:mx-4 md:mx-6 mt-0 sm:mt-4 md:mt-6">
-          {/* Video Background - Hidden on mobile */}
-          <video
-            className="hidden sm:block absolute inset-0 w-full h-full object-cover"
-            autoPlay
-            muted
-            loop
-            playsInline
-            aria-label="BorrowedHome welcome video"
-          >
-            <source src="/welcome.mp4" type="video/mp4" />
-            Your browser does not support the video tag.
-          </video>
 
-          {/* Mobile: Simple gradient background */}
-          <div className="sm:hidden absolute inset-0 bg-gradient-to-b from-primary/10 to-background" />
-
-          {/* Bottom Gradient Overlay - Desktop only */}
-          <div className="hidden sm:block pointer-events-none absolute inset-0 bg-gradient-to-t from-black/35 via-black/0 to-black/0" />
-
-          {/* Content Overlay */}
-          <div className="relative h-full flex flex-col">
-            {/* Mobile: Compact layout */}
-            <div className="sm:hidden w-full bg-background px-4 pt-6 pb-4">
-              <div className="max-w-4xl mx-auto">
-                {/* Logo */}
-                <div className="flex justify-center mb-3">
-                  <Logo 
-                    size="md" 
-                    variant="default" 
-                    href={null}
-                  />
-                </div>
-                
-                {/* Primary Tagline */}
-                <h1 className="text-foreground font-semibold text-2xl tracking-tight leading-tight text-center mb-2">
-                  Borrow space. Just for the day.
-                </h1>
-                
-                {/* Supporting Sub-line */}
-                <p className="text-muted-foreground text-sm text-center mb-6">
-                  Day-use homes for work, cooking, and gatherings — no overnight stays.
-                </p>
-                
-                {/* Search Form Card */}
-                <div className="bg-card border border-border shadow-sm rounded-xl p-4">
-                  <SearchForm />
-                </div>
-              </div>
+      <main>
+        {/* Hero — warm residential, no stock video */}
+        <section className="bh-container bh-section">
+          <div className="max-w-4xl mx-auto text-center">
+            <div className="flex justify-center mb-4">
+              <Logo size="md" href={null} />
             </div>
+            <h1 className="font-display text-3xl sm:text-4xl lg:text-5xl font-semibold tracking-tight leading-tight mb-3">
+              Borrow space. Just for the day.
+            </h1>
+            <p className="text-muted-foreground text-base sm:text-lg max-w-xl mx-auto mb-8">
+              Day-use homes for remote work, cooking, and small gatherings — no overnight stays.
+            </p>
 
-            {/* Desktop: Original layout */}
-            <div className="hidden sm:flex flex-col h-full relative">
-              {/* Top Content: Empty space for video background */}
-              <div className="flex-1" />
-
-              {/* Bottom Content: Tagline and Search Form Overlay */}
-              <div className="relative z-10 p-4 md:p-6">
-                <div className="max-w-4xl mx-auto">
-                  {/* Hero Tagline */}
-                  <div className="max-w-3xl mx-auto text-center mb-6 md:mb-8 -translate-y-6 md:-translate-y-10">
-                    {/* Logo */}
-                    <div className="flex justify-center mb-3 md:mb-4">
-                      <Logo 
-                        size="md" 
-                        variant="reversed" 
-                        href={null}
-                        className="opacity-90"
-                      />
-                    </div>
-                    
-                    {/* Primary Tagline */}
-                    <h1 className="text-white font-semibold text-3xl md:text-4xl lg:text-5xl tracking-tight leading-tight drop-shadow-lg">
-                      Borrow space. Just for the day.
-                    </h1>
-                    
-                    {/* Supporting Sub-line */}
-                    <p className="text-white/80 text-sm md:text-base mt-2 md:mt-3 max-w-xl mx-auto drop-shadow-md">
-                      Day-use homes for work, cooking, and gatherings — no overnight stays.
-                    </p>
-                  </div>
-                  
-                  {/* Search Form Card */}
-                  <div className="-translate-y-6 md:-translate-y-10">
-                    <div className="bg-white/90 backdrop-blur-md shadow-lg ring-1 ring-black/5 rounded-2xl p-6 md:p-8">
-                      <SearchForm />
-                    </div>
-                  </div>
-                </div>
-              </div>
+            <div className="bh-card text-left p-5 sm:p-8 shadow-elevated">
+              <SearchForm />
             </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* Use Cases */}
-      <section className="bh-container bh-section border-t">
-        <h2 className="text-3xl font-semibold text-center mb-12">
-          Perfect For
-        </h2>
-        <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-          <div className="text-center">
-            <Home className="h-12 w-12 mx-auto mb-4 text-primary" />
-            <h3 className="text-xl font-semibold mb-2">Family Gatherings</h3>
-            <p className="text-muted-foreground">
-              Host family meals and celebrations in a real home environment
-            </p>
-          </div>
-          <div className="text-center">
-            <Users className="h-12 w-12 mx-auto mb-4 text-primary" />
-            <h3 className="text-xl font-semibold mb-2">Small Events</h3>
-            <p className="text-muted-foreground">
-              Intimate gatherings, workshops, or team meetings
-            </p>
-          </div>
-          <div className="text-center">
-            <Clock className="h-12 w-12 mx-auto mb-4 text-primary" />
-            <h3 className="text-xl font-semibold mb-2">Flexible Timing</h3>
-            <p className="text-muted-foreground">
-              Book by the hour, half-day, or full day to fit your schedule
-            </p>
-          </div>
-        </div>
-      </section>
-
-      {/* What It Is Not */}
-      <section className="bh-container bh-section border-t">
-        <div className="max-w-3xl mx-auto">
-          <h2 className="text-3xl font-semibold text-center mb-8">
-            What BorrowedHome Is Not
+        {/* Use cases */}
+        <section className="bh-container bh-section border-t border-border">
+          <h2 className="font-display text-2xl sm:text-3xl font-semibold text-center mb-10">
+            Perfect for
           </h2>
-          <div className="space-y-4">
-            <div className="flex items-start gap-4 p-4 border rounded-lg bg-card">
-              <X className="h-6 w-6 text-destructive mt-1 flex-shrink-0" />
-              <div>
-                <h3 className="font-semibold mb-1">Not an Overnight Stay</h3>
-                <p className="text-muted-foreground">
-                  All bookings end by 9pm. This is day-use only.
-                </p>
-              </div>
+          <div className="grid sm:grid-cols-3 gap-8 max-w-5xl mx-auto">
+            <div className="text-center">
+              <Laptop className="h-10 w-10 mx-auto mb-4 text-primary" aria-hidden />
+              <h3 className="font-display text-lg font-semibold mb-2">Remote work</h3>
+              <p className="text-muted-foreground text-sm">
+                A quiet table, natural light, and a real kitchen between meetings.
+              </p>
             </div>
-            <div className="flex items-start gap-4 p-4 border rounded-lg bg-card">
-              <X className="h-6 w-6 text-destructive mt-1 flex-shrink-0" />
-              <div>
-                <h3 className="font-semibold mb-1">Not Bedrooms</h3>
-                <p className="text-muted-foreground">
-                  We only offer shared spaces: kitchen, dining, living room, and outdoor areas.
-                </p>
-              </div>
+            <div className="text-center">
+              <UtensilsCrossed className="h-10 w-10 mx-auto mb-4 text-primary" aria-hidden />
+              <h3 className="font-display text-lg font-semibold mb-2">Cook &amp; gather</h3>
+              <p className="text-muted-foreground text-sm">
+                Host a meal or small celebration in someone&apos;s lived-in home.
+              </p>
             </div>
-            <div className="flex items-start gap-4 p-4 border rounded-lg bg-card">
-              <X className="h-6 w-6 text-destructive mt-1 flex-shrink-0" />
-              <div>
-                <h3 className="font-semibold mb-1">Not Empty Spaces</h3>
-                <p className="text-muted-foreground">
-                  These are real, lived-in homes. Respect the space and leave it as you found it.
-                </p>
-              </div>
+            <div className="text-center">
+              <Home className="h-10 w-10 mx-auto mb-4 text-primary" aria-hidden />
+              <h3 className="font-display text-lg font-semibold mb-2">Flexible hours</h3>
+              <p className="text-muted-foreground text-sm">
+                Book by the hour within the day-use window — you choose the timing.
+              </p>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* CTAs */}
-      <section className="bh-container bh-section border-t bg-primary text-primary-foreground">
-        <div className="text-center">
-          <h2 className="text-3xl font-semibold mb-8">Ready to Get Started?</h2>
-          <div className="flex gap-4 justify-center">
-            <Link href="/listings">
-              <Button variant="secondary" size="lg">
-                Browse Homes
-              </Button>
-            </Link>
-            <Link href="/host/onboard">
-              <Button variant="outline" size="lg" className="bg-transparent border-primary-foreground/20 text-primary-foreground hover:bg-primary-foreground/10">
-                Become a Host
-              </Button>
-            </Link>
+        {/* What it is not */}
+        <section className="bh-container bh-section border-t border-border">
+          <div className="max-w-3xl mx-auto">
+            <h2 className="font-display text-2xl sm:text-3xl font-semibold text-center mb-8">
+              What BorrowedHome is not
+            </h2>
+            <div className="space-y-4">
+              <div className="flex items-start gap-4 p-4 bh-card">
+                <X className="h-5 w-5 text-destructive mt-1 shrink-0" aria-hidden />
+                <div>
+                  <h3 className="font-semibold mb-1">Not overnight</h3>
+                  <p className="text-muted-foreground text-sm">{DAY_USE_RULES}</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-4 p-4 bh-card">
+                <X className="h-5 w-5 text-destructive mt-1 shrink-0" aria-hidden />
+                <div>
+                  <h3 className="font-semibold mb-1">Not bedrooms</h3>
+                  <p className="text-muted-foreground text-sm">
+                    Shared spaces only: kitchen, dining, living room, and outdoor areas.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-start gap-4 p-4 bh-card">
+                <X className="h-5 w-5 text-destructive mt-1 shrink-0" aria-hidden />
+                <div>
+                  <h3 className="font-semibold mb-1">Not empty venues</h3>
+                  <p className="text-muted-foreground text-sm">
+                    Real homes — please respect the space and leave it as you found it.
+                  </p>
+                </div>
+              </div>
+            </div>
           </div>
-        </div>
-      </section>
-    </main>
+        </section>
+
+        {/* CTAs */}
+        <section className="bh-container bh-section border-t border-border bg-primary text-primary-foreground">
+          <div className="text-center max-w-xl mx-auto">
+            <h2 className="font-display text-2xl sm:text-3xl font-semibold mb-3">
+              Ready to get started?
+            </h2>
+            <BookingRulesLine className="text-primary-foreground/80 mb-8 justify-center" />
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <Link href="/listings">
+                <Button size="lg" className="w-full sm:w-auto min-w-[160px]">
+                  Browse homes
+                </Button>
+              </Link>
+              <Link href="/host/onboard">
+                <Button
+                  variant="outline"
+                  size="lg"
+                  className="w-full sm:w-auto min-w-[160px] bg-transparent border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10"
+                >
+                  Become a host
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
   );
 }

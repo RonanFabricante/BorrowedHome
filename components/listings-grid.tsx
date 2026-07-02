@@ -7,7 +7,7 @@ import { Listing } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils";
 import { ChefHat, UtensilsCrossed, Home, Trees } from "lucide-react";
 import Image from "next/image";
-import { Logo } from "@/components/logo";
+import { EmptyState } from "@/components/empty-state";
 
 const spaceIcons = {
   KITCHEN: ChefHat,
@@ -16,15 +16,25 @@ const spaceIcons = {
   GARDEN: Trees,
 };
 
-export function ListingsGrid({ listings }: { listings: Listing[] }) {
+interface ListingsGridProps {
+  listings: Listing[];
+  location?: string;
+}
+
+export function ListingsGrid({ listings, location }: ListingsGridProps) {
   if (listings.length === 0) {
+    const place = location?.trim();
     return (
-      <div className="text-center py-12">
-        <div className="flex justify-center mb-4">
-          <Logo size="md" href={null} />
-        </div>
-        <p className="text-muted-foreground">No listings found.</p>
-      </div>
+      <EmptyState
+        title={place ? `No homes in ${place} yet` : "No homes match your search"}
+        description={
+          place
+            ? "Try nearby suburbs, a different date, or wider time window within day-use hours."
+            : "Adjust your filters or browse all available homes."
+        }
+        actionLabel={place ? "Browse all homes" : "Clear filters"}
+        actionHref="/listings"
+      />
     );
   }
 
@@ -40,40 +50,54 @@ export function ListingsGrid({ listings }: { listings: Listing[] }) {
         );
 
         return (
-          <Link key={listing.id} href={`/listings/${listing.id}`}>
-            <Card className="overflow-hidden hover:shadow-lg transition-shadow">
-              <div className="relative h-48 bg-muted">
+          <Link key={listing.id} href={`/listings/${listing.id}`} className="group">
+            <Card className="overflow-hidden h-full transition-shadow group-hover:shadow-elevated">
+              <div className="relative aspect-[4/3] bg-muted">
                 {heroPhoto?.url ? (
                   <Image
                     src={heroPhoto.url}
                     alt={listing.title}
                     fill
+                    sizes="(max-width: 768px) 100vw, 33vw"
                     className="object-cover"
                   />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center text-muted-foreground">
-                    No photo
-                  </div>
+                  <div
+                    className="absolute inset-0 bg-muted animate-pulse"
+                    aria-hidden
+                  />
                 )}
                 <div className="absolute top-2 right-2 flex gap-2">
-                  <Badge>Day use only</Badge>
-                  {listing.host_present && <Badge variant="secondary">Host present</Badge>}
+                  <Badge variant="secondary" className="bg-card/95 backdrop-blur-sm">
+                    Day use
+                  </Badge>
+                  {listing.host_present && (
+                    <Badge variant="outline" className="bg-card/95 backdrop-blur-sm">
+                      Host present
+                    </Badge>
+                  )}
                 </div>
               </div>
               <CardContent className="p-4">
-                <h3 className="font-semibold text-lg mb-2">{listing.title}</h3>
-                <p className="text-sm text-muted-foreground mb-3">
+                <h3 className="font-display font-semibold text-lg mb-1 line-clamp-1">
+                  {listing.title}
+                </h3>
+                <p className="text-sm text-muted-foreground mb-3 line-clamp-1">
                   {listing.location_text}
                 </p>
                 <div className="flex items-center gap-2 mb-3 flex-wrap">
                   {listing.spaces?.map((space) => {
                     const Icon = spaceIcons[space];
                     return Icon ? (
-                      <Icon key={space} className="h-4 w-4 text-muted-foreground" />
+                      <Icon
+                        key={space}
+                        className="h-4 w-4 text-muted-foreground"
+                        aria-label={space}
+                      />
                     ) : null;
                   })}
                 </div>
-                <div className="flex items-center justify-between">
+                <div className="flex items-end justify-between gap-2">
                   <div>
                     <span className="font-semibold block">
                       From {formatCurrency(hourlyRate)}/hr
@@ -84,7 +108,7 @@ export function ListingsGrid({ listings }: { listings: Listing[] }) {
                       </span>
                     )}
                   </div>
-                  <span className="text-sm text-muted-foreground">
+                  <span className="text-sm text-muted-foreground shrink-0">
                     Up to {listing.max_guests} guests
                   </span>
                 </div>

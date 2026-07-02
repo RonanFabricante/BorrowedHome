@@ -33,9 +33,10 @@ function Dialog({ open = false, onOpenChange, children }: DialogProps) {
   return (
     <DialogContext.Provider value={{ open, onOpenChange: onOpenChange || (() => {}) }}>
       {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div
-            className="fixed inset-0 bg-black/50"
+            className="fixed inset-0 bg-[hsl(var(--scrim))]"
+            aria-hidden
             onClick={() => onOpenChange?.(false)}
           />
           {children}
@@ -53,19 +54,22 @@ const DialogContent = React.forwardRef<
   return (
     <div
       ref={ref}
+      role="dialog"
+      aria-modal="true"
       className={cn(
-        "relative z-50 grid w-full max-w-lg gap-4 border bg-background p-6 shadow-lg sm:rounded-lg",
+        "relative z-50 grid w-full max-w-lg gap-4 border border-border bg-card p-6 shadow-elevated rounded-lg max-h-[90vh] overflow-y-auto",
         className
       )}
       {...props}
     >
       {children}
       <button
+        type="button"
         onClick={() => onOpenChange(false)}
-        className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+        className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+        aria-label="Close dialog"
       >
         <X className="h-4 w-4" />
-        <span className="sr-only">Close</span>
       </button>
     </div>
   )
@@ -93,7 +97,7 @@ const DialogTitle = React.forwardRef<
   <h2
     ref={ref}
     className={cn(
-      "text-lg font-semibold leading-none tracking-tight",
+      "font-display text-lg font-semibold leading-none tracking-tight",
       className
     )}
     {...props}

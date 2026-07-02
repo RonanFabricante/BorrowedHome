@@ -13,9 +13,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatTime } from "@/lib/utils";
 import { parse, format } from "date-fns";
-import { DayUseWarning } from "@/components/day-use-warning";
+import { BookingRulesLine } from "@/components/booking-rules-line";
+import { StatusBanner } from "@/components/status-banner";
 import {
   toMinutes,
   fromMinutes,
@@ -54,17 +55,20 @@ export function BookingDialog({
   const router = useRouter();
   const supabase = createClient();
   const [error, setError] = useState<string | null>(null);
-  const [validationErrors, setValidationErrors] = useState<string[]>([]);
+  const [submitValidationErrors, setSubmitValidationErrors] = useState<string[]>([]);
   const [adjustmentNote, setAdjustmentNote] = useState<string | null>(null);
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
 
   const {
     register,
     handleSubmit,
     watch,
     setValue,
-    formState: { errors },
+    formState: { errors, isSubmitted },
   } = useForm<BookingFormData>({
     resolver: zodResolver(bookingSchema),
+    mode: "onSubmit",
+    reValidateMode: "onBlur",
     defaultValues: {
       startTime: "07:00",
       endTime: "09:00", // Default to 2 hours after start
@@ -137,28 +141,7 @@ export function BookingDialog({
     };
   }, [date, startTime, endTime, setValue]);
 
-  // Validate booking in real-time
-  const validation = useMemo(() => {
-    if (!date || !startTime || !endTime) {
-      return { ok: false, errors: [] };
-    }
-
-    try {
-      const startMinutes = toMinutes(startTime);
-      const endMinutes = toMinutes(endTime);
-      const now = new Date();
-
-      return validateBookingTime({ date, startMinutes, endMinutes, now });
-    } catch (err) {
-      return { ok: false, errors: ["Invalid date or time format"] };
-    }
-  }, [date, startTime, endTime]);
-
-  useEffect(() => {
-    setValidationErrors(validation.errors);
-  }, [validation]);
-
-  // Price calculation based on actual duration
+  // Price calculation based on actual duration (no pre-submit validation banners)
   const priceBreakdown = useMemo(() => {
     if (!date || !startTime || !endTime) {
       return { total: 0, fee: 0, deposit: listing.deposit_amount, basePrice: 0 };
@@ -273,16 +256,32 @@ export function BookingDialog({
 
   const onSubmit = (data: BookingFormData) => {
     setError(null);
-    setValidationErrors([]);
+    setSubmitValidationErrors([]);
 
-    // Final validation check
-    if (!validation.ok) {
-      setError(validation.errors[0] || "Invalid booking request");
+    try {
+      const startMinutes = toMinutes(data.startTime);
+      const endMinutes = toMinutes(data.endTime);
+      const validationResult = validateBookingTime({
+        date: data.date,
+        startMinutes,
+        endMinutes,
+        now: new Date(),
+      });
+
+      if (!validationResult.ok) {
+        setSubmitValidationErrors(validationResult.errors);
+        return;
+      }
+    } catch {
+      setSubmitValidationErrors(["Check your date and times, then try again."]);
       return;
     }
 
     createBooking.mutate(data);
   };
+
+  const showFieldError = (field: keyof BookingFormData) =>
+    (isSubmitted || touched[field as string]) && errors[field]?.message;
 
   // Get max start time (19:00)
   const maxStartTime = fromMinutes(LATEST_START_MINUTES);
@@ -295,37 +294,30 @@ export function BookingDialog({
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
           {error && (
-            <div className="p-3 text-sm text-destructive bg-destructive/10 rounded-md">
+            <div className="bh-status-banner bh-status-banner--error text-sm" role="alert">
               {error}
             </div>
           )}
 
-          {/* Info banner - always visible */}
-          <div className="p-3 text-sm bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-md">
-            <p className="text-blue-900 dark:text-blue-100">
-              <strong>Day-use only:</strong> Bookings must end by 21:00 (9:00 PM) and be at least 2 hours long.
-            </p>
-          </div>
+          <StatusBanner variant="info" title="Before you book">
+            <BookingRulesLine className="text-foreground/80" />
+          </StatusBanner>
 
-          {/* Error banner - only when validation fails */}
-          {validationErrors.length > 0 && (
-            <div className="p-3 text-sm text-destructive bg-destructive/10 rounded-md">
+          {submitValidationErrors.length > 0 && (
+            <div className="bh-status-banner bh-status-banner--error text-sm" role="alert">
               <ul className="list-disc list-inside space-y-1">
-                {validationErrors.map((err, idx) => (
+                {submitValidationErrors.map((err, idx) => (
                   <li key={idx}>{err}</li>
                 ))}
               </ul>
             </div>
           )}
 
-          {/* Adjustment note */}
           {adjustmentNote && (
-            <div className="p-2 text-sm bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-md">
-              <p className="text-amber-800 dark:text-amber-200">{adjustmentNote}</p>
-            </div>
+            <StatusBanner variant="warning" title="Time adjusted">
+              {adjustmentNote}
+            </StatusBanner>
           )}
-
-          <DayUseWarning compact />
 
           <div className="grid grid-cols-3 gap-4">
             <div>
@@ -333,49 +325,50 @@ export function BookingDialog({
               <Input
                 id="date"
                 type="date"
+                autoFocus
                 min={format(new Date(), "yyyy-MM-dd")}
-                {...register("date")}
+                {...register("date", {
+                  onBlur: () => setTouched((t) => ({ ...t, date: true })),
+                })}
               />
-              {errors.date && (
-                <p className="text-sm text-destructive mt-1">
-                  {errors.date.message}
-                </p>
+              {showFieldError("date") && (
+                <p className="bh-form-error" role="alert">{errors.date?.message}</p>
               )}
             </div>
             <div>
-              <Label htmlFor="startTime">Start Time</Label>
+              <Label htmlFor="startTime">Start time</Label>
               <Input
                 id="startTime"
                 type="time"
                 min="07:00"
                 max={maxStartTime}
-                {...register("startTime")}
+                {...register("startTime", {
+                  onBlur: () => setTouched((t) => ({ ...t, startTime: true })),
+                })}
               />
-              {errors.startTime && (
-                <p className="text-sm text-destructive mt-1">
-                  {errors.startTime.message}
-                </p>
+              {showFieldError("startTime") && (
+                <p className="bh-form-error" role="alert">{errors.startTime?.message}</p>
               )}
               <p className="text-xs text-muted-foreground mt-1">
-                Latest: {maxStartTime} (to allow 2h minimum ending by 9:00 PM)
+                Latest start: {formatTime(maxStartTime)}
               </p>
             </div>
             <div>
-              <Label htmlFor="endTime">End Time</Label>
+              <Label htmlFor="endTime">End time</Label>
               <Input
                 id="endTime"
                 type="time"
                 min={endTimeConstraints.min}
                 max={endTimeConstraints.max}
-                {...register("endTime")}
+                {...register("endTime", {
+                  onBlur: () => setTouched((t) => ({ ...t, endTime: true })),
+                })}
               />
-              {errors.endTime && (
-                <p className="text-sm text-destructive mt-1">
-                  {errors.endTime.message}
-                </p>
+              {showFieldError("endTime") && (
+                <p className="bh-form-error" role="alert">{errors.endTime?.message}</p>
               )}
               <p className="text-xs text-muted-foreground mt-1">
-                Min: {endTimeConstraints.min} (2h after start), Max: {endTimeConstraints.max}
+                {formatTime(endTimeConstraints.min)} – {formatTime(endTimeConstraints.max)}
               </p>
             </div>
           </div>
@@ -424,14 +417,13 @@ export function BookingDialog({
           </div>
 
           {listing.additional_instructions && (
-            <div className="border-l-4 border-blue-200 bg-blue-50 p-4 rounded">
-              <h4 className="font-semibold mb-2 text-sm">Additional Instructions from the Host</h4>
-              <p className="text-sm whitespace-pre-wrap">{listing.additional_instructions}</p>
-            </div>
+            <StatusBanner variant="info" title="Additional instructions from the host">
+              <p className="whitespace-pre-wrap">{listing.additional_instructions}</p>
+            </StatusBanner>
           )}
 
           {/* Toilet Access Acknowledgement */}
-          <div className="border-l-4 border-amber-200 bg-amber-50 p-4 rounded">
+          <div className="bh-status-banner bh-status-banner--warning">
             <div className="flex items-start gap-2 mb-2">
               <Checkbox
                 id="guest_ack_toilet_access"
@@ -463,7 +455,7 @@ export function BookingDialog({
           </div>
 
           {/* Consumables Policy Acknowledgement */}
-          <div className="border-l-4 border-amber-200 bg-amber-50 p-4 rounded">
+          <div className="bh-status-banner bh-status-banner--warning">
             <div className="flex items-start gap-2 mb-2">
               <Checkbox
                 id="guest_ack_consumables_policy"
@@ -521,7 +513,7 @@ export function BookingDialog({
             </Button>
             <Button
               type="submit"
-              disabled={createBooking.isPending || !validation.ok}
+              disabled={createBooking.isPending}
               className="flex-1"
             >
               {createBooking.isPending ? "Sending Request..." : "Request Booking"}

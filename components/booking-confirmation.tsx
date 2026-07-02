@@ -126,10 +126,10 @@ export function BookingConfirmation({ booking, isHost = false }: { booking: any;
           </p>
         </div>
 
-        <Card className="mb-6 border-blue-200 bg-blue-50">
+        <Card className="mb-6 border-primary/20 bg-primary/5">
           <CardContent className="pt-6">
             <div className="flex gap-3">
-              <Clock className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
+              <Clock className="h-5 w-5 text-primary mt-0.5 shrink-0" aria-hidden />
               <div>
                 <h3 className="font-semibold mb-2">Waiting for Host Approval</h3>
                 <p className="text-sm text-muted-foreground">
@@ -195,10 +195,10 @@ export function BookingConfirmation({ booking, isHost = false }: { booking: any;
           </p>
         </div>
 
-        <Card className="mb-6 border-red-200 bg-red-50">
+        <Card className="mb-6 border-destructive/25 bg-destructive/10">
           <CardContent className="pt-6">
             <div className="flex gap-3">
-              <XCircle className="h-5 w-5 text-red-600 mt-0.5 flex-shrink-0" />
+              <XCircle className="h-5 w-5 text-destructive mt-0.5 flex-shrink-0" />
               <div>
                 <h3 className="font-semibold mb-2">
                   {isHost ? "You Declined This Request" : "Request Not Accepted"}
@@ -264,10 +264,10 @@ export function BookingConfirmation({ booking, isHost = false }: { booking: any;
           </p>
         </div>
 
-        <Card className="mb-6 border-red-200 bg-red-50">
+        <Card className="mb-6 border-destructive/25 bg-destructive/10">
           <CardContent className="pt-6">
             <div className="flex gap-3">
-              <XCircle className="h-5 w-5 text-red-600 mt-0.5 flex-shrink-0" />
+              <XCircle className="h-5 w-5 text-destructive mt-0.5 flex-shrink-0" />
               <div>
                 <h3 className="font-semibold mb-2">Payment Window Expired</h3>
                 <p className="text-sm text-muted-foreground">
@@ -364,7 +364,7 @@ export function BookingConfirmation({ booking, isHost = false }: { booking: any;
     return (
       <div className="max-w-3xl mx-auto">
         <div className="mb-6">
-          <Badge variant="outline" className="mb-4 border-amber-500 text-amber-700">
+          <Badge variant="outline" className="mb-4 border-warning text-warning">
             <Clock className="h-3 w-3 mr-1" />
             Payment Required
           </Badge>
@@ -377,10 +377,10 @@ export function BookingConfirmation({ booking, isHost = false }: { booking: any;
         </div>
 
         {!isHost && deadline && timeRemaining > 0 && (
-          <Card className="mb-6 border-amber-200 bg-amber-50">
+          <Card className="mb-6 border-warning/30 bg-warning/10">
             <CardContent className="pt-6">
               <div className="flex gap-3">
-                <Clock className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
+                <Clock className="h-5 w-5 text-warning mt-0.5 flex-shrink-0" />
                 <div>
                   <h3 className="font-semibold mb-2">Payment Deadline</h3>
                   <p className="text-sm text-muted-foreground mb-1">
@@ -399,12 +399,12 @@ export function BookingConfirmation({ booking, isHost = false }: { booking: any;
         )}
 
         {!isHost && deadline && timeRemaining <= 0 && (
-          <Card className="mb-6 border-red-200 bg-red-50">
+          <Card className="mb-6 border-destructive/25 bg-destructive/10">
             <CardContent className="pt-6">
               <div className="flex gap-3">
-                <AlertCircle className="h-5 w-5 text-red-600 mt-0.5 flex-shrink-0" />
+                <AlertCircle className="h-5 w-5 text-destructive mt-0.5 flex-shrink-0" />
                 <div>
-                  <h3 className="font-semibold mb-2 text-red-700">Payment Deadline Passed</h3>
+                  <h3 className="font-semibold mb-2 text-destructive">Payment Deadline Passed</h3>
                   <p className="text-sm text-muted-foreground">
                     The payment deadline has passed. This booking may expire soon.
                   </p>
@@ -484,10 +484,10 @@ export function BookingConfirmation({ booking, isHost = false }: { booking: any;
 
         {/* Payment Status - Show if payment is authorised */}
         {paymentAuthorised && !isHost && (
-          <Card className="mb-6 border-green-200 bg-green-50">
+          <Card className="mb-6 border-success/25 bg-success/10">
             <CardContent className="pt-6">
               <div className="flex gap-3">
-                <CheckCircle2 className="h-5 w-5 text-green-600 mt-0.5 flex-shrink-0" />
+                <CheckCircle2 className="h-5 w-5 text-success mt-0.5 flex-shrink-0" />
                 <div>
                   <h3 className="font-semibold mb-2">Payment Authorised</h3>
                   <p className="text-sm text-muted-foreground">
@@ -501,10 +501,10 @@ export function BookingConfirmation({ booking, isHost = false }: { booking: any;
 
         {/* Host view - show waiting message */}
         {isHost && (
-          <Card className="mb-6 border-blue-200 bg-blue-50">
+          <Card className="mb-6 border-primary/20 bg-primary/5">
             <CardContent className="pt-6">
               <div className="flex gap-3">
-                <Clock className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                <Clock className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
                 <div>
                   <h3 className="font-semibold mb-2">Waiting for Guest Payment</h3>
                   <p className="text-sm text-muted-foreground">
@@ -576,10 +576,10 @@ export function BookingConfirmation({ booking, isHost = false }: { booking: any;
 
         {/* Leave Review Prompt for Guests */}
         {!isHost && hasReview === false && (
-          <Card className="mb-6 border-blue-200 bg-blue-50">
+          <Card className="mb-6 border-primary/20 bg-primary/5">
             <CardContent className="pt-6">
               <div className="flex gap-3">
-                <Star className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                <Star className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
                 <div className="flex-1">
                   <h3 className="font-semibold mb-2">Share your experience</h3>
                   <p className="text-sm text-muted-foreground mb-4">
@@ -674,10 +674,10 @@ export function BookingConfirmation({ booking, isHost = false }: { booking: any;
 
       {/* Payment Form - Should not show for CONFIRMED status, but keep as fallback */}
       {needsPayment && !paymentLoading && !paymentInitError && !isHost && (
-        <Card className="mb-6 border-amber-200 bg-amber-50">
+        <Card className="mb-6 border-warning/30 bg-warning/10">
           <CardContent className="pt-6">
             <div className="flex gap-3">
-              <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
+              <AlertCircle className="h-5 w-5 text-warning mt-0.5 flex-shrink-0" />
               <div>
                 <h3 className="font-semibold mb-2">Payment Processing</h3>
                 <p className="text-sm text-muted-foreground">
@@ -691,10 +691,10 @@ export function BookingConfirmation({ booking, isHost = false }: { booking: any;
 
       {/* Payment Status - Show to both guest and host */}
       {paymentAuthorised && (
-        <Card className="mb-6 border-green-200 bg-green-50">
+        <Card className="mb-6 border-success/25 bg-success/10">
           <CardContent className="pt-6">
             <div className="flex gap-3">
-              <CheckCircle2 className="h-5 w-5 text-green-600 mt-0.5 flex-shrink-0" />
+              <CheckCircle2 className="h-5 w-5 text-success mt-0.5 flex-shrink-0" />
               <div>
                 <h3 className="font-semibold mb-2">Payment Authorised</h3>
                 <p className="text-sm text-muted-foreground">
@@ -724,10 +724,10 @@ export function BookingConfirmation({ booking, isHost = false }: { booking: any;
         </Card>
       )}
 
-      <Card className="mb-6 border-amber-200 bg-amber-50">
+      <Card className="mb-6 border-warning/30 bg-warning/10">
         <CardContent className="pt-6">
           <div className="flex gap-3">
-            <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
+            <AlertCircle className="h-5 w-5 text-warning mt-0.5 flex-shrink-0" />
             <div>
               <h3 className="font-semibold mb-2">Return as Found</h3>
               <p className="text-sm text-muted-foreground">
