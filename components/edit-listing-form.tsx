@@ -101,7 +101,7 @@ export function EditListingForm({ listing }: { listing: any }) {
       availability: (listing.availability || []).map((avail: any) => ({
         day_of_week: avail.day_of_week,
         start_time: avail.start_time?.substring(0, 5) || "07:00", // Convert HH:mm:ss to HH:mm
-        end_time: avail.end_time?.substring(0, 5) || "18:00", // Convert HH:mm:ss to HH:mm
+        end_time: avail.end_time?.substring(0, 5) || "21:00", // Convert HH:mm:ss to HH:mm
       })),
       host_present: listing.host_present || false,
       cooking_allowed: listing.cooking_allowed || false,
@@ -484,7 +484,7 @@ export function EditListingForm({ listing }: { listing: any }) {
                           if (e.target.checked) {
                             form.setValue("availability", [
                               ...current,
-                              { day_of_week: index, start_time: "07:00", end_time: "18:00" },
+                              { day_of_week: index, start_time: "07:00", end_time: "21:00" },
                             ]);
                           } else {
                             form.setValue("availability", current.filter((a) => a.day_of_week !== index));
@@ -500,7 +500,7 @@ export function EditListingForm({ listing }: { listing: any }) {
                           <Input
                             type="time"
                             min="07:00"
-                            max="18:00"
+                            max="19:00"
                             value={dayAvail.start_time}
                             onChange={(e) => {
                               const current = form.getValues("availability");
@@ -514,11 +514,11 @@ export function EditListingForm({ listing }: { listing: any }) {
                           />
                         </div>
                         <div className="flex-1">
-                          <Label>End (max 6pm)</Label>
+                          <Label>End (max 9pm)</Label>
                           <Input
                             type="time"
                             min="07:00"
-                            max="18:00"
+                            max="21:00"
                             value={dayAvail.end_time}
                             onChange={(e) => {
                               const current = form.getValues("availability");

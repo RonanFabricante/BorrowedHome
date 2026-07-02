@@ -4,10 +4,7 @@ import {
   sendHostBookingRequestedEmail,
   type BookingEmailData,
 } from "@/lib/email/send";
-import {
-  toMinutes,
-  validate as validateBookingTime,
-} from "@/lib/bookingTimeRules";
+import { validate as validateBookingTime } from "@/lib/bookingTimeRules";
 
 export const dynamic = "force-dynamic";
 
@@ -21,7 +18,14 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { listing_id, start_time, end_time, guests_count, message } = body;
+    const {
+      listing_id,
+      start_time,
+      end_time,
+      guests_count,
+      guest_ack_toilet_access,
+      guest_ack_consumables_policy,
+    } = body;
 
     // Validation
     if (!listing_id || !start_time || !end_time || !guests_count) {
@@ -35,15 +39,54 @@ export async function POST(request: NextRequest) {
     const endAt = new Date(end_time);
     const now = new Date();
 
-    // Extract time strings for validation
-    const startTimeStr = `${String(startAt.getHours()).padStart(2, '0')}:${String(startAt.getMinutes()).padStart(2, '0')}`;
-    const endTimeStr = `${String(endAt.getHours()).padStart(2, '0')}:${String(endAt.getMinutes()).padStart(2, '0')}`;
-    const dateStr = startAt.toISOString().split('T')[0];
+    // Validate wall-clock times in the listing timezone (Australia/Sydney),
+    // matching the database's create_booking_request checks. Using the
+    // server's local timezone here (e.g. UTC on Vercel) rejected valid
+    // bookings and passed invalid ones.
+    const TIMEZONE = "Australia/Sydney";
+    const zonedParts = (date: Date) => {
+      const formatter = new Intl.DateTimeFormat("en-CA", {
+        timeZone: TIMEZONE,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      });
+      const parts = Object.fromEntries(
+        formatter.formatToParts(date).map((p) => [p.type, p.value])
+      );
+      return {
+        date: `${parts.year}-${parts.month}-${parts.day}`,
+        // Intl can render midnight as "24"
+        minutes: (parseInt(parts.hour, 10) % 24) * 60 + parseInt(parts.minute, 10),
+      };
+    };
 
-    // Validate using shared validation function (minutes-from-midnight)
-    const startMinutes = toMinutes(startTimeStr);
-    const endMinutes = toMinutes(endTimeStr);
-    const validationResult = validateBookingTime({ date: dateStr, startMinutes, endMinutes, now });
+    const startLocal = zonedParts(startAt);
+    const endLocal = zonedParts(endAt);
+
+    // Day-use only: same local calendar date
+    if (startLocal.date !== endLocal.date) {
+      return NextResponse.json(
+        {
+          error: "Overnight bookings are not permitted",
+          errors: ["Bookings must start and end on the same day (day-use only, no overnight)"],
+        },
+        { status: 400 }
+      );
+    }
+
+    const startMinutes = startLocal.minutes;
+    const endMinutes = endLocal.minutes;
+    const validationResult = validateBookingTime({
+      date: startLocal.date,
+      startMinutes,
+      endMinutes,
+      now,
+      startAt,
+    });
     
     if (!validationResult.ok) {
       return NextResponse.json(
@@ -98,6 +141,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Guests must acknowledge the toilet access and consumables policies.
+    // These are persisted on the booking; the DB CHECK constraint requires
+    // them before a booking can be CONFIRMED.
+    if (!guest_ack_toilet_access || !guest_ack_consumables_policy) {
+      return NextResponse.json(
+        { error: "You must acknowledge the toilet access and consumables policies" },
+        { status: 400 }
+      );
+    }
+
     // Create booking via RPC (derives host/listing, enforces rules, computes pricing)
     const { data: booking, error: bookingError } = await supabase.rpc(
       "create_booking_request",
@@ -106,6 +159,8 @@ export async function POST(request: NextRequest) {
         p_start_at: startAt.toISOString(),
         p_end_at: endAt.toISOString(),
         p_guests_count: guests_count,
+        p_guest_ack_toilet_access: true,
+        p_guest_ack_consumables_policy: true,
       }
     );
 

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { stripe } from "@/lib/stripe/server";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { checkAccountStatus, computeOnboardingStatus } from "@/lib/stripe/connect";
 
 export const runtime = "nodejs";
@@ -39,7 +39,9 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const supabase = await createClient();
+  // Webhooks have no user session; use the service-role client so RLS
+  // doesn't silently block payment/booking updates.
+  const supabase = createAdminClient();
 
   try {
     switch (event.type) {
@@ -54,17 +56,19 @@ export async function POST(request: NextRequest) {
           break;
         }
 
-        // For manual capture, "requires_capture" or "succeeded" means payment is authorized
-        // Update payment status to authorised
-        const { error } = await supabase
-          .from("payments")
-          .update({ status: "authorised" })
-          .or(
-            `stripe_payment_intent_id.eq.${paymentIntent.id},stripe_deposit_intent_id.eq.${paymentIntent.id}`
-          );
+        // For manual capture, "requires_capture" or "succeeded" means payment is authorized.
+        // Only the main booking intent drives the payment row's status; a deposit
+        // authorization must not mark the row 'authorised' while the booking
+        // payment is still unpaid.
+        if (paymentType === "booking") {
+          const { error } = await supabase
+            .from("payments")
+            .update({ status: "authorised" })
+            .eq("stripe_payment_intent_id", paymentIntent.id);
 
-        if (error) {
-          console.error("Failed to update payment status:", error);
+          if (error) {
+            console.error("Failed to update payment status:", error);
+          }
         }
 
         // If this is the booking payment (not deposit), confirm the booking
@@ -198,8 +202,20 @@ export async function POST(request: NextRequest) {
                 console.error("[Webhook] Failed to fetch user data for emails:", err);
               });
             } else if (booking.status === "EXPIRED") {
-              // Payment arrived after expiry - log for review but don't confirm
-              console.warn(`[Webhook] Payment received for expired booking ${bookingId}. Manual review may be needed.`);
+              // Payment arrived after expiry - release the hold so the guest
+              // isn't left with an authorization for a dead booking.
+              console.warn(`[Webhook] Payment received for expired booking ${bookingId}. Cancelling the authorization.`);
+              try {
+                if (paymentIntent.status === "requires_capture") {
+                  await stripe.paymentIntents.cancel(paymentIntent.id);
+                  await supabase
+                    .from("payments")
+                    .update({ status: "released" })
+                    .eq("stripe_payment_intent_id", paymentIntent.id);
+                }
+              } catch (cancelError) {
+                console.error(`[Webhook] Failed to cancel late authorization for booking ${bookingId}:`, cancelError);
+              }
             }
           }
         }

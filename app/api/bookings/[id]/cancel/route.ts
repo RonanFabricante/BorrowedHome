@@ -56,6 +56,8 @@ export async function POST(
         payments(
           id,
           stripe_payment_intent_id,
+          stripe_deposit_intent_id,
+          deposit_released_at,
           status
         )
       `)
@@ -73,6 +75,8 @@ export async function POST(
     const payments = booking.payments as unknown as Array<{
       id: string;
       stripe_payment_intent_id: string;
+      stripe_deposit_intent_id: string | null;
+      deposit_released_at: string | null;
       status: string;
     }>;
 
@@ -133,6 +137,29 @@ export async function POST(
         console.error("[Cancel Booking] Payment processing failed:", paymentResult.error);
         // Continue with cancellation even if payment processing fails
         // Payment can be handled manually later
+      }
+    }
+
+    // Release the security deposit hold, if one exists and hasn't been released
+    const paymentWithDeposit = payments?.find(
+      (p) => p.stripe_deposit_intent_id && !p.deposit_released_at
+    );
+    if (paymentWithDeposit?.stripe_deposit_intent_id) {
+      try {
+        const { stripe } = await import("@/lib/stripe/server");
+        const depositIntent = await stripe.paymentIntents.retrieve(
+          paymentWithDeposit.stripe_deposit_intent_id
+        );
+        if (depositIntent.status !== "canceled" && depositIntent.status !== "succeeded") {
+          await stripe.paymentIntents.cancel(paymentWithDeposit.stripe_deposit_intent_id);
+        }
+        await supabase
+          .from("payments")
+          .update({ deposit_released_at: new Date().toISOString() })
+          .eq("id", paymentWithDeposit.id);
+      } catch (depositError) {
+        // Don't block cancellation; deposit can be released manually
+        console.error("[Cancel Booking] Failed to release deposit:", depositError);
       }
     }
 

@@ -128,11 +128,16 @@ export function validate({
   startMinutes,
   endMinutes,
   now = new Date(),
+  startAt,
 }: {
   date: string | Date;
   startMinutes: number;
   endMinutes: number;
   now?: Date;
+  /** Exact start instant; when provided, used for the lead-time check instead
+   * of reconstructing a Date from `date` + `startMinutes` in the runtime's
+   * local timezone (which is wrong on servers not running in the listing TZ). */
+  startAt?: Date;
 }): TimeValidationResult {
   const errors: string[] = [];
 
@@ -175,10 +180,15 @@ export function validate({
   // Check lead time (if now is provided)
   if (now) {
     try {
-      const startDate = date instanceof Date ? date : new Date(date as string);
-      const startDateTime = new Date(startDate);
-      startDateTime.setHours(Math.floor(startMinutes / 60), startMinutes % 60, 0, 0);
-      
+      let startDateTime: Date;
+      if (startAt) {
+        startDateTime = startAt;
+      } else {
+        const startDate = date instanceof Date ? date : new Date(date as string);
+        startDateTime = new Date(startDate);
+        startDateTime.setHours(Math.floor(startMinutes / 60), startMinutes % 60, 0, 0);
+      }
+
       const diffMs = startDateTime.getTime() - now.getTime();
       const diffMinutes = diffMs / (1000 * 60);
       

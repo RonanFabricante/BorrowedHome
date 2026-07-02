@@ -261,12 +261,25 @@ export async function POST(request: NextRequest) {
     const totalAmount = bookingAmount + platformFee;
     const depositAmount = booking.deposit_amount || 0;
 
+    // A Stripe Customer is required so the card used for the booking payment
+    // can be reused server-side to place the separate deposit hold.
+    const customer = await stripe.customers.create({
+      metadata: {
+        user_id: booking.guest_id,
+        booking_id: bookingId,
+      },
+    });
+
     // Create PaymentIntent for booking + platform fee
     const paymentIntent = await stripe.paymentIntents.create({
       amount: totalAmount,
       currency: "aud",
       capture_method: "manual",
       payment_method_types: ["card"],
+      customer: customer.id,
+      // Attach the card to the customer on confirmation so the deposit
+      // intent can be confirmed with the same payment method.
+      setup_future_usage: "off_session",
       metadata: {
         booking_id: bookingId,
         listing_id: listings.id,
@@ -285,6 +298,7 @@ export async function POST(request: NextRequest) {
         currency: "aud",
         capture_method: "manual",
         payment_method_types: ["card"],
+        customer: customer.id,
         metadata: {
           booking_id: bookingId,
           listing_id: listings.id,
@@ -314,6 +328,37 @@ export async function POST(request: NextRequest) {
       if (depositIntentId) {
         await stripe.paymentIntents.cancel(depositIntentId);
       }
+
+      // Unique violation on booking_id means a concurrent request won the
+      // race; return that payment's intents instead of failing.
+      if (paymentError.code === "23505") {
+        const { data: concurrentPayment } = await supabase
+          .from("payments")
+          .select("*")
+          .eq("booking_id", bookingId)
+          .single();
+
+        if (concurrentPayment) {
+          const existingIntent = await stripe.paymentIntents.retrieve(
+            concurrentPayment.stripe_payment_intent_id
+          );
+          let existingDepositSecret: string | null = null;
+          if (concurrentPayment.stripe_deposit_intent_id) {
+            const existingDeposit = await stripe.paymentIntents.retrieve(
+              concurrentPayment.stripe_deposit_intent_id
+            );
+            existingDepositSecret = existingDeposit.client_secret;
+          }
+
+          return NextResponse.json({
+            paymentIntentId: concurrentPayment.stripe_payment_intent_id,
+            depositIntentId: concurrentPayment.stripe_deposit_intent_id,
+            clientSecret: existingIntent.client_secret,
+            depositClientSecret: existingDepositSecret,
+          });
+        }
+      }
+
       throw paymentError;
     }
 

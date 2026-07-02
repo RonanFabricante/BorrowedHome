@@ -36,18 +36,20 @@ export default async function MyListingsPage() {
     .eq("listings.host_id", user.id)
     .order("created_at", { ascending: false });
 
-  // Separate bookings by status
-  const pendingBookings = (allBookings || []).filter(b => b.status === "PENDING");
+  // Separate bookings by status. New requests are created as REQUESTED;
+  // PENDING is kept for legacy rows.
+  const pendingStatuses = ["REQUESTED", "PENDING"];
+  const pendingBookings = (allBookings || []).filter(b => pendingStatuses.includes(b.status));
   const confirmedBookings = (allBookings || []).filter(b => b.status === "CONFIRMED");
   const declinedBookings = (allBookings || []).filter(b => b.status === "DECLINED");
   const otherBookings = (allBookings || []).filter(b => 
-    !["PENDING", "CONFIRMED", "DECLINED"].includes(b.status)
+    ![...pendingStatuses, "CONFIRMED", "DECLINED"].includes(b.status)
   );
 
-  // Check which listings have active bookings (PENDING or CONFIRMED)
+  // Check which listings have active bookings (pending request, awaiting payment, or confirmed)
   const listingsWithActiveBookings = new Set(
     (allBookings || [])
-      .filter(b => b.status === "PENDING" || b.status === "CONFIRMED")
+      .filter(b => [...pendingStatuses, "PAYMENT_PENDING", "CONFIRMED"].includes(b.status))
       .map(b => b.listing_id)
   );
 

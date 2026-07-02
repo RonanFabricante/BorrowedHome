@@ -394,7 +394,7 @@ export async function sendGuestPaymentExpiredEmail(
           <li>Date & Time: ${formatDateTime(data.startTime)} - ${formatDateTime(data.endTime)}</li>
         </ul>
         <p>The time slot is now available again. You can submit a new booking request if you're still interested.</p>
-        <a href="${SITE_URL}/listings/${data.bookingId.split('-')[0]}" class="button">Browse Listings</a>
+        <a href="${SITE_URL}/listings" class="button">Browse Listings</a>
         <div class="footer">
           <p>This is an automated email from BorrowedHome. Please do not reply to this email.</p>
         </div>

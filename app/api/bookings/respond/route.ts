@@ -200,11 +200,23 @@ export async function POST(request: NextRequest) {
       const totalAmount = bookingAmount + platformFee;
       const depositAmount = acceptedBooking.deposit_amount || 0;
 
+      // Customer + setup_future_usage let the deposit intent be confirmed
+      // server-side with the same card after the guest pays (see
+      // /api/payments/authorize).
+      const customer = await stripe.customers.create({
+        metadata: {
+          user_id: acceptedBooking.guest_id,
+          booking_id: booking_id,
+        },
+      });
+
       const paymentIntent = await stripe.paymentIntents.create({
         amount: totalAmount,
         currency: "aud",
         capture_method: "manual",
         payment_method_types: ["card"],
+        customer: customer.id,
+        setup_future_usage: "off_session",
         metadata: {
           booking_id: booking_id,
           listing_id: listing.id,
@@ -221,6 +233,7 @@ export async function POST(request: NextRequest) {
           currency: "aud",
           capture_method: "manual",
           payment_method_types: ["card"],
+          customer: customer.id,
           metadata: {
             booking_id: booking_id,
             listing_id: listing.id,
@@ -259,11 +272,20 @@ export async function POST(request: NextRequest) {
         .update({ stripe_payment_intent_id: paymentIntent.id })
         .eq("id", booking_id);
       if (updateBookingError) {
-        // Clean up Stripe intents so we don't leave dangling authorizations
+        // Clean up Stripe intents so we don't leave dangling authorizations,
+        // and remove the payment row so it doesn't point at cancelled intents
+        // (the guest's payment page would otherwise load unusable secrets).
         await stripe.paymentIntents.cancel(paymentIntent.id);
         if (depositIntentId) {
           await stripe.paymentIntents.cancel(depositIntentId);
         }
+        // No client DELETE policy exists on payments; use the admin client
+        const { createAdminClient: createAdmin } = await import("@/lib/supabase/admin");
+        await createAdmin()
+          .from("payments")
+          .delete()
+          .eq("booking_id", booking_id)
+          .eq("stripe_payment_intent_id", paymentIntent.id);
         return NextResponse.json(
           { error: updateBookingError.message || "Failed to update booking" },
           { status: 500 }

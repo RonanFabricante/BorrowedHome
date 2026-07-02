@@ -135,6 +135,7 @@ export function getLatestStartTime(date: Date): Date {
  */
 export function wouldExceedCutoff(startTime: string): boolean {
   const endTime = computeEndTime(startTime);
-  const [endHours] = endTime.split(':').map(Number);
-  return endHours > END_TIME_CUTOFF_HOUR;
+  const [endHours, endMins] = endTime.split(':').map(Number);
+  // Compare in minutes so e.g. 21:30 is correctly flagged as past the 21:00 cutoff
+  return endHours * 60 + endMins > END_TIME_CUTOFF_HOUR * 60;
 }

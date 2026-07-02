@@ -48,14 +48,14 @@ export default async function ListingDetailPage({
     notFound();
   }
 
-  // Check for active bookings (PENDING or CONFIRMED) if user is host
+  // Check for active bookings (open request, awaiting payment, or confirmed) if user is host
   let hasActiveBookings = false;
   if (isHost) {
     const { data: activeBookings } = await supabase
       .from("bookings")
       .select("id")
       .eq("listing_id", id)
-      .in("status", ["PENDING", "CONFIRMED"])
+      .in("status", ["REQUESTED", "PENDING", "PAYMENT_PENDING", "CONFIRMED"])
       .limit(1);
     hasActiveBookings = (activeBookings || []).length > 0;
   }

@@ -3,9 +3,8 @@
  * Handles automatic capture of authorised payments after review window expires
  */
 
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { stripe } from "@/lib/stripe/server";
-import { PLATFORM_FEE_PERCENTAGE } from "@/lib/stripe/server";
 
 const REVIEW_WINDOW_HOURS = 24;
 
@@ -26,7 +25,9 @@ export interface AutoCaptureResult {
 export async function autoCaptureWithReviewWindow(
   bookingId: string
 ): Promise<AutoCaptureResult> {
-  const supabase = await createClient();
+  // Runs from cron with no user session; RLS would hide all rows from the
+  // anon client, so the service-role client is required here.
+  const supabase = createAdminClient();
 
   try {
     // Fetch booking and payment with all related data
@@ -51,6 +52,7 @@ export async function autoCaptureWithReviewWindow(
           stripe_deposit_intent_id,
           amount,
           deposit_amount,
+          deposit_released_at,
           review_window_ends_at,
           dispute_reported_at,
           auto_capture_scheduled_at,
@@ -165,7 +167,7 @@ async function captureAndTransferToHost(
   payment: any,
   booking: any
 ): Promise<AutoCaptureResult> {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
   try {
     // Extract host_id - Supabase returns listings as object when using .single()
@@ -198,13 +200,21 @@ async function captureAndTransferToHost(
       );
     }
 
-    // Capture the payment intent (main booking payment)
+    // Capture the payment intent (main booking payment).
+    // If a previous run already captured but failed before updating the DB,
+    // treat "already succeeded" as captured so the row can be reconciled.
     console.log(
       `[AutoCapture] Capturing PaymentIntent ${payment.stripe_payment_intent_id}`
     );
-    const paymentIntent = await stripe.paymentIntents.capture(
+    let paymentIntent = await stripe.paymentIntents.retrieve(
       payment.stripe_payment_intent_id
     );
+
+    if (paymentIntent.status === "requires_capture") {
+      paymentIntent = await stripe.paymentIntents.capture(
+        payment.stripe_payment_intent_id
+      );
+    }
 
     if (paymentIntent.status !== "succeeded") {
       throw new Error(
@@ -235,17 +245,22 @@ async function captureAndTransferToHost(
     // Get listing title
     const listingTitle = listings?.title || "Unknown";
 
-    // Transfer to host's Stripe Connect account
-    const transfer = await stripe.transfers.create({
-      amount: hostAmount,
-      currency: "aud",
-      destination: host.stripe_account_id,
-      metadata: {
-        booking_id: bookingId,
-        type: "booking_payment",
-        listing_title: listingTitle,
+    // Transfer to host's Stripe Connect account. The idempotency key prevents
+    // a double payout if a previous run transferred but crashed before
+    // updating the payment row.
+    const transfer = await stripe.transfers.create(
+      {
+        amount: hostAmount,
+        currency: "aud",
+        destination: host.stripe_account_id,
+        metadata: {
+          booking_id: bookingId,
+          type: "booking_payment",
+          listing_title: listingTitle,
+        },
       },
-    });
+      { idempotencyKey: `booking-payout-${bookingId}` }
+    );
 
     // Update payment status in database
     const { error: updateError } = await supabase
@@ -264,13 +279,32 @@ async function captureAndTransferToHost(
       // Don't throw - transfer succeeded, just log the error
     }
 
-    // Auto-release deposit if no dispute was reported
-    if (payment.stripe_deposit_intent_id && !payment.dispute_reported_at) {
+    // Keep the booking's payment fields in sync with the payment record
+    await supabase
+      .from("bookings")
+      .update({
+        payment_status: "CAPTURED",
+        payment_captured_at: new Date().toISOString(),
+      })
+      .eq("id", bookingId);
+
+    // Auto-release deposit if no dispute was reported and it wasn't already
+    // released or captured for damages
+    if (
+      payment.stripe_deposit_intent_id &&
+      !payment.dispute_reported_at &&
+      !payment.deposit_released_at
+    ) {
       try {
         console.log(
           `[AutoCapture] Auto-releasing deposit ${payment.stripe_deposit_intent_id}`
         );
-        await stripe.paymentIntents.cancel(payment.stripe_deposit_intent_id);
+        const depositIntent = await stripe.paymentIntents.retrieve(
+          payment.stripe_deposit_intent_id
+        );
+        if (depositIntent.status !== "canceled" && depositIntent.status !== "succeeded") {
+          await stripe.paymentIntents.cancel(payment.stripe_deposit_intent_id);
+        }
 
         await supabase
           .from("payments")
@@ -309,7 +343,7 @@ async function captureAndTransferToHost(
  * Find payments ready for auto-capture (review window expired, no dispute)
  */
 export async function findPaymentsReadyForCapture() {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
   const now = new Date().toISOString();
 

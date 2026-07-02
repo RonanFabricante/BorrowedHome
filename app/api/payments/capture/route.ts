@@ -33,6 +33,8 @@ export async function POST(request: NextRequest) {
         *,
         bookings!inner(
           id,
+          status,
+          end_at,
           listing_id,
           guest_id,
           total_amount,
@@ -66,6 +68,16 @@ export async function POST(request: NextRequest) {
     if (payment.status !== "authorised") {
       return NextResponse.json(
         { error: `Payment must be authorised before capture (current status: ${payment.status})` },
+        { status: 400 }
+      );
+    }
+
+    // Only allow capture after the booking has completed. Before completion
+    // review_window_ends_at is NULL, so without this check a host could
+    // capture funds before the guest's visit even happens.
+    if (payment.bookings.status !== "COMPLETED") {
+      return NextResponse.json(
+        { error: `Payment can only be captured after the booking is completed (current status: ${payment.bookings.status})` },
         { status: 400 }
       );
     }
@@ -158,18 +170,21 @@ export async function POST(request: NextRequest) {
 
     console.log(`[Capture] Transferring ${hostAmount} cents to host ${hostId} (platform fee: ${platformFee}, total: ${totalAmount})`);
 
-    // Transfer to host's Stripe Connect account
-    const transfer = await stripe.transfers.create({
-      amount: hostAmount,
-      currency: "aud",
-      destination: host.stripe_account_id,
-      metadata: {
-        booking_id: bookingId,
-        type: "booking_payment",
-        listing_title: listings.title || "Unknown",
-        platform_fee: platformFee.toString(),
+    // Transfer to host's Stripe Connect account (idempotency key shared with
+    // auto-capture so the host can never be paid out twice for one booking)
+    const transfer = await stripe.transfers.create(
+      {
+        amount: hostAmount,
+        currency: "aud",
+        destination: host.stripe_account_id,
+        metadata: {
+          booking_id: bookingId,
+          type: "booking_payment",
+          listing_title: listings.title || "Unknown",
+        },
       },
-    });
+      { idempotencyKey: `booking-payout-${bookingId}` }
+    );
 
     console.log(`[Capture] Transfer created: ${transfer.id}`);
 
@@ -187,11 +202,31 @@ export async function POST(request: NextRequest) {
       // Don't throw - transfer succeeded, just log the error
     }
 
-    // Auto-release deposit if no dispute
-    if (payment.stripe_deposit_intent_id && !payment.dispute_reported_at) {
+    // Keep the booking's payment fields in sync with the payment record
+    const { error: bookingSyncError } = await supabase
+      .from("bookings")
+      .update({
+        payment_status: "CAPTURED",
+        payment_captured_at: new Date().toISOString(),
+      })
+      .eq("id", bookingId);
+
+    if (bookingSyncError) {
+      console.error("[Capture] Failed to sync booking payment status:", bookingSyncError);
+    }
+
+    // Auto-release deposit if no dispute and not already released/captured
+    if (
+      payment.stripe_deposit_intent_id &&
+      !payment.dispute_reported_at &&
+      !payment.deposit_released_at
+    ) {
       try {
         console.log(`[Capture] Releasing deposit ${payment.stripe_deposit_intent_id}`);
-        await stripe.paymentIntents.cancel(payment.stripe_deposit_intent_id);
+        const depositIntent = await stripe.paymentIntents.retrieve(payment.stripe_deposit_intent_id);
+        if (depositIntent.status !== "canceled" && depositIntent.status !== "succeeded") {
+          await stripe.paymentIntents.cancel(payment.stripe_deposit_intent_id);
+        }
         
         await supabase
           .from("payments")

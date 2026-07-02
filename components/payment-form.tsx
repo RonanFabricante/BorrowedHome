@@ -86,6 +86,10 @@ function CheckoutForm({ bookingId, amount, depositAmount, onSuccess }: PaymentFo
               console.error("[PaymentForm] Failed to update payment status:", data.error);
               // Don't fail - webhook will handle it eventually
             } else {
+              const data = await response.json();
+              if (data.depositAuthorized === false) {
+                console.error("[PaymentForm] Deposit hold failed:", data.depositError);
+              }
               console.log("[PaymentForm] Payment status updated to authorised");
             }
           } catch (err) {
@@ -131,11 +135,11 @@ function CheckoutForm({ bookingId, amount, depositAmount, onSuccess }: PaymentFo
         </div>
       )}
       <Button type="submit" disabled={!stripe || loading} className="w-full">
-        {loading ? "Processing..." : `Pay ${formatCurrency(amount + depositAmount)}`}
+        {loading ? "Processing..." : `Pay ${formatCurrency(amount)}`}
       </Button>
       {depositAmount > 0 && (
         <p className="text-xs text-muted-foreground text-center">
-          Includes {formatCurrency(depositAmount)} security deposit (held, not charged)
+          A {formatCurrency(depositAmount)} security deposit will also be held on this card (not charged)
         </p>
       )}
     </form>

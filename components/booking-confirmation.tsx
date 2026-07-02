@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { Booking } from "@/lib/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,8 +17,8 @@ import { canCancelBooking, computeCancellationPolicy } from "@/lib/cancellation/
 export function BookingConfirmation({ booking, isHost = false }: { booking: any; isHost?: boolean }) {
   const supabase = createClient();
   const listing = booking.listings;
-  const startDate = new Date(booking.start_at);
-  const endDate = new Date(booking.end_at);
+  const startDate = useMemo(() => new Date(booking.start_at), [booking.start_at]);
+  const endDate = useMemo(() => new Date(booking.end_at), [booking.end_at]);
   const isConfirmed = booking.status === "CONFIRMED";
   const isRequested = booking.status === "REQUESTED";
   const isPending = booking.status === "PENDING" || booking.status === "REQUESTED"; // Support both for backward compatibility
@@ -32,6 +32,7 @@ export function BookingConfirmation({ booking, isHost = false }: { booking: any;
   const [payment, setPayment] = useState<any>(null);
   const [paymentLoading, setPaymentLoading] = useState(true);
   const [paymentInitError, setPaymentInitError] = useState<string | null>(null);
+  const [now, setNow] = useState(() => new Date());
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cancellationPolicy, setCancellationPolicy] = useState<{
     refundAmount: number;
@@ -71,77 +72,18 @@ export function BookingConfirmation({ booking, isHost = false }: { booking: any;
   }, [isCompleted, isHost, booking.id, booking.status, booking.total_amount, booking.cancellation_policy_version, showCancelModal, startDate, supabase]);
 
   useEffect(() => {
-    // Fetch payment info if booking is PAYMENT_PENDING (for guests) or CONFIRMED (to show payment status)
+    // Fetch payment info if booking is PAYMENT_PENDING (for guests) or CONFIRMED (to show payment status).
+    // If no payment row exists yet, PaymentForm initiates the payment itself,
+    // so we don't also call /api/payments/initiate here (that raced with
+    // PaymentForm and could create duplicate PaymentIntents).
     if ((isPaymentPending || isConfirmed) && !isHost) {
-      // Fetch payment status
       supabase
         .from("payments")
         .select("*")
         .eq("booking_id", booking.id)
         .single()
-        .then(async ({ data, error }) => {
-          if (error && error.code === "PGRST116") {
-            // No payment record exists - initiate payment automatically
-            try {
-              const response = await fetch("/api/payments/initiate", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ bookingId: booking.id }),
-              });
-
-              const paymentData = await response.json();
-              
-              console.log("[BookingConfirmation] Payment initiation response:", {
-                ok: response.ok,
-                status: response.status,
-                hasClientSecret: !!paymentData.clientSecret,
-                error: paymentData.error,
-                data: paymentData
-              });
-
-              if (response.ok && paymentData.clientSecret) {
-                // Payment initiated, now fetch the payment record
-                const { data: newPayment } = await supabase
-                  .from("payments")
-                  .select("*")
-                  .eq("booking_id", booking.id)
-                  .single();
-                
-                if (newPayment) {
-                  setPayment(newPayment);
-                }
-              } else {
-                // Store error to display to user
-                const errorMessage = paymentData.error || paymentData.message || `Failed to initiate payment (${response.status})`;
-                console.error("[BookingConfirmation] Failed to initiate payment:", {
-                  status: response.status,
-                  error: errorMessage,
-                  fullResponse: paymentData
-                });
-                setPaymentInitError(errorMessage);
-              }
-            } catch (err: any) {
-              console.error("[BookingConfirmation] Error initiating payment:", err);
-              // Handle different error types
-              let errorMessage = "Failed to initiate payment. Please try again.";
-              
-              if (err.message) {
-                errorMessage = err.message;
-              } else if (err.toString && err.toString() !== "[object Object]") {
-                errorMessage = err.toString();
-              } else if (err.error) {
-                errorMessage = err.error;
-              }
-              
-              // If it's a network error, provide helpful message
-              if (errorMessage.includes("fetch") || errorMessage.includes("network") || errorMessage.includes("Failed to fetch")) {
-                errorMessage = "Network error. Please check your connection and try again.";
-              }
-              
-              setPaymentInitError(errorMessage);
-            }
-          } else if (data) {
-            // Payment record exists
+        .then(({ data }) => {
+          if (data) {
             setPayment(data);
           }
           setPaymentLoading(false);
@@ -150,6 +92,13 @@ export function BookingConfirmation({ booking, isHost = false }: { booking: any;
       setPaymentLoading(false);
     }
   }, [booking.id, isPaymentPending, isConfirmed, isHost, supabase]);
+
+  useEffect(() => {
+    // Keep the payment-deadline countdown ticking while awaiting payment
+    if (!isPaymentPending) return;
+    const interval = setInterval(() => setNow(new Date()), 30000);
+    return () => clearInterval(interval);
+  }, [isPaymentPending]);
 
   const needsPayment = isPaymentPending && (!payment || payment.status === "pending");
   const paymentAuthorised = payment && payment.status === "authorised";
@@ -408,7 +357,6 @@ export function BookingConfirmation({ booking, isHost = false }: { booking: any;
   // PAYMENT_PENDING status - show payment form and countdown
   if (isPaymentPending) {
     const deadline = booking.payment_deadline_at ? new Date(booking.payment_deadline_at) : null;
-    const now = new Date();
     const timeRemaining = deadline ? Math.max(0, deadline.getTime() - now.getTime()) : 0;
     const hoursRemaining = Math.floor(timeRemaining / (1000 * 60 * 60));
     const minutesRemaining = Math.floor((timeRemaining % (1000 * 60 * 60)) / (1000 * 60));
@@ -527,15 +475,9 @@ export function BookingConfirmation({ booking, isHost = false }: { booking: any;
             amount={booking.total_amount}
             depositAmount={booking.deposit_amount || 0}
             onSuccess={() => {
-              // Refresh payment status
-              supabase
-                .from("payments")
-                .select("*")
-                .eq("booking_id", booking.id)
-                .single()
-                .then(({ data }) => {
-                  if (data) setPayment(data);
-                });
+              // Reload so the page reflects the confirmed booking (address,
+              // messaging) once the server/webhook has updated its status.
+              window.location.reload();
             }}
           />
         )}
@@ -764,8 +706,9 @@ export function BookingConfirmation({ booking, isHost = false }: { booking: any;
         </Card>
       )}
 
-      {/* Address - Show to host always, or to guest if payment is authorised */}
-      {isConfirmed && (isHost || paymentAuthorised) && (
+      {/* Address - CONFIRMED means payment was authorised, so both host and
+          guest may see it (don't gate on the client-side payments fetch) */}
+      {isConfirmed && (
         <Card className="mb-6">
           <CardHeader>
             <CardTitle>Address</CardTitle>

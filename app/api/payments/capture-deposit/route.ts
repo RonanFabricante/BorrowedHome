@@ -70,9 +70,27 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Only capture a deposit that is actually held (authorized)
+    const depositIntent = await stripe.paymentIntents.retrieve(
+      payment.stripe_deposit_intent_id
+    );
+    if (depositIntent.status !== "requires_capture") {
+      return NextResponse.json(
+        { error: `Deposit is not capturable (status: ${depositIntent.status})` },
+        { status: 400 }
+      );
+    }
+
     // Capture the deposit (full or partial)
     const captureAmount = amount ? Math.round(amount) : undefined;
-    
+
+    if (captureAmount !== undefined && (captureAmount <= 0 || captureAmount > payment.deposit_amount)) {
+      return NextResponse.json(
+        { error: `Capture amount must be between 1 and ${payment.deposit_amount} cents` },
+        { status: 400 }
+      );
+    }
+
     console.log(`[CaptureDeposit] Capturing deposit ${payment.stripe_deposit_intent_id} for booking ${bookingId}${captureAmount ? ` (amount: ${captureAmount} cents)` : " (full amount)"}`);
     
     await stripe.paymentIntents.capture(
@@ -80,11 +98,45 @@ export async function POST(request: NextRequest) {
       captureAmount ? { amount_to_capture: captureAmount } : {}
     );
 
-    // Update payment record with deposit capture info
+    // Transfer captured deposit funds to the host's Connect account (they
+    // otherwise land on the platform balance).
+    const { data: host } = await supabase
+      .from("hosts")
+      .select("stripe_account_id, stripe_charges_enabled, stripe_payouts_enabled")
+      .eq("user_id", listings.host_id)
+      .single();
+
+    let transferId: string | null = null;
+    if (host?.stripe_account_id && host.stripe_charges_enabled && host.stripe_payouts_enabled) {
+      try {
+        const transfer = await stripe.transfers.create(
+          {
+            amount: captureAmount || payment.deposit_amount,
+            currency: "aud",
+            destination: host.stripe_account_id,
+            metadata: {
+              booking_id: bookingId,
+              type: "deposit_capture",
+            },
+          },
+          { idempotencyKey: `deposit-payout-${bookingId}` }
+        );
+        transferId = transfer.id;
+      } catch (transferError: any) {
+        console.error("[CaptureDeposit] Transfer to host failed:", transferError);
+        // Funds stay on the platform balance; needs manual payout
+      }
+    } else {
+      console.error("[CaptureDeposit] Host Connect account not ready; deposit funds remain on platform balance");
+    }
+
+    // Update payment record with deposit capture info. A captured deposit is
+    // no longer a hold, so mark it resolved.
     const { error: updateError } = await supabase
       .from("payments")
       .update({
         capture_hold_reason: reason || "Deposit captured for damages",
+        deposit_released_at: new Date().toISOString(),
       })
       .eq("id", payment.id);
 
@@ -100,7 +152,8 @@ export async function POST(request: NextRequest) {
       message: captureAmount 
         ? `Deposit partially captured: ${captureAmount} cents` 
         : "Deposit fully captured",
-      capturedAmount: captureAmount || payment.deposit_amount
+      capturedAmount: captureAmount || payment.deposit_amount,
+      transferId,
     });
   } catch (error: any) {
     console.error("Deposit capture error:", error);

@@ -35,7 +35,7 @@ export function Nav() {
       }
     });
 
-    supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
       
       // Check if user is a host when auth state changes
@@ -53,6 +53,10 @@ export function Nav() {
         setIsHost(false);
       }
     });
+
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
   }, [supabase]);
 
   const handleSignOut = async () => {

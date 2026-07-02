@@ -89,12 +89,14 @@ export function MyListingsList({
     const guest = booking.profiles;
     const startDate = new Date(booking.start_at);
     const endDate = new Date(booking.end_at);
+    // New requests use REQUESTED; PENDING kept for legacy rows
+    const isPendingRequest = booking.status === "REQUESTED" || booking.status === "PENDING";
 
     return (
       <Card 
         key={booking.id} 
         className={
-          booking.status === "PENDING" ? "border-blue-200" :
+          isPendingRequest ? "border-blue-200" :
           booking.status === "CONFIRMED" ? "border-green-200" :
           booking.status === "DECLINED" ? "border-red-200" :
           "border-gray-200"
@@ -107,10 +109,10 @@ export function MyListingsList({
               <div>
                 <CardTitle className="text-lg">{listing.title}</CardTitle>
                 <p className="text-sm text-muted-foreground mt-1">
-                  {booking.status === "PENDING" && `Request from ${guest?.full_name || "Guest"}`}
+                  {isPendingRequest && `Request from ${guest?.full_name || "Guest"}`}
                   {booking.status === "CONFIRMED" && `Confirmed booking with ${guest?.full_name || "Guest"}`}
                   {booking.status === "DECLINED" && `Declined request from ${guest?.full_name || "Guest"}`}
-                  {!["PENDING", "CONFIRMED", "DECLINED"].includes(booking.status) && 
+                  {!isPendingRequest && !["CONFIRMED", "DECLINED"].includes(booking.status) && 
                     `Booking with ${guest?.full_name || "Guest"}`}
                 </p>
               </div>
@@ -118,14 +120,14 @@ export function MyListingsList({
             <Badge
               variant={
                 booking.status === "CONFIRMED" ? "default" :
-                booking.status === "PENDING" ? "outline" :
+                isPendingRequest ? "outline" :
                 booking.status === "DECLINED" ? "destructive" :
                 "secondary"
               }
               className="flex items-center gap-1"
             >
               {booking.status === "COMPLETED" && <CheckCircle2 className="w-3 h-3" />}
-              {booking.status === "PENDING" && <AlertCircle className="w-3 h-3" />}
+              {isPendingRequest && <AlertCircle className="w-3 h-3" />}
               {booking.status === "DECLINED" && <XCircle className="w-3 h-3" />}
               {booking.status}
             </Badge>
@@ -170,7 +172,7 @@ export function MyListingsList({
             </div>
           </div>
           <div className="flex gap-2">
-            {showActions && booking.status === "PENDING" && (
+            {showActions && isPendingRequest && (
               <>
                 <Button
                   onClick={() => acceptBooking.mutate(booking.id)}

@@ -104,6 +104,8 @@ export function BookingDialog({
   useEffect(() => {
     if (!date || !startTime || !endTime) return;
 
+    let noteTimeout: ReturnType<typeof setTimeout> | undefined;
+
     try {
       const startMinutes = toMinutes(startTime);
       const currentEndMinutes = toMinutes(endTime);
@@ -121,7 +123,7 @@ export function BookingDialog({
         if (normalized.adjustments.length > 0) {
           setAdjustmentNote(normalized.adjustments[0]);
           // Clear note after 5 seconds
-          setTimeout(() => setAdjustmentNote(null), 5000);
+          noteTimeout = setTimeout(() => setAdjustmentNote(null), 5000);
         }
       } else {
         setAdjustmentNote(null);
@@ -129,6 +131,10 @@ export function BookingDialog({
     } catch (err) {
       // Invalid time format, skip adjustment
     }
+
+    return () => {
+      if (noteTimeout) clearTimeout(noteTimeout);
+    };
   }, [date, startTime, endTime, setValue]);
 
   // Validate booking in real-time
@@ -223,12 +229,13 @@ export function BookingDialog({
         throw new Error("Listing not available on this day");
       }
 
-      const availStart = parse(availability.start_time, "HH:mm:ss", new Date());
-      const bookingStart = parse(data.startTime, "HH:mm", new Date());
-
-      // Check that booking starts within availability window
-      if (bookingStart < availStart) {
-        throw new Error("Selected time is outside available hours");
+      // Check that the booking fits inside the host's availability window
+      const availStartMinutes = toMinutes(availability.start_time);
+      const availEndMinutes = toMinutes(availability.end_time);
+      if (startMinutes < availStartMinutes || endMinutes > availEndMinutes) {
+        throw new Error(
+          `Selected time is outside available hours (${fromMinutes(availStartMinutes)} - ${fromMinutes(availEndMinutes)})`
+        );
       }
 
       // Use API route for booking request (validates server-side)
@@ -242,6 +249,8 @@ export function BookingDialog({
           start_time: start.toISOString(),
           end_time: end.toISOString(),
           guests_count: data.guestsCount,
+          guest_ack_toilet_access: data.guest_ack_toilet_access,
+          guest_ack_consumables_policy: data.guest_ack_consumables_policy,
           message: null,
         }),
       });
@@ -324,7 +333,7 @@ export function BookingDialog({
               <Input
                 id="date"
                 type="date"
-                min={new Date().toISOString().split("T")[0]}
+                min={format(new Date(), "yyyy-MM-dd")}
                 {...register("date")}
               />
               {errors.date && (

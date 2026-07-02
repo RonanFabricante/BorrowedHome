@@ -8,7 +8,7 @@ import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { isToday } from "date-fns";
+import { isToday, format } from "date-fns";
 import { PlaceAutocomplete, NormalizedPlace } from "@/components/place-autocomplete";
 import {
   toMinutes,
@@ -184,7 +184,7 @@ export function SearchForm() {
             data-testid="date-input"
             type="date"
             className="w-full"
-            min={new Date().toISOString().split("T")[0]}
+            min={format(new Date(), "yyyy-MM-dd")}
             {...register("date")}
           />
         </div>

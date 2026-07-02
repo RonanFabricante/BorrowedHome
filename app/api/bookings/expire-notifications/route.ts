@@ -3,7 +3,6 @@
 // Sends emails to guests whose bookings expired
 
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendGuestPaymentExpiredEmail, type BookingEmailData } from "@/lib/email/send";
 
@@ -22,8 +21,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const supabase = await createClient();
+    // Cron has no user session; RLS on bookings would return zero rows with
+    // the anon client, so all queries here must use the service-role client.
     const adminClient = createAdminClient();
+    const supabase = adminClient;
 
     // Find recently expired bookings (within last hour) that haven't had emails sent
     const oneHourAgo = new Date();
@@ -69,6 +70,39 @@ export async function POST(request: NextRequest) {
       try {
         const listing = (booking.listings as unknown as { id: string; title: string });
 
+        // Cancel any Stripe intents created for this booking so the guest is
+        // not left with an active authorization for an expired booking.
+        try {
+          const { data: payment } = await adminClient
+            .from("payments")
+            .select("id, status, stripe_payment_intent_id, stripe_deposit_intent_id, deposit_released_at")
+            .eq("booking_id", booking.id)
+            .maybeSingle();
+
+          if (payment && payment.status !== "captured") {
+            const { stripe } = await import("@/lib/stripe/server");
+            for (const intentId of [payment.stripe_payment_intent_id, payment.stripe_deposit_intent_id]) {
+              if (!intentId) continue;
+              const intent = await stripe.paymentIntents.retrieve(intentId);
+              if (intent.status !== "canceled" && intent.status !== "succeeded") {
+                await stripe.paymentIntents.cancel(intentId);
+              }
+            }
+            await adminClient
+              .from("payments")
+              .update({
+                status: "released",
+                ...(payment.stripe_deposit_intent_id && !payment.deposit_released_at
+                  ? { deposit_released_at: new Date().toISOString() }
+                  : {}),
+              })
+              .eq("id", payment.id)
+              .neq("status", "captured");
+          }
+        } catch (stripeError) {
+          console.error(`[ExpireNotifications] Failed to cancel intents for booking ${booking.id}:`, stripeError);
+        }
+
         // Fetch guest profile and email
         const { data: guestProfile } = await supabase
           .from("profiles")
@@ -80,6 +114,19 @@ export async function POST(request: NextRequest) {
         const guestEmail = guestUser?.user?.email;
 
         if (guestEmail) {
+          // Dedupe: log_notification returns NULL if this email was already
+          // recorded, so repeated cron runs don't re-send the same email.
+          const { data: logId } = await adminClient.rpc("log_notification", {
+            p_booking_id: booking.id,
+            p_recipient_email: guestEmail,
+            p_notification_type: "payment_expired",
+          });
+
+          if (!logId) {
+            results.push({ bookingId: booking.id, emailSent: false, reason: "Already sent" });
+            continue;
+          }
+
           const emailData: BookingEmailData = {
             bookingId: booking.id,
             guestName: guestProfile?.full_name || "Guest",

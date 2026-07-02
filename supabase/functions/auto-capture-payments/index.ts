@@ -189,6 +189,9 @@ async function captureAndTransferToHost(
       headers: {
         "Authorization": `Bearer ${stripeSecretKey}`,
         "Content-Type": "application/x-www-form-urlencoded",
+        // Shared with the Next.js capture paths so the host can never be
+        // paid out twice for the same booking.
+        "Idempotency-Key": `booking-payout-${bookingId}`,
       },
       body: transferParams.toString(),
     });
