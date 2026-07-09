@@ -84,15 +84,16 @@ export default async function ListingsPage({
       <Nav />
       <main className="bh-container py-8 sm:py-12">
         <header className="mb-8">
-          <h1 className="font-display text-3xl sm:text-4xl font-semibold mb-2">
+          <h1 className="mb-2 font-display text-3xl font-medium tracking-tight sm:text-4xl">
             {locationLabel ? `Homes in ${locationLabel}` : "Browse homes"}
           </h1>
-          <p className="text-muted-foreground mb-2">
+          <p className="mb-2 text-muted-foreground">
             {count === 0
               ? "No results for your search"
               : `${count} home${count === 1 ? "" : "s"} available`}
           </p>
           <BookingRulesLine />
+          <hr className="bh-rule mt-8" />
         </header>
         <ListingsGrid listings={listingsWithPhotos} location={locationLabel} />
       </main>

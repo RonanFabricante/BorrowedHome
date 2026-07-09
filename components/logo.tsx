@@ -128,14 +128,16 @@ export function Logo({
         />
       </svg>
       {showText && (
-        <span className={cn(
-          "font-semibold tracking-tight",
-          size === "sm" && "text-sm",
-          size === "md" && "text-base",
-          size === "lg" && "text-xl",
-          size === "xl" && "text-2xl",
-          variant === "reversed" ? "text-primary-foreground" : "text-primary"
-        )}>
+        <span
+          className={cn(
+            "font-display font-medium tracking-tight",
+            size === "sm" && "text-sm",
+            size === "md" && "text-base",
+            size === "lg" && "text-xl",
+            size === "xl" && "text-2xl",
+            variant === "reversed" ? "text-primary-foreground" : "text-primary"
+          )}
+        >
           BorrowedHome
         </span>
       )}

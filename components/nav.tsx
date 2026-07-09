@@ -99,9 +99,9 @@ export function Nav() {
     pathname.startsWith("/auth/login") || pathname.startsWith("/auth/signup");
 
   return (
-    <nav className="border-b border-border bg-background sticky top-0 z-40">
-      <div className="bh-container flex items-center justify-between py-4">
-        <Logo size="md" href="/" />
+    <nav className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur-[2px]">
+      <div className="bh-container flex items-center justify-between py-3.5">
+        <Logo size="md" href="/" showText />
         <div className="flex items-center gap-1 sm:gap-2">
           {user ? (
             <>

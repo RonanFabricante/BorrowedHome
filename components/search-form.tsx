@@ -11,7 +11,6 @@ import { Label } from "@/components/ui/label";
 import { isToday, format } from "date-fns";
 import { PlaceAutocomplete, NormalizedPlace } from "@/components/place-autocomplete";
 import { BookingRulesLine } from "@/components/booking-rules-line";
-import { DayArc } from "@/components/day-arc";
 import { formatTime } from "@/lib/utils";
 import {
   toMinutes,
@@ -131,10 +130,8 @@ export function SearchForm() {
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
-      <DayArc className="mb-1" />
-
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" noValidate>
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-4 md:gap-3">
         <div className="w-full space-y-1.5 md:col-span-1">
           <Label htmlFor="location">Suburb or city</Label>
           <PlaceAutocomplete
@@ -235,9 +232,14 @@ export function SearchForm() {
         </div>
       )}
 
-      <BookingRulesLine />
+      <BookingRulesLine className="text-center sm:text-left" />
 
-      <Button type="submit" size="lg" className="w-full" data-testid="browse-homes-button">
+      <Button
+        type="submit"
+        size="lg"
+        className="w-full transition-colors hover:bg-cta/90 focus-visible:ring-cta"
+        data-testid="browse-homes-button"
+      >
         Browse homes
       </Button>
     </form>

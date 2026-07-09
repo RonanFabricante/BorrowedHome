@@ -68,9 +68,9 @@ export const surfaceClasses = {
 };
 
 export const typographyClasses = {
-  h1: "font-display text-3xl font-semibold tracking-tight",
-  h2: "font-display text-2xl font-semibold tracking-tight",
-  h3: "font-display text-xl font-semibold",
+  h1: "font-display text-3xl font-medium tracking-tight",
+  h2: "font-display text-2xl font-medium tracking-tight",
+  h3: "font-sans text-xl font-semibold tracking-tight",
   sectionLabel: "text-sm font-medium text-foreground",
   mutedText: "text-sm text-muted-foreground",
   smallMuted: "text-xs text-muted-foreground",

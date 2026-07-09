@@ -51,41 +51,36 @@ export function ListingsGrid({ listings, location }: ListingsGridProps) {
 
         return (
           <Link key={listing.id} href={`/listings/${listing.id}`} className="group">
-            <Card className="overflow-hidden h-full transition-shadow group-hover:shadow-elevated">
-              <div className="relative aspect-[4/3] bg-muted">
-                {heroPhoto?.url ? (
-                  <Image
-                    src={heroPhoto.url}
-                    alt={listing.title}
-                    fill
-                    sizes="(max-width: 768px) 100vw, 33vw"
-                    className="object-cover"
-                  />
-                ) : (
-                  <div
-                    className="absolute inset-0 bg-muted animate-pulse"
-                    aria-hidden
-                  />
-                )}
-                <div className="absolute top-2 right-2 flex gap-2">
-                  <Badge variant="secondary" className="bg-card/95 backdrop-blur-sm">
-                    Day use
-                  </Badge>
-                  {listing.host_present && (
-                    <Badge variant="outline" className="bg-card/95 backdrop-blur-sm">
-                      Host present
-                    </Badge>
+            <Card className="h-full overflow-hidden transition-shadow group-hover:shadow-elevated">
+              <div className="bh-plate m-3 mb-0 aspect-[4/3]">
+                <div className="relative h-full w-full overflow-hidden rounded-[calc(var(--radius)-2px)] bg-muted">
+                  {heroPhoto?.url ? (
+                    <Image
+                      src={heroPhoto.url}
+                      alt={listing.title}
+                      fill
+                      sizes="(max-width: 768px) 100vw, 33vw"
+                      className="object-cover"
+                    />
+                  ) : (
+                    <div className="absolute inset-0 bg-muted" aria-hidden />
                   )}
                 </div>
               </div>
-              <CardContent className="p-4">
-                <h3 className="font-display font-semibold text-lg mb-1 line-clamp-1">
+              <div className="flex gap-2 px-4 pt-3">
+                <Badge variant="secondary">Day use</Badge>
+                {listing.host_present && (
+                  <Badge variant="outline">Host present</Badge>
+                )}
+              </div>
+              <CardContent className="p-4 pt-2">
+                <h3 className="mb-1 font-display text-lg font-medium line-clamp-1">
                   {listing.title}
                 </h3>
-                <p className="text-sm text-muted-foreground mb-3 line-clamp-1">
+                <p className="mb-3 line-clamp-1 text-sm text-muted-foreground">
                   {listing.location_text}
                 </p>
-                <div className="flex items-center gap-2 mb-3 flex-wrap">
+                <div className="mb-3 flex flex-wrap items-center gap-2">
                   {listing.spaces?.map((space) => {
                     const Icon = spaceIcons[space];
                     return Icon ? (
@@ -99,7 +94,7 @@ export function ListingsGrid({ listings, location }: ListingsGridProps) {
                 </div>
                 <div className="flex items-end justify-between gap-2">
                   <div>
-                    <span className="font-semibold block">
+                    <span className="block font-semibold">
                       From {formatCurrency(hourlyRate)}/hr
                     </span>
                     {hourlyEquivalent < hourlyRate && (
@@ -108,7 +103,7 @@ export function ListingsGrid({ listings, location }: ListingsGridProps) {
                       </span>
                     )}
                   </div>
-                  <span className="text-sm text-muted-foreground shrink-0">
+                  <span className="shrink-0 text-sm text-muted-foreground">
                     Up to {listing.max_guests} guests
                   </span>
                 </div>

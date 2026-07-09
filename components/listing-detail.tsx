@@ -11,7 +11,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { BookingDialog } from "@/components/booking-dialog";
 import { BookingRulesLine } from "@/components/booking-rules-line";
-import { DayArc } from "@/components/day-arc";
 import { ListingReviews } from "@/components/listing-reviews";
 import { HostReviewSummary } from "@/components/host-review-summary";
 import { Star, ShieldCheck } from "lucide-react";
@@ -116,41 +115,48 @@ export function ListingDetail({
 
       <BookingRulesLine className="mb-6" />
 
-      {/* Photos */}
+      {/* Photos — magazine plates, not full-bleed */}
       {photos.length > 0 && (
         <div className="mb-8">
-          <div className="relative aspect-[16/10] bg-muted rounded-lg overflow-hidden mb-4">
-            {currentPhoto?.url ? (
-              <Image
-                src={currentPhoto.url}
-                alt={listing.title}
-                fill
-                className="object-cover"
-              />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center text-muted-foreground">
-                No photo
-              </div>
-            )}
+          <div className="bh-plate mb-4 aspect-[16/10]">
+            <div className="relative h-full w-full overflow-hidden rounded-[calc(var(--radius)-2px)] bg-muted">
+              {currentPhoto?.url ? (
+                <Image
+                  src={currentPhoto.url}
+                  alt={listing.title}
+                  fill
+                  className="object-cover"
+                  sizes="(max-width: 768px) 100vw, 800px"
+                />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center text-muted-foreground">
+                  No photo
+                </div>
+              )}
+            </div>
           </div>
           {photos.length > 1 && (
             <div className="grid grid-cols-4 gap-2">
               {photos.slice(0, 4).map((photo, index) => (
                 <button
                   key={photo.id}
+                  type="button"
                   onClick={() => setSelectedPhotoIndex(index)}
-                  className={`relative h-24 bg-muted rounded overflow-hidden ${
-                    selectedPhotoIndex === index ? "ring-2 ring-primary" : ""
+                  className={`bh-plate relative aspect-[4/3] overflow-hidden ${
+                    selectedPhotoIndex === index ? "ring-2 ring-primary ring-offset-2" : ""
                   }`}
                 >
-                  {photo.url ? (
-                    <Image
-                      src={photo.url}
-                      alt={`${listing.title} ${index + 1}`}
-                      fill
-                      className="object-cover"
-                    />
-                  ) : null}
+                  <span className="relative block h-full w-full overflow-hidden rounded-[calc(var(--radius)-2px)]">
+                    {photo.url ? (
+                      <Image
+                        src={photo.url}
+                        alt={`${listing.title} ${index + 1}`}
+                        fill
+                        className="object-cover"
+                        sizes="120px"
+                      />
+                    ) : null}
+                  </span>
                 </button>
               ))}
             </div>
@@ -306,7 +312,6 @@ export function ListingDetail({
               <CardTitle>Book this home</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <DayArc />
               <BookingRulesLine />
               <div>
                 <div className="flex justify-between mb-1">
