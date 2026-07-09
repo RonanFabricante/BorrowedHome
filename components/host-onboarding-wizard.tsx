@@ -198,7 +198,7 @@ export function HostOnboardingWizard() {
         throw new Error(`Failed to ensure profile exists: ${profileError.message}`);
       }
 
-      // Create listing
+      // Create listing (address is stored privately in listing_addresses)
       const { data: listing, error: listingError } = await supabase
         .from("listings")
         .insert({
@@ -206,7 +206,6 @@ export function HostOnboardingWizard() {
           title: data.title,
           description: data.description,
           location_text: data.location_text,
-          address_text: data.address_text,
           max_guests: data.max_guests,
           host_present: data.host_present,
           cooking_allowed: data.cooking_allowed,
@@ -232,6 +231,16 @@ export function HostOnboardingWizard() {
         .single();
 
       if (listingError) throw listingError;
+
+      const { error: addressError } = await supabase
+        .from("listing_addresses")
+        .upsert({
+          listing_id: listing.id,
+          address_text: data.address_text,
+          updated_at: new Date().toISOString(),
+        });
+
+      if (addressError) throw addressError;
 
       // Upload photos to Supabase Storage
       if (photos.length > 0) {

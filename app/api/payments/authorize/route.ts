@@ -1,9 +1,91 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { stripe } from "@/lib/stripe/server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+/**
+ * Confirm a booking after the guest's PaymentIntent is authorised.
+ * Uses service role so client booking-status triggers do not block it.
+ * Idempotent: safe if the Stripe webhook already confirmed the booking.
+ */
+async function confirmBookingAfterAuthorization(
+  bookingId: string,
+  guestId: string,
+  paymentIntentId: string
+) {
+  const admin = createAdminClient();
+  const now = new Date();
+
+  const { data: booking } = await admin
+    .from("bookings")
+    .select(
+      "id, status, payment_deadline_at, cancelled_at, payment_authorized_at, guest_id, listing_id, start_at, end_at, total_amount"
+    )
+    .eq("id", bookingId)
+    .single();
+
+  if (!booking || booking.guest_id !== guestId) {
+    return { confirmed: false, reason: "not_found" as const };
+  }
+
+  if (booking.cancelled_at || booking.status === "CANCELLED") {
+    return { confirmed: false, reason: "cancelled" as const };
+  }
+
+  if (booking.status === "CONFIRMED" || booking.status === "COMPLETED") {
+    return { confirmed: true, reason: "already_confirmed" as const };
+  }
+
+  if (booking.status !== "PAYMENT_PENDING") {
+    return { confirmed: false, reason: "wrong_status" as const };
+  }
+
+  // Honour payments that were authorised before the deadline even if this
+  // confirmation runs slightly after (webhook lag).
+  const deadline = booking.payment_deadline_at
+    ? new Date(booking.payment_deadline_at)
+    : null;
+  const authorizedAt = booking.payment_authorized_at
+    ? new Date(booking.payment_authorized_at)
+    : now;
+
+  if (deadline && authorizedAt > deadline && now > deadline) {
+    return { confirmed: false, reason: "past_deadline" as const };
+  }
+
+  const { error } = await admin
+    .from("bookings")
+    .update({
+      status: "CONFIRMED",
+      paid_at: now.toISOString(),
+      payment_status: "AUTHORIZED",
+      payment_authorized_at:
+        booking.payment_authorized_at || now.toISOString(),
+    })
+    .eq("id", bookingId)
+    .eq("status", "PAYMENT_PENDING");
+
+  if (error) {
+    console.error("[Authorize] Failed to confirm booking:", error);
+    return { confirmed: false, reason: "update_failed" as const };
+  }
+
+  try {
+    await admin.rpc("log_booking_event", {
+      p_booking_id: bookingId,
+      p_event_type: "PAID",
+      p_actor_id: guestId,
+      p_payload: { payment_intent_id: paymentIntentId, source: "authorize_api" },
+    });
+  } catch (e) {
+    console.error("[Authorize] Failed to log PAID event:", e);
+  }
+
+  return { confirmed: true, reason: "confirmed" as const };
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -70,9 +152,10 @@ export async function POST(request: NextRequest) {
     // Mark pending payments as authorised. An intent that is already
     // "succeeded" was captured; that state is owned by the capture flow and
     // webhooks, so don't overwrite it here.
+    const admin = createAdminClient();
     let payment: { stripe_deposit_intent_id: string | null } | null = null;
     if (paymentIntent.status === "requires_capture") {
-      const { data, error: updateError } = await supabase
+      const { data, error: updateError } = await admin
         .from("payments")
         .update({ status: "authorised" })
         .eq("booking_id", bookingId)
@@ -92,7 +175,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (!payment) {
-      const { data } = await supabase
+      const { data } = await admin
         .from("payments")
         .select("stripe_deposit_intent_id")
         .eq("booking_id", bookingId)
@@ -101,9 +184,20 @@ export async function POST(request: NextRequest) {
       payment = data;
     }
 
+    // Stamp authorization time before confirming so deadline checks use
+    // payment time, not webhook lag.
+    await admin
+      .from("bookings")
+      .update({ payment_authorized_at: new Date().toISOString() })
+      .eq("id", bookingId)
+      .eq("status", "PAYMENT_PENDING")
+      .is("payment_authorized_at", null);
+
     // Place the deposit hold using the card just used for the booking
     // payment. The deposit is a separate manual-capture intent, so it must be
     // confirmed server-side with the saved payment method.
+    let depositAuthorized = true;
+    let depositErrorMessage: string | undefined;
     if (payment?.stripe_deposit_intent_id) {
       try {
         const depositIntent = await stripe.paymentIntents.retrieve(
@@ -127,15 +221,25 @@ export async function POST(request: NextRequest) {
         // The booking payment succeeded; surface the deposit failure without
         // undoing the authorization. The host sees the deposit as not held.
         console.error("Failed to authorize deposit hold:", depositError);
-        return NextResponse.json({
-          success: true,
-          depositAuthorized: false,
-          depositError: depositError.message || "Failed to hold security deposit",
-        });
+        depositAuthorized = false;
+        depositErrorMessage =
+          depositError.message || "Failed to hold security deposit";
       }
     }
 
-    return NextResponse.json({ success: true, depositAuthorized: true });
+    const confirmResult = await confirmBookingAfterAuthorization(
+      bookingId,
+      user.id,
+      paymentIntentId
+    );
+
+    return NextResponse.json({
+      success: true,
+      depositAuthorized,
+      ...(depositErrorMessage ? { depositError: depositErrorMessage } : {}),
+      bookingConfirmed: confirmResult.confirmed,
+      confirmReason: confirmResult.reason,
+    });
   } catch (error: any) {
     console.error("Payment authorization error:", error);
     return NextResponse.json(

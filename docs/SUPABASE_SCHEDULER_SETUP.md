@@ -7,6 +7,8 @@ This guide explains how to set up and deploy scheduled Edge Functions in Supabas
 BorrowedHome uses Supabase scheduled Edge Functions to run periodic tasks:
 - **complete-bookings**: Marks past CONFIRMED bookings as COMPLETED (runs every hour)
 - **auto-capture-payments**: Automatically captures payments after review window expires (runs every 30 minutes)
+- **expire-bookings**: Expires unpaid PAYMENT_PENDING bookings, cancels Stripe holds, and emails guests (runs every 5 minutes)
+- **payment-deadline-reminders**: Reminds guests approaching the payment deadline
 
 These functions run directly in Supabase, eliminating dependency on Vercel Cron and avoiding deployment blocking issues.
 
@@ -40,11 +42,11 @@ These functions run directly in Supabase, eliminating dependency on Vercel Cron 
 Deploy both functions to your Supabase project:
 
 ```bash
-# Deploy complete-bookings function
+# Deploy scheduled functions
 supabase functions deploy complete-bookings
-
-# Deploy auto-capture-payments function
 supabase functions deploy auto-capture-payments
+supabase functions deploy expire-bookings
+supabase functions deploy payment-deadline-reminders
 ```
 
 ### 2. Set Environment Variables (Secrets)
@@ -52,23 +54,25 @@ supabase functions deploy auto-capture-payments
 Set the required secrets for each function using Supabase CLI or Dashboard:
 
 ```bash
-# Set secrets for complete-bookings
+# Shared secrets (all scheduled functions)
 supabase secrets set SUPABASE_URL=https://your-project-ref.supabase.co
 supabase secrets set SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
-supabase secrets set SUPABASE_CRON_SECRET=your_secure_random_secret
+# MUST be named CRON_SECRET — this is what the Edge Functions read
+supabase secrets set CRON_SECRET=your_secure_random_secret
 
-# Set secrets for auto-capture-payments (includes additional Stripe key)
-supabase secrets set SUPABASE_URL=https://your-project-ref.supabase.co
-supabase secrets set SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+# auto-capture-payments + expire-bookings also need Stripe
 supabase secrets set STRIPE_SECRET_KEY=sk_live_...
-supabase secrets set SUPABASE_CRON_SECRET=your_secure_random_secret
+
+# Optional: expire-bookings will call the Next.js cleanup/email route when set
+supabase secrets set SITE_URL=https://borrowedhome.app
 ```
 
 **Important Notes:**
 - `SUPABASE_URL`: Your Supabase project URL (same for both functions)
 - `SUPABASE_SERVICE_ROLE_KEY`: Service role key from Supabase Dashboard → Settings → API (server-side only, bypasses RLS)
 - `STRIPE_SECRET_KEY`: Your Stripe secret key (live or test)
-- `CRON_SECRET`: A secure random string used to authenticate scheduler requests (generate with `openssl rand -hex 32`)
+- `CRON_SECRET`: A secure random string used to authenticate scheduler requests (generate with `openssl rand -hex 32`). Do **not** use `SUPABASE_CRON_SECRET` as the only name — functions read `CRON_SECRET` (they also accept `SUPABASE_CRON_SECRET` as a fallback).
+- Use the **same** secret value in pg_cron `Authorization: Bearer ...` headers and in Vercel `CRON_SECRET` for `/api/bookings/expire-notifications`.
 
 **Via Dashboard:**
 1. Go to Project Settings → Edge Functions
@@ -90,7 +94,7 @@ SELECT cron.schedule(
       url := 'https://your-project-ref.supabase.co/functions/v1/complete-bookings',
       headers := jsonb_build_object(
         'Content-Type', 'application/json',
-        'Authorization', 'Bearer YOUR_SUPABASE_CRON_SECRET'
+        'Authorization', 'Bearer YOUR_CRON_SECRET'
       ),
       body := '{}'::jsonb
     ) AS request_id;
@@ -107,7 +111,24 @@ SELECT cron.schedule(
       url := 'https://your-project-ref.supabase.co/functions/v1/auto-capture-payments',
       headers := jsonb_build_object(
         'Content-Type', 'application/json',
-        'Authorization', 'Bearer YOUR_SUPABASE_CRON_SECRET'
+        'Authorization', 'Bearer YOUR_CRON_SECRET'
+      ),
+      body := '{}'::jsonb
+    ) AS request_id;
+  $$
+);
+
+-- Schedule expire-bookings to run every 5 minutes
+SELECT cron.schedule(
+  'expire-bookings-5min',
+  '*/5 * * * *',
+  $$
+  SELECT
+    net.http_post(
+      url := 'https://your-project-ref.supabase.co/functions/v1/expire-bookings',
+      headers := jsonb_build_object(
+        'Content-Type', 'application/json',
+        'Authorization', 'Bearer YOUR_CRON_SECRET'
       ),
       body := '{}'::jsonb
     ) AS request_id;
@@ -117,7 +138,7 @@ SELECT cron.schedule(
 
 **Important:** Replace:
 - `your-project-ref` with your actual Supabase project reference
-- `YOUR_SUPABASE_CRON_SECRET` with the same secret value you set in step 2
+- `YOUR_CRON_SECRET` with the same secret value you set in step 2
 
 ### 4. Verify Schedules
 
@@ -145,13 +166,13 @@ Test each function manually using cURL:
 # Test complete-bookings
 curl -X POST \
   'https://your-project-ref.supabase.co/functions/v1/complete-bookings' \
-  -H 'Authorization: Bearer YOUR_SUPABASE_CRON_SECRET' \
+  -H 'Authorization: Bearer YOUR_CRON_SECRET' \
   -H 'Content-Type: application/json'
 
 # Test auto-capture-payments
 curl -X POST \
   'https://your-project-ref.supabase.co/functions/v1/auto-capture-payments' \
-  -H 'Authorization: Bearer YOUR_SUPABASE_CRON_SECRET' \
+  -H 'Authorization: Bearer YOUR_CRON_SECRET' \
   -H 'Content-Type: application/json'
 ```
 
@@ -169,7 +190,7 @@ Expected response format:
 1. Go to Edge Functions in Supabase Dashboard
 2. Select the function
 3. Click "Invoke" 
-4. Add header: `Authorization: Bearer YOUR_SUPABASE_CRON_SECRET`
+4. Add header: `Authorization: Bearer YOUR_CRON_SECRET`
 5. Click "Invoke Function"
 
 ### Check Logs
@@ -246,7 +267,7 @@ Monitor function performance in Supabase Dashboard:
 ### Authentication Errors
 
 If you see `401 Unauthorized`:
-- Verify `SUPABASE_CRON_SECRET` matches in both:
+- Verify `CRON_SECRET` matches in both:
   - Function secrets
   - Cron job Authorization header
 
@@ -300,7 +321,7 @@ If issues occur:
 
 ## Security Considerations
 
-1. **SUPABASE_CRON_SECRET**: Use a strong, randomly generated secret (minimum 32 characters)
+1. **CRON_SECRET**: Use a strong, randomly generated secret (minimum 32 characters)
 2. **Service Role Key**: Never expose in client-side code; only use in server/Edge Functions
 3. **Stripe Secret Key**: Keep secure; rotate if compromised
 4. **Network Security**: Functions are only accessible via Supabase infrastructure with proper authentication

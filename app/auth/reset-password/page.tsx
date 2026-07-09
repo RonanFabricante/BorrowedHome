@@ -40,7 +40,9 @@ export default function ResetPasswordPage() {
     try {
       // Get the site URL - default to production URL if not set
       const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://borrowedhome.app";
-      const redirectTo = `${siteUrl}/auth/update-password`;
+      // PKCE recovery links land on /auth/callback which exchanges the code,
+      // then redirects to update-password with a valid session.
+      const redirectTo = `${siteUrl}/auth/callback?next=/auth/update-password`;
 
       const { error: resetError } = await supabase.auth.resetPasswordForEmail(
         data.email,

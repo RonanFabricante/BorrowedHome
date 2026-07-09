@@ -19,7 +19,10 @@ Deno.serve(async (req) => {
   try {
     // Verify authentication
     const authHeader = req.headers.get("authorization") ?? "";
-    const cronSecret = Deno.env.get("CRON_SECRET") ?? "";
+    const cronSecret =
+      Deno.env.get("CRON_SECRET") ||
+      Deno.env.get("SUPABASE_CRON_SECRET") ||
+      "";
 
     if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
       console.error("[CRON] Unauthorized request");

@@ -2,11 +2,18 @@ import { Nav } from "@/components/nav";
 import { ListingsGrid } from "@/components/listings-grid";
 import { createClient } from "@/lib/supabase/server";
 import { BookingRulesLine } from "@/components/booking-rules-line";
+import { sydneyDayOfWeek } from "@/lib/timezone";
 
 export default async function ListingsPage({
   searchParams,
 }: {
-  searchParams: { location?: string; date?: string; startTime?: string; endTime?: string };
+  searchParams: {
+    location?: string;
+    date?: string;
+    startTime?: string;
+    endTime?: string;
+    tz?: string;
+  };
 }) {
   const supabase = await createClient();
 
@@ -30,7 +37,7 @@ export default async function ListingsPage({
   }
 
   if (hasTimeFilter) {
-    const dayOfWeek = new Date(`${searchParams.date}T00:00:00`).getDay();
+    const dayOfWeek = sydneyDayOfWeek(searchParams.date!);
     query = query
       .eq("listing_availability.day_of_week", dayOfWeek)
       .lte("listing_availability.start_time", searchParams.startTime!)

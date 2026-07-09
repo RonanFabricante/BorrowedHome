@@ -132,13 +132,22 @@ export async function POST(
         policyResult.refundableAmountCents
       );
 
-      // Log payment processing result but don't fail cancellation if payment processing fails
       if (!paymentResult.success) {
         console.error("[Cancel Booking] Payment processing failed:", paymentResult.error);
-        // Continue with cancellation even if payment processing fails
-        // Payment can be handled manually later
+        return NextResponse.json(
+          {
+            error:
+              paymentResult.error ||
+              "Could not void or refund the payment. Booking was not cancelled — please try again or contact support.",
+            paymentError: true,
+          },
+          { status: 502 }
+        );
       }
     }
+
+    // Service-role client for payment/booking writes (client updates are locked)
+    const adminClient = createAdminClient();
 
     // Release the security deposit hold, if one exists and hasn't been released
     const paymentWithDeposit = payments?.find(
@@ -153,7 +162,7 @@ export async function POST(
         if (depositIntent.status !== "canceled" && depositIntent.status !== "succeeded") {
           await stripe.paymentIntents.cancel(paymentWithDeposit.stripe_deposit_intent_id);
         }
-        await supabase
+        await adminClient
           .from("payments")
           .update({ deposit_released_at: new Date().toISOString() })
           .eq("id", paymentWithDeposit.id);
@@ -182,7 +191,7 @@ export async function POST(
       }
     }
 
-    // Update booking atomically
+    // Update booking atomically via service role (client CANCELLED is blocked)
     const updateData: any = {
       status: "CANCELLED",
       cancelled_at: new Date().toISOString(),
@@ -208,7 +217,7 @@ export async function POST(
       }
     }
 
-    const { data: updatedBooking, error: updateError } = await supabase
+    const { data: updatedBooking, error: updateError } = await adminClient
       .from("bookings")
       .update(updateData)
       .eq("id", bookingId)
@@ -251,8 +260,6 @@ export async function POST(
     }
 
     // Send emails (with deduplication)
-    const adminClient = createAdminClient();
-
     // Fetch guest and host profiles/emails
     const [guestUserResult, hostUserResult] = await Promise.all([
       adminClient.auth.admin.getUserById(booking.guest_id),

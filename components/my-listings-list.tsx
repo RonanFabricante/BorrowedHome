@@ -3,8 +3,6 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { createClient } from "@/lib/supabase/client";
-import { Listing } from "@/lib/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -23,7 +21,6 @@ export function MyListingsList({
   declinedBookings,
   otherBookings,
   listingsWithActiveBookings,
-  hostId 
 }: { 
   listings: any[];
   pendingBookings: any[];
@@ -31,18 +28,17 @@ export function MyListingsList({
   declinedBookings: any[];
   otherBookings: any[];
   listingsWithActiveBookings: Set<string>;
-  hostId: string;
+  hostId?: string;
 }) {
   const router = useRouter();
-  const supabase = createClient();
   const queryClient = useQueryClient();
 
   const acceptBooking = useMutation({
     mutationFn: async (bookingId: string) => {
-      const response = await fetch("/api/bookings/accept", {
+      const response = await fetch("/api/bookings/respond", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ bookingId }),
+        body: JSON.stringify({ booking_id: bookingId, action: "accept" }),
       });
 
       const data = await response.json();
@@ -51,7 +47,7 @@ export function MyListingsList({
         if (data.error === "STRIPE_ONBOARDING_REQUIRED") {
           throw new Error("STRIPE_ONBOARDING_REQUIRED");
         }
-        throw new Error(data.error || "Failed to accept booking");
+        throw new Error(data.message || data.error || "Failed to accept booking");
       }
 
       return data;
@@ -70,11 +66,16 @@ export function MyListingsList({
 
   const declineBooking = useMutation({
     mutationFn: async (bookingId: string) => {
-      const { data, error } = await supabase.rpc("decline_booking", {
-        p_booking_id: bookingId,
-        p_host_id: hostId,
+      const response = await fetch("/api/bookings/respond", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ booking_id: bookingId, action: "reject" }),
       });
-      if (error) throw error;
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.message || data.error || "Failed to decline booking");
+      }
       return data;
     },
     onSuccess: () => {

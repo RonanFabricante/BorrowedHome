@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { stripe } from "@/lib/stripe/server";
 import { PLATFORM_FEE_PERCENTAGE } from "@/lib/stripe/server";
 
@@ -188,8 +189,9 @@ export async function POST(request: NextRequest) {
 
     console.log(`[Capture] Transfer created: ${transfer.id}`);
 
-    // Update payment status
-    const { error: updateError } = await supabase
+    // Update payment status (service role — client updates are locked)
+    const admin = createAdminClient();
+    const { error: updateError } = await admin
       .from("payments")
       .update({ 
         status: "captured",
@@ -203,7 +205,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Keep the booking's payment fields in sync with the payment record
-    const { error: bookingSyncError } = await supabase
+    const { error: bookingSyncError } = await admin
       .from("bookings")
       .update({
         payment_status: "CAPTURED",
@@ -228,7 +230,7 @@ export async function POST(request: NextRequest) {
           await stripe.paymentIntents.cancel(payment.stripe_deposit_intent_id);
         }
         
-        await supabase
+        await admin
           .from("payments")
           .update({
             deposit_released_at: new Date().toISOString(),

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { stripe } from "@/lib/stripe/server";
 
 export const runtime = "nodejs";
@@ -31,6 +32,7 @@ export async function POST(request: NextRequest) {
         *,
         bookings!inner(
           id,
+          status,
           listing_id,
           guest_id,
           listings!inner(host_id)
@@ -52,6 +54,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: "Only the host can capture deposits" },
         { status: 403 }
+      );
+    }
+
+    const bookingStatus = (payment.bookings as { status?: string }).status;
+    if (bookingStatus !== "COMPLETED") {
+      return NextResponse.json(
+        {
+          error:
+            "Deposits can only be captured after the booking is completed. Report a dispute first if needed.",
+        },
+        { status: 400 }
       );
     }
 
@@ -132,7 +145,7 @@ export async function POST(request: NextRequest) {
 
     // Update payment record with deposit capture info. A captured deposit is
     // no longer a hold, so mark it resolved.
-    const { error: updateError } = await supabase
+    const { error: updateError } = await createAdminClient()
       .from("payments")
       .update({
         capture_hold_reason: reason || "Deposit captured for damages",

@@ -69,11 +69,19 @@ Create a `.env.local` file in the root directory:
 NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 NEXT_PUBLIC_SITE_URL=http://localhost:3000
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+STRIPE_SECRET_KEY=sk_test_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+CRON_SECRET=your_secure_random_secret
+MAPBOX_TOKEN=your_mapbox_token
 ```
 
 **Note:**
 - `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` can be found in your Supabase project settings under API
 - `NEXT_PUBLIC_SITE_URL` should be `http://localhost:3000` for local development and `https://borrowedhome.app` for production
+- Add `https://your-domain/auth/callback` to Supabase Auth → URL Configuration → Redirect URLs (password reset uses this)
+- `MAPBOX_TOKEN` powers location autocomplete (server-side only)
+- Apply **all** SQL files in `supabase/migrations/` in order (through `028_...`), not only 001–003
 
 ### 4. Run Development Server
 

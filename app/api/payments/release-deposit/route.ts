@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { stripe } from "@/lib/stripe/server";
 
 export const runtime = "nodejs";
@@ -75,7 +76,7 @@ export async function POST(request: NextRequest) {
     await stripe.paymentIntents.cancel(payment.stripe_deposit_intent_id);
 
     // Update payment record with deposit release timestamp
-    const { error: updateError } = await supabase
+    const { error: updateError } = await createAdminClient()
       .from("payments")
       .update({ 
         deposit_released_at: new Date().toISOString()

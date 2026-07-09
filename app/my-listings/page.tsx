@@ -15,10 +15,6 @@ export default async function MyListingsPage() {
     redirect("/auth/login");
   }
 
-  // Auto-update past CONFIRMED bookings to COMPLETED
-  // This ensures bookings are marked as completed when hosts view their listings
-  await supabase.rpc("mark_past_bookings_completed");
-
   const { data: listings } = await supabase
     .from("listings")
     .select(`

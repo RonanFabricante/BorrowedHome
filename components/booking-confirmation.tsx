@@ -27,6 +27,8 @@ export function BookingConfirmation({ booking, isHost = false }: { booking: any;
   const isExpired = booking.status === "EXPIRED";
   const isCancelled = booking.status === "CANCELLED";
   const isCompleted = booking.status === "COMPLETED";
+  const canShowAddress =
+    (isConfirmed || isCompleted) && Boolean(listing.address_text);
   
   const [hasReview, setHasReview] = useState<boolean | null>(null);
   const [payment, setPayment] = useState<any>(null);
@@ -706,9 +708,8 @@ export function BookingConfirmation({ booking, isHost = false }: { booking: any;
         </Card>
       )}
 
-      {/* Address - CONFIRMED means payment was authorised, so both host and
-          guest may see it (don't gate on the client-side payments fetch) */}
-      {isConfirmed && (
+      {/* Address is loaded server-side via get_listing_address after confirm */}
+      {canShowAddress && (
         <Card className="mb-6">
           <CardHeader>
             <CardTitle>Address</CardTitle>

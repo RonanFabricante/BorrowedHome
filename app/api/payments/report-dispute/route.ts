@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -121,8 +122,9 @@ export async function POST(request: NextRequest) {
       currentWindowEnd.getTime() + DISPUTE_EXTENSION_HOURS * 3600000
     );
 
-    // Update payment record
-    const { error: updateError } = await supabase
+    // Update payment record (service role — dispute fields are locked for clients)
+    const admin = createAdminClient();
+    const { error: updateError } = await admin
       .from("payments")
       .update({
         dispute_reported_at: new Date().toISOString(),

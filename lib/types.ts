@@ -17,7 +17,8 @@ export interface Listing {
   title: string;
   description: string | null;
   location_text: string;
-  address_text: string;
+  /** Private; only present for hosts or after CONFIRMED/COMPLETED */
+  address_text?: string | null;
   max_guests: number;
   host_present: boolean;
   noise_tolerance: NoiseTolerance;

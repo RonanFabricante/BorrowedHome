@@ -35,12 +35,24 @@ export default async function EditListingPage({
     notFound();
   }
 
-  // Check for active bookings (PENDING or CONFIRMED)
+  // Private address lives in listing_addresses (hosts can read their own)
+  const { data: addressRow } = await supabase
+    .from("listing_addresses")
+    .select("address_text")
+    .eq("listing_id", id)
+    .maybeSingle();
+
+  const listingWithAddress = {
+    ...listing,
+    address_text: addressRow?.address_text || "",
+  };
+
+  // Check for active bookings (including request / payment window)
   const { data: activeBookings } = await supabase
     .from("bookings")
     .select("id, status")
     .eq("listing_id", id)
-    .in("status", ["PENDING", "CONFIRMED"])
+    .in("status", ["PENDING", "REQUESTED", "PAYMENT_PENDING", "CONFIRMED"])
     .limit(1);
 
   const hasActiveBookings = (activeBookings || []).length > 0;
@@ -83,7 +95,7 @@ export default async function EditListingPage({
         ) : (
           <EditListingForm
             listing={{
-              ...listing,
+              ...listingWithAddress,
               photos: photosWithUrls,
               spaces: listing.listing_spaces?.map((s: any) => s.space_type),
               availability: listing.listing_availability,

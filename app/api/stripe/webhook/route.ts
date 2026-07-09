@@ -89,9 +89,18 @@ export async function POST(request: NextRequest) {
 
             const now = new Date();
             const deadline = booking.payment_deadline_at ? new Date(booking.payment_deadline_at) : null;
+            // Prefer authorization time over webhook receipt time so late
+            // webhooks don't reject on-time payments.
+            const authorizedAt = booking.payment_authorized_at
+              ? new Date(booking.payment_authorized_at)
+              : now;
             
-            // Only confirm if status is PAYMENT_PENDING and within deadline (or deadline not set)
-            if (booking.status === "PAYMENT_PENDING" && (!deadline || now <= deadline)) {
+            // Only confirm if status is PAYMENT_PENDING and payment was
+            // authorised within the deadline (or deadline not set)
+            if (
+              booking.status === "PAYMENT_PENDING" &&
+              (!deadline || authorizedAt <= deadline)
+            ) {
               // Update payment_authorized_at if not set
               if (!booking.payment_authorized_at) {
                 await supabase

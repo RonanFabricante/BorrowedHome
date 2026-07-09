@@ -43,8 +43,6 @@ export default async function BookingConfirmPage({
     redirect("/auth/login");
   }
 
-  await supabase.rpc("mark_past_bookings_completed");
-
   const { data: booking } = await supabase
     .from("bookings")
     .select(`
@@ -53,7 +51,6 @@ export default async function BookingConfirmPage({
         id,
         title,
         location_text,
-        address_text,
         host_id,
         host_present,
         cooking_allowed,
@@ -76,6 +73,24 @@ export default async function BookingConfirmPage({
   if (!isGuest && !isHost) {
     notFound();
   }
+
+  // Address is private; only reveal after CONFIRMED/COMPLETED via RPC.
+  let addressText: string | null = null;
+  if (booking.status === "CONFIRMED" || booking.status === "COMPLETED") {
+    const { data } = await supabase.rpc("get_listing_address", {
+      p_listing_id: booking.listing_id,
+      p_user_id: user.id,
+    });
+    addressText = data ?? null;
+  }
+
+  const bookingWithAddress = {
+    ...booking,
+    listings: {
+      ...booking.listings,
+      address_text: addressText,
+    },
+  };
 
   const activeStep = stepIndex(booking.status);
   const showProgress = !["DECLINED", "REJECTED", "CANCELLED", "EXPIRED"].includes(
@@ -122,7 +137,7 @@ export default async function BookingConfirmPage({
             </ol>
           </div>
         )}
-        <BookingConfirmation booking={booking} isHost={isHost} />
+        <BookingConfirmation booking={bookingWithAddress} isHost={isHost} />
       </main>
     </div>
   );

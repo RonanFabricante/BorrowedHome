@@ -4,10 +4,11 @@ This document describes the password reset flow implementation and required Supa
 
 ## Overview
 
-The password reset flow consists of three pages:
+The password reset flow consists of:
 1. **Login page** (`/auth/login`) - Contains "Forgot password?" link
 2. **Reset password request** (`/auth/reset-password`) - User enters email to receive reset link
-3. **Update password** (`/auth/update-password`) - User sets new password from email link
+3. **Auth callback** (`/auth/callback`) - Exchanges the PKCE `code` for a session
+4. **Update password** (`/auth/update-password`) - User sets new password once the session exists
 
 ## Environment Variables
 
@@ -24,7 +25,7 @@ For production:
 NEXT_PUBLIC_SITE_URL=https://borrowedhome.app
 ```
 
-This is used to construct the reset password redirect URL that Supabase includes in the email.
+This is used to construct the reset password redirect URL that Supabase includes in the email (`/auth/callback?next=/auth/update-password`).
 
 ## Supabase Dashboard Configuration
 
@@ -34,8 +35,9 @@ Go to **Authentication** → **URL Configuration** in your Supabase dashboard:
 
 - **Site URL**: `https://borrowedhome.app`
 - **Redirect URLs**: Add the following:
-  - `https://borrowedhome.app/auth/update-password`
-  - `http://localhost:3000/auth/update-password` (for local development)
+  - `https://borrowedhome.app/auth/callback`
+  - `http://localhost:3000/auth/callback` (for local development)
+  - (optional legacy) `https://borrowedhome.app/auth/update-password`
 
 ### 2. Email Templates
 
@@ -74,7 +76,7 @@ The reset password flow **never reveals** whether an email exists in the system:
 1. User clicks "Forgot password?" on login page
 2. User enters email address on reset password page
 3. User receives email with reset link (if email exists)
-4. User clicks link → redirected to `/auth/update-password`
+4. User clicks link → redirected to `/auth/callback` (exchanges code), then `/auth/update-password`
 5. User sets new password
 6. User is redirected to login page
 7. User signs in with new password
@@ -111,5 +113,5 @@ The reset password flow **never reveals** whether an email exists in the system:
 ### Redirect URL mismatch
 
 - Ensure `NEXT_PUBLIC_SITE_URL` matches exactly (including protocol: `https://` vs `http://`)
-- Verify redirect URLs in Supabase dashboard include the exact path: `/auth/update-password`
+- Verify redirect URLs in Supabase dashboard include `/auth/callback`
 - Check for trailing slashes (should not have one)

@@ -198,7 +198,6 @@ export function EditListingForm({ listing }: { listing: any }) {
           title: data.title,
           description: data.description,
           location_text: data.location_text,
-          address_text: data.address_text,
           max_guests: data.max_guests,
           host_present: data.host_present,
           cooking_allowed: data.cooking_allowed,
@@ -230,6 +229,15 @@ export function EditListingForm({ listing }: { listing: any }) {
           .eq("host_id", user.id);
 
         if (listingError) throw listingError;
+
+        const { error: addressError } = await supabase
+          .from("listing_addresses")
+          .upsert({
+            listing_id: listing.id,
+            address_text: data.address_text,
+            updated_at: new Date().toISOString(),
+          });
+        if (addressError) throw addressError;
       } else {
         // Not publishing or already published - normal update
         const { error: listingError } = await supabase
@@ -238,7 +246,6 @@ export function EditListingForm({ listing }: { listing: any }) {
             title: data.title,
             description: data.description,
             location_text: data.location_text,
-            address_text: data.address_text,
             max_guests: data.max_guests,
             host_present: data.host_present,
             cooking_allowed: data.cooking_allowed,
@@ -264,6 +271,15 @@ export function EditListingForm({ listing }: { listing: any }) {
           .eq("host_id", user.id);
 
         if (listingError) throw listingError;
+
+        const { error: addressError } = await supabase
+          .from("listing_addresses")
+          .upsert({
+            listing_id: listing.id,
+            address_text: data.address_text,
+            updated_at: new Date().toISOString(),
+          });
+        if (addressError) throw addressError;
       }
 
       // Update spaces

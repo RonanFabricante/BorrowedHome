@@ -14,7 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { formatCurrency, formatTime } from "@/lib/utils";
-import { parse, format } from "date-fns";
+import { format } from "date-fns";
 import { BookingRulesLine } from "@/components/booking-rules-line";
 import { StatusBanner } from "@/components/status-banner";
 import {
@@ -26,6 +26,7 @@ import {
   validate as validateBookingTime,
   normalize,
 } from "@/lib/bookingTimeRules";
+import { sydneyDayOfWeek, sydneyLocalToUtcIso } from "@/lib/timezone";
 
 const bookingSchema = z.object({
   date: z.string().min(1, "Date is required"),
@@ -186,8 +187,8 @@ export function BookingDialog({
         throw new Error(`Maximum ${listing.max_guests} guests allowed`);
       }
 
-      const start = parse(`${data.date} ${data.startTime}`, "yyyy-MM-dd HH:mm", new Date());
-      const end = parse(`${data.date} ${data.endTime}`, "yyyy-MM-dd HH:mm", new Date());
+      const startIso = sydneyLocalToUtcIso(data.date, data.startTime);
+      const endIso = sydneyLocalToUtcIso(data.date, data.endTime);
       const now = new Date();
 
       // Validate using shared validation function
@@ -199,8 +200,8 @@ export function BookingDialog({
         throw new Error(validationResult.errors[0] || "Invalid booking request");
       }
 
-      // Check availability
-      const dayOfWeek = start.getDay();
+      // Check availability (Sydney weekday)
+      const dayOfWeek = sydneyDayOfWeek(data.date);
       const { data: availability } = await supabase
         .from("listing_availability")
         .select("*")
@@ -229,8 +230,8 @@ export function BookingDialog({
         },
         body: JSON.stringify({
           listing_id: listing.id,
-          start_time: start.toISOString(),
-          end_time: end.toISOString(),
+          start_time: startIso,
+          end_time: endIso,
           guests_count: data.guestsCount,
           guest_ack_toilet_access: data.guest_ack_toilet_access,
           guest_ack_consumables_policy: data.guest_ack_consumables_policy,
