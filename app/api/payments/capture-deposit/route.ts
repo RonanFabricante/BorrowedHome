@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { stripe } from "@/lib/stripe/server";
+import {
+  STRIPE_MIN_AMOUNT_CENTS,
+  STRIPE_MIN_AMOUNT_MESSAGE,
+} from "@/lib/payments/stripeMinAmount";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -97,9 +101,18 @@ export async function POST(request: NextRequest) {
     // Capture the deposit (full or partial)
     const captureAmount = amount ? Math.round(amount) : undefined;
 
-    if (captureAmount !== undefined && (captureAmount <= 0 || captureAmount > payment.deposit_amount)) {
+    if (
+      captureAmount !== undefined &&
+      (captureAmount < STRIPE_MIN_AMOUNT_CENTS ||
+        captureAmount > payment.deposit_amount)
+    ) {
       return NextResponse.json(
-        { error: `Capture amount must be between 1 and ${payment.deposit_amount} cents` },
+        {
+          error:
+            captureAmount < STRIPE_MIN_AMOUNT_CENTS
+              ? STRIPE_MIN_AMOUNT_MESSAGE
+              : `Capture amount must be between ${STRIPE_MIN_AMOUNT_CENTS} and ${payment.deposit_amount} cents`,
+        },
         { status: 400 }
       );
     }

@@ -6,6 +6,7 @@ import {
   sendGuestRequestRejectedEmail,
   type BookingEmailData,
 } from "@/lib/email/send";
+import { validateStripeAmountCents } from "@/lib/payments/stripeMinAmount";
 
 export const dynamic = "force-dynamic";
 
@@ -199,6 +200,15 @@ export async function POST(request: NextRequest) {
       const platformFee = acceptedBooking.platform_fee_amount;
       const totalAmount = bookingAmount + platformFee;
       const depositAmount = acceptedBooking.deposit_amount || 0;
+
+      const totalError = validateStripeAmountCents(totalAmount);
+      if (totalError) {
+        return NextResponse.json({ error: totalError }, { status: 400 });
+      }
+      const depositError = validateStripeAmountCents(depositAmount, { allowZero: true });
+      if (depositError) {
+        return NextResponse.json({ error: depositError }, { status: 400 });
+      }
 
       // Customer + setup_future_usage let the deposit intent be confirmed
       // server-side with the same card after the guest pays (see

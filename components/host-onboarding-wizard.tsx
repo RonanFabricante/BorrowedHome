@@ -63,10 +63,21 @@ const onboardingSchema = z.object({
   provides_groceries: z.boolean(),
   
   // Step 5: Pricing
-  hourly_rate: z.number().min(0),
-  half_day_rate: z.number().min(0),
-  full_day_rate: z.number().min(0),
-  deposit_amount: z.number().min(0),
+  hourly_rate: z
+    .number({ invalid_type_error: "Hourly rate is required" })
+    .min(0.5, "Amount must be at least $0.50 AUD"),
+  half_day_rate: z
+    .number({ invalid_type_error: "Half-day rate is required" })
+    .min(0.5, "Amount must be at least $0.50 AUD"),
+  full_day_rate: z
+    .number({ invalid_type_error: "Full-day rate is required" })
+    .min(0.5, "Amount must be at least $0.50 AUD"),
+  deposit_amount: z
+    .number({ invalid_type_error: "Deposit must be a number" })
+    .min(0)
+    .refine((v) => v === 0 || v >= 0.5, {
+      message: "Amount must be at least $0.50 AUD",
+    }),
 }).refine((data) => {
   // Require toilet_access_notes when toilet_access is limited or none
   if (data.toilet_access === "limited" || data.toilet_access === "none") {
@@ -960,7 +971,7 @@ export function HostOnboardingWizard() {
     <div className="space-y-4">
       <h2 className="text-2xl font-bold mb-4">Pricing</h2>
       <p className="text-muted-foreground mb-6">
-        Set your rates. All amounts are in USD.
+        Set your rates in AUD. Stripe requires charges of at least $0.50.
       </p>
       <div>
         <Label htmlFor="hourly_rate">Hourly Rate ($)</Label>
@@ -969,7 +980,7 @@ export function HostOnboardingWizard() {
           type="number"
           step="0.01"
           {...form.register("hourly_rate", { valueAsNumber: true })}
-          min={1}
+          min={0.5}
         />
         {form.formState.errors.hourly_rate && (
           <p className="text-sm text-destructive mt-1">
@@ -984,7 +995,7 @@ export function HostOnboardingWizard() {
           type="number"
           step="0.01"
           {...form.register("half_day_rate", { valueAsNumber: true })}
-          min={1}
+          min={0.5}
         />
         {form.formState.errors.half_day_rate && (
           <p className="text-sm text-destructive mt-1">
@@ -999,7 +1010,7 @@ export function HostOnboardingWizard() {
           type="number"
           step="0.01"
           {...form.register("full_day_rate", { valueAsNumber: true })}
-          min={1}
+          min={0.5}
         />
         {form.formState.errors.full_day_rate && (
           <p className="text-sm text-destructive mt-1">
@@ -1017,8 +1028,13 @@ export function HostOnboardingWizard() {
           min={0}
         />
         <p className="text-sm text-muted-foreground mt-1">
-          Optional. Refundable deposit to cover potential damage.
+          Optional. If set, must be at least $0.50 AUD. Refundable deposit to cover potential damage.
         </p>
+        {form.formState.errors.deposit_amount && (
+          <p className="text-sm text-destructive mt-1">
+            {form.formState.errors.deposit_amount.message}
+          </p>
+        )}
       </div>
       <div className="p-4 bg-muted rounded-lg">
         <p className="text-sm font-semibold mb-2">Confirm Day-Use Only</p>

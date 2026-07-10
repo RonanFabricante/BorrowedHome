@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { stripe, PLATFORM_FEE_PERCENTAGE } from "@/lib/stripe/server";
 import { checkAccountStatus, computeOnboardingStatus, findStripeAccountByUserId } from "@/lib/stripe/connect";
 import { isPaymentPending, normalizeBookingStatus } from "@/lib/bookingStatus";
+import { validateStripeAmountCents } from "@/lib/payments/stripeMinAmount";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -260,6 +261,15 @@ export async function POST(request: NextRequest) {
     const platformFee = booking.platform_fee_amount;
     const totalAmount = bookingAmount + platformFee;
     const depositAmount = booking.deposit_amount || 0;
+
+    const totalError = validateStripeAmountCents(totalAmount);
+    if (totalError) {
+      return NextResponse.json({ error: totalError }, { status: 400 });
+    }
+    const depositError = validateStripeAmountCents(depositAmount, { allowZero: true });
+    if (depositError) {
+      return NextResponse.json({ error: depositError }, { status: 400 });
+    }
 
     // A Stripe Customer is required so the card used for the booking payment
     // can be reused server-side to place the separate deposit hold.
