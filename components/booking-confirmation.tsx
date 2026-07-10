@@ -16,7 +16,7 @@ import { canCancelBooking, computeCancellationPolicy } from "@/lib/cancellation/
 
 export function BookingConfirmation({ booking, isHost = false }: { booking: any; isHost?: boolean }) {
   const supabase = createClient();
-  const listing = booking.listings;
+  const listing = booking.listings ?? {};
   const startDate = useMemo(() => new Date(booking.start_at), [booking.start_at]);
   const endDate = useMemo(() => new Date(booking.end_at), [booking.end_at]);
   const isConfirmed = booking.status === "CONFIRMED";
@@ -28,7 +28,7 @@ export function BookingConfirmation({ booking, isHost = false }: { booking: any;
   const isCancelled = booking.status === "CANCELLED";
   const isCompleted = booking.status === "COMPLETED";
   const canShowAddress =
-    (isConfirmed || isCompleted) && Boolean(listing.address_text);
+    (isConfirmed || isCompleted) && Boolean(listing?.address_text);
   
   const [hasReview, setHasReview] = useState<boolean | null>(null);
   const [payment, setPayment] = useState<any>(null);

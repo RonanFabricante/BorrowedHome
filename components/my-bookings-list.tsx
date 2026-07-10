@@ -1,20 +1,31 @@
 "use client";
 
 import Link from "next/link";
-import { Booking } from "@/lib/types";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatCurrency } from "@/lib/utils";
-import { format } from "date-fns";
+import { formatSydneyDate, formatSydneyTime } from "@/lib/timezone";
 import { Logo } from "@/components/logo";
-import { 
-  Building2, Calendar, Clock, Users, DollarSign, 
-  CheckCircle2, Eye, XCircle, AlertCircle, MessageCircle, Star, CalendarX 
+import {
+  Building2,
+  Calendar,
+  Clock,
+  Users,
+  DollarSign,
+  CheckCircle2,
+  Eye,
+  XCircle,
+  AlertCircle,
+  MessageCircle,
+  Star,
+  CalendarX,
 } from "lucide-react";
 
 export function MyBookingsList({ bookings }: { bookings: any[] }) {
-  if (bookings.length === 0) {
+  const safeBookings = (bookings || []).filter((b) => b?.listings);
+
+  if (safeBookings.length === 0) {
     return (
       <div className="text-center py-12">
         <div className="flex justify-center mb-4">
@@ -31,11 +42,10 @@ export function MyBookingsList({ bookings }: { bookings: any[] }) {
 
   return (
     <div className="space-y-4">
-      {bookings.map((booking) => {
+      {safeBookings.map((booking) => {
         const listing = booking.listings;
-        const startDate = new Date(booking.start_at);
         const endDate = new Date(booking.end_at);
-        const isPast = endDate < new Date();
+        const isPast = endDate.getTime() < Date.now();
 
         return (
           <Card key={booking.id}>
@@ -44,7 +54,9 @@ export function MyBookingsList({ bookings }: { bookings: any[] }) {
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-2">
                     <Building2 className="w-5 h-5 text-muted-foreground" />
-                    <h3 className="text-xl font-semibold">{listing.title}</h3>
+                    <h3 className="text-xl font-semibold">
+                      {listing.title || "Listing unavailable"}
+                    </h3>
                     <Badge
                       variant={
                         booking.status === "CONFIRMED"
@@ -70,21 +82,22 @@ export function MyBookingsList({ bookings }: { bookings: any[] }) {
                     </Badge>
                   </div>
                   <p className="text-muted-foreground mb-2">
-                    {listing.location_text}
+                    {listing.location_text || ""}
                   </p>
                   <div className="flex flex-wrap items-center gap-4 mb-4">
                     <div className="flex items-center gap-2">
                       <Calendar className="w-4 h-4 text-muted-foreground flex-shrink-0" />
                       <span className="text-sm">
                         <span className="font-semibold">Date:</span>{" "}
-                        {format(startDate, "EEEE, MMMM d, yyyy")}
+                        {formatSydneyDate(booking.start_at)}
                       </span>
                     </div>
                     <div className="flex items-center gap-2">
                       <Clock className="w-4 h-4 text-muted-foreground flex-shrink-0" />
                       <span className="text-sm">
                         <span className="font-semibold">Time:</span>{" "}
-                        {format(startDate, "h:mm a")} - {format(endDate, "h:mm a")}
+                        {formatSydneyTime(booking.start_at)} -{" "}
+                        {formatSydneyTime(booking.end_at)}
                       </span>
                     </div>
                     <div className="flex items-center gap-2">

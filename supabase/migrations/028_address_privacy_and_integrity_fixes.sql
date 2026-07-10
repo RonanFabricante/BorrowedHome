@@ -29,6 +29,11 @@ ALTER TABLE public.listings DROP COLUMN IF EXISTS address_text;
 
 ALTER TABLE public.listing_addresses ENABLE ROW LEVEL SECURITY;
 
+-- Data API requires explicit GRANTs (not auto-applied on newer Supabase projects)
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.listing_addresses TO authenticated;
+GRANT SELECT ON TABLE public.listing_addresses TO anon;
+GRANT ALL ON TABLE public.listing_addresses TO service_role;
+
 DROP POLICY IF EXISTS "Hosts can manage their listing addresses" ON public.listing_addresses;
 CREATE POLICY "Hosts can manage their listing addresses"
   ON public.listing_addresses

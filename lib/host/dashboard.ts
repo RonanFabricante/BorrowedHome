@@ -252,15 +252,15 @@ export async function getHostBookings(
     total_amount: b.total_amount,
     guests_count: b.guests_count,
     listing: {
-      id: b.listings.id,
-      title: b.listings.title,
-      location_text: b.listings.location_text,
+      id: b.listings?.id ?? "",
+      title: b.listings?.title ?? "Listing unavailable",
+      location_text: b.listings?.location_text ?? "",
     },
     guest: {
-      id: b.profiles.id,
-      full_name: b.profiles.full_name,
+      id: b.profiles?.id ?? "",
+      full_name: b.profiles?.full_name ?? null,
     },
-  }));
+  })).filter((b) => b.listing.id);
 }
 
 /**
@@ -308,16 +308,18 @@ export async function getHostCalendarBookings(
     return [];
   }
 
-  return (data || []).map((b: any) => ({
-    id: b.id,
-    title: b.listings.title,
-    start: b.start_at,
-    end: b.end_at,
-    status: b.status,
-    listingId: b.listings.id,
-    listingTitle: b.listings.title,
-    guestName: b.profiles?.full_name || null,
-  }));
+  return (data || [])
+    .filter((b: any) => b.listings)
+    .map((b: any) => ({
+      id: b.id,
+      title: b.listings.title || "Booking",
+      start: b.start_at,
+      end: b.end_at,
+      status: b.status,
+      listingId: b.listings.id,
+      listingTitle: b.listings.title || "Listing",
+      guestName: b.profiles?.full_name || null,
+    }));
 }
 
 /**

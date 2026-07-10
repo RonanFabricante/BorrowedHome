@@ -16,7 +16,7 @@ export default async function MyBookingsPage() {
     .from("bookings")
     .select(`
       *,
-      listings(id, title, location_text)
+      listings!inner(id, title, location_text)
     `)
     .eq("guest_id", user.id)
     .order("start_at", { ascending: false });

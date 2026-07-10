@@ -88,6 +88,8 @@ export function MyListingsList({
   const renderBookingCard = (booking: any, showActions: boolean = true) => {
     const listing = booking.listings;
     const guest = booking.profiles;
+    if (!listing) return null;
+
     const startDate = new Date(booking.start_at);
     const endDate = new Date(booking.end_at);
     // New requests use REQUESTED; PENDING kept for legacy rows
@@ -108,7 +110,7 @@ export function MyListingsList({
             <div className="flex items-center gap-2">
               <Building2 className="w-5 h-5 text-muted-foreground" />
               <div>
-                <CardTitle className="text-lg">{listing.title}</CardTitle>
+                <CardTitle className="text-lg">{listing.title || "Listing"}</CardTitle>
                 <p className="text-sm text-muted-foreground mt-1">
                   {isPendingRequest && `Request from ${guest?.full_name || "Guest"}`}
                   {booking.status === "CONFIRMED" && `Confirmed booking with ${guest?.full_name || "Guest"}`}
@@ -269,14 +271,14 @@ export function MyListingsList({
           </div>
         ) : (
           <div className="space-y-4">
-            {listings.map((listing) => (
+            {listings.filter(Boolean).map((listing) => (
         <Card key={listing.id}>
           <CardContent className="p-6">
             <div className="flex items-start justify-between">
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-2">
                   <Building2 className="w-5 h-5 text-muted-foreground" />
-                  <h3 className="text-xl font-semibold">{listing.title}</h3>
+                  <h3 className="text-xl font-semibold">{listing.title || "Untitled listing"}</h3>
                   {listing.published ? (
                     <Badge>Published</Badge>
                   ) : (

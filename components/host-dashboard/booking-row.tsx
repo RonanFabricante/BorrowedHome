@@ -59,7 +59,7 @@ export function BookingRow({
           <div className="flex-1 min-w-0">
             <div className="flex items-start gap-3 mb-2">
               <h3 className="text-lg font-semibold text-slate-900 truncate">
-                {booking.listing.title}
+                {booking.listing?.title || "Listing unavailable"}
               </h3>
               <StatusBadge status={booking.status} />
               {isPaymentPending && countdownText && (
@@ -73,7 +73,7 @@ export function BookingRow({
             <div className="space-y-1.5 text-sm text-slate-600">
               <div className="flex items-center gap-2">
                 <MapPin className="h-3.5 w-3.5 flex-shrink-0" />
-                <span className="truncate">{booking.listing.location_text}</span>
+                <span className="truncate">{booking.listing?.location_text || ""}</span>
               </div>
               <div className="flex items-center gap-2">
                 <Users className="h-3.5 w-3.5 flex-shrink-0" />

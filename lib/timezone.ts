@@ -72,3 +72,31 @@ export function sydneyDayOfWeek(dateYmd: string): number {
   }
   return day;
 }
+
+/** Format a timestamp in Australia/Sydney (SSR-safe; avoids UTC vs local hydration drift). */
+export function formatInSydney(
+  value: string | Date,
+  options: Intl.DateTimeFormatOptions
+): string {
+  return new Intl.DateTimeFormat("en-AU", {
+    timeZone: BOOKING_TIMEZONE,
+    ...options,
+  }).format(new Date(value));
+}
+
+export function formatSydneyDate(value: string | Date): string {
+  return formatInSydney(value, {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+}
+
+export function formatSydneyTime(value: string | Date): string {
+  return formatInSydney(value, {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+}
