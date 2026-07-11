@@ -3,11 +3,13 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { StatusChip } from "@/components/status-chip";
 import { Button } from "@/components/ui/button";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths } from "date-fns";
 import { ChevronLeft, ChevronRight, MessageCircle, Eye } from "lucide-react";
 import { CalendarEvent } from "@/lib/host/dashboard";
+import { StatusChip } from "@/components/status-chip";
+import { resolveStatusStyle } from "@/lib/ui/tokens";
 
 interface HostDashboardCalendarProps {
   hostId: string;
@@ -56,11 +58,8 @@ export function HostDashboardCalendar({ hostId }: HostDashboardCalendarProps) {
   };
 
   const getStatusColor = (status: string) => {
-    const colors: Record<string, string> = {
-      CONFIRMED: "bg-green-100 text-green-800 border-green-200",
-      PAYMENT_PENDING: "bg-amber-100 text-amber-800 border-amber-200",
-    };
-    return colors[status] || "bg-gray-100 text-gray-800 border-gray-200";
+    const style = resolveStatusStyle(status);
+    return `${style.bgClasses} ${style.textClasses} ${style.borderClasses}`;
   };
 
   return (
@@ -166,7 +165,7 @@ export function HostDashboardCalendar({ hostId }: HostDashboardCalendarProps) {
             <div className="flex items-start justify-between mb-4">
               <div>
                 <h3 className="text-lg font-semibold mb-2">{selectedEvent.listingTitle}</h3>
-                <Badge variant="outline">{selectedEvent.status.replace("_", " ")}</Badge>
+                <StatusChip status={selectedEvent.status} />
               </div>
               <Button
                 variant="ghost"

@@ -86,6 +86,14 @@ export function formatInSydney(
 
 export function formatSydneyDate(value: string | Date): string {
   return formatInSydney(value, {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+  });
+}
+
+export function formatSydneyDateLong(value: string | Date): string {
+  return formatInSydney(value, {
     weekday: "long",
     day: "numeric",
     month: "long",

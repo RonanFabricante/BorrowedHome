@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { StatusChip } from "@/components/status-chip";
 import { formatCurrency } from "@/lib/utils";
 import { format } from "date-fns";
 import { DollarSign, TrendingUp, Clock, CheckCircle2 } from "lucide-react";
@@ -180,32 +180,22 @@ export function HostDashboardEarnings({ hostId }: HostDashboardEarningsProps) {
                       >
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-1">
-                            <Badge
-                              variant={
-                                entry.type === "credit"
-                                  ? "default"
-                                  : entry.type === "payout"
-                                  ? "secondary"
-                                  : "outline"
-                              }
-                            >
-                              {entry.type}
-                            </Badge>
+                            <StatusChip status={entry.type} kind="ledger" />
                             {entry.booking?.listing?.title && (
-                              <span className="text-sm text-muted-foreground">
-                                {entry.booking.listing.title}
+                              <span className="bh-caption">
+                                {entry.booking.listing.title.toLowerCase()}
                               </span>
                             )}
                           </div>
-                          <div className="text-xs text-muted-foreground">
+                          <div className="bh-data text-xs text-muted-foreground">
                             {format(new Date(entry.created_at), "MMM d, h:mm a")}
                           </div>
                         </div>
                         <div
-                          className={`text-lg font-semibold ${
+                          className={`bh-data text-lg font-semibold tabular-nums ${
                             entry.type === "credit" || entry.type === "payout"
-                              ? "text-green-600"
-                              : "text-red-600"
+                              ? "text-accent-ink"
+                              : "text-destructive"
                           }`}
                         >
                           {entry.type === "credit" || entry.type === "payout" ? "+" : "-"}

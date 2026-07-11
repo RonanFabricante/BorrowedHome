@@ -1,12 +1,14 @@
 import { Nav } from "@/components/nav";
-import { MyBookingsList } from "@/components/my-bookings-list";
+import { MyBookingsList, type BookingRow } from "@/components/my-bookings-list";
+import { bookingsStatLine } from "@/lib/bookings/grouping";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-import { Calendar } from "lucide-react";
 
 export default async function MyBookingsPage() {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
   if (!user) {
     redirect("/auth/login");
@@ -14,22 +16,69 @@ export default async function MyBookingsPage() {
 
   const { data: bookings } = await supabase
     .from("bookings")
-    .select(`
-      *,
-      listings!inner(id, title, location_text)
-    `)
+    .select(
+      `
+      id,
+      status,
+      start_at,
+      end_at,
+      guests_count,
+      total_amount,
+      currency,
+      listings!inner(
+        id,
+        title,
+        location_text,
+        listing_photos(storage_path, sort_order)
+      )
+    `
+    )
     .eq("guest_id", user.id)
     .order("start_at", { ascending: false });
 
+  const rows: BookingRow[] = (bookings || []).map((b: any) => {
+    const photos = [...(b.listings?.listing_photos || [])].sort(
+      (a: any, c: any) => a.sort_order - c.sort_order
+    );
+    const path = photos[0]?.storage_path;
+    let photo_url: string | null = null;
+    if (path) {
+      const { data } = supabase.storage.from("listing-photos").getPublicUrl(path);
+      photo_url = data.publicUrl;
+    }
+    return {
+      id: b.id,
+      status: b.status,
+      start_at: b.start_at,
+      end_at: b.end_at,
+      guests_count: b.guests_count,
+      total_amount: b.total_amount,
+      currency: b.currency,
+      listings: b.listings
+        ? {
+            id: b.listings.id,
+            title: b.listings.title,
+            location_text: b.listings.location_text,
+            photo_url,
+          }
+        : null,
+    };
+  });
+
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-background">
       <Nav />
-      <main className="container mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold mb-8 flex items-center gap-3">
-          <Calendar className="w-8 h-8" />
-          My Bookings
-        </h1>
-        <MyBookingsList bookings={bookings || []} />
+      <main className="mx-auto w-full max-w-[920px] px-4 py-8 sm:px-6 sm:py-12">
+        <header className="mb-8">
+          <p className="bh-micro mb-2">guest</p>
+          <h1 className="font-display text-3xl font-bold lowercase tracking-tighter sm:text-4xl">
+            my bookings
+          </h1>
+          <p className="bh-data mt-2 text-sm text-accent-ink">
+            {bookingsStatLine(rows)}
+          </p>
+        </header>
+        <MyBookingsList bookings={rows} />
       </main>
     </div>
   );

@@ -1,149 +1,92 @@
 "use client";
 
-import Link from "next/link";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { formatCurrency } from "@/lib/utils";
-import { formatSydneyDate, formatSydneyTime } from "@/lib/timezone";
-import { Logo } from "@/components/logo";
 import {
-  Building2,
-  Calendar,
-  Clock,
-  Users,
-  DollarSign,
-  CheckCircle2,
-  Eye,
-  XCircle,
-  AlertCircle,
-  MessageCircle,
-  Star,
-  CalendarX,
-} from "lucide-react";
+  BookingCard,
+  guestBookingActions,
+} from "@/components/booking-card";
+import { EmptyState } from "@/components/empty-state";
+import { bookingSection } from "@/lib/bookings/grouping";
 
-export function MyBookingsList({ bookings }: { bookings: any[] }) {
-  const safeBookings = (bookings || []).filter((b) => b?.listings);
+export type BookingRow = {
+  id: string;
+  status: string;
+  start_at: string;
+  end_at: string;
+  guests_count: number;
+  total_amount: number;
+  currency?: string;
+  listings?: {
+    id: string;
+    title: string;
+    location_text?: string;
+    photo_url?: string | null;
+  } | null;
+};
 
-  if (safeBookings.length === 0) {
+export function MyBookingsList({ bookings }: { bookings: BookingRow[] }) {
+  const safe = (bookings || []).filter((b) => b?.listings);
+
+  if (safe.length === 0) {
     return (
-      <div className="text-center py-12">
-        <div className="flex justify-center mb-4">
-          <Logo size="md" href={null} />
-        </div>
-        <CalendarX className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-        <p className="text-muted-foreground mb-4">You don&apos;t have any bookings yet.</p>
-        <Button asChild>
-          <Link href="/listings">Browse Homes</Link>
-        </Button>
-      </div>
+      <EmptyState
+        title="no bookings yet — borrow your first space"
+        description="Find a kitchen, living room, or garden for the day. No overnight stays."
+        actionLabel="Browse homes"
+        actionHref="/listings"
+      />
     );
   }
 
-  return (
-    <div className="space-y-4">
-      {safeBookings.map((booking) => {
-        const listing = booking.listings;
-        const endDate = new Date(booking.end_at);
-        const isPast = endDate.getTime() < Date.now();
+  const awaiting = safe
+    .filter((b) => bookingSection(b) === "awaiting")
+    .sort((a, b) => +new Date(a.start_at) - +new Date(b.start_at));
+  const upcoming = safe
+    .filter((b) => bookingSection(b) === "upcoming")
+    .sort((a, b) => +new Date(a.start_at) - +new Date(b.start_at));
+  const past = safe
+    .filter((b) => bookingSection(b) === "past")
+    .sort((a, b) => +new Date(b.start_at) - +new Date(a.start_at));
 
-        return (
-          <Card key={booking.id}>
-            <CardContent className="p-6">
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Building2 className="w-5 h-5 text-muted-foreground" />
-                    <h3 className="text-xl font-semibold">
-                      {listing.title || "Listing unavailable"}
-                    </h3>
-                    <Badge
-                      variant={
-                        booking.status === "CONFIRMED"
-                          ? "default"
-                          : booking.status === "PENDING"
-                          ? "outline"
-                          : booking.status === "DECLINED"
-                          ? "destructive"
-                          : booking.status === "CANCELLED"
-                          ? "secondary"
-                          : booking.status === "COMPLETED"
-                          ? "secondary"
-                          : "outline"
-                      }
-                      className="flex items-center gap-1"
-                    >
-                      {booking.status === "COMPLETED" && <CheckCircle2 className="w-3 h-3" />}
-                      {booking.status === "CONFIRMED" && <CheckCircle2 className="w-3 h-3" />}
-                      {booking.status === "PENDING" && <AlertCircle className="w-3 h-3" />}
-                      {booking.status === "DECLINED" && <XCircle className="w-3 h-3" />}
-                      {booking.status === "CANCELLED" && <XCircle className="w-3 h-3" />}
-                      {booking.status}
-                    </Badge>
-                  </div>
-                  <p className="text-muted-foreground mb-2">
-                    {listing.location_text || ""}
-                  </p>
-                  <div className="flex flex-wrap items-center gap-4 mb-4">
-                    <div className="flex items-center gap-2">
-                      <Calendar className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                      <span className="text-sm">
-                        <span className="font-semibold">Date:</span>{" "}
-                        {formatSydneyDate(booking.start_at)}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Clock className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                      <span className="text-sm">
-                        <span className="font-semibold">Time:</span>{" "}
-                        {formatSydneyTime(booking.start_at)} -{" "}
-                        {formatSydneyTime(booking.end_at)}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Users className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                      <span className="text-sm">
-                        <span className="font-semibold">Guests:</span> {booking.guests_count}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <DollarSign className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                      <span className="text-sm">
-                        <span className="font-semibold">Total:</span>{" "}
-                        {formatCurrency(booking.total_amount, booking.currency)}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-                <div className="flex flex-col gap-2">
-                  {booking.status === "CONFIRMED" && (
-                    <Button asChild variant="outline" size="sm" className="flex items-center gap-2">
-                      <Link href={`/bookings/${booking.id}/messages`}>
-                        <MessageCircle className="w-4 h-4" />
-                        Message Host
-                      </Link>
-                    </Button>
-                  )}
-                  {isPast && booking.status === "COMPLETED" && (
-                    <Button asChild variant="outline" size="sm" className="flex items-center gap-2">
-                      <Link href={`/bookings/${booking.id}/review`}>
-                        <Star className="w-4 h-4" />
-                        Leave Review
-                      </Link>
-                    </Button>
-                  )}
-                  <Button asChild variant="ghost" size="sm" className="flex items-center gap-2">
-                    <Link href={`/bookings/${booking.id}/confirm`}>
-                      <Eye className="w-4 h-4" />
-                      View Details
-                    </Link>
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        );
-      })}
+  return (
+    <div className="space-y-10">
+      <Section label="awaiting payment" items={awaiting} />
+      <Section label="upcoming" items={upcoming} />
+      <Section label="past" items={past} />
     </div>
+  );
+}
+
+function Section({ label, items }: { label: string; items: BookingRow[] }) {
+  if (!items.length) return null;
+  return (
+    <section>
+      <div className="mb-4 flex items-center gap-3">
+        <h2 className="bh-micro">{label}</h2>
+        <div className="h-px flex-1 bg-border" aria-hidden />
+        <span className="bh-data text-xs text-muted-foreground">{items.length}</span>
+      </div>
+      <ul className="space-y-3">
+        {items.map((booking) => {
+          const listing = booking.listings!;
+          return (
+            <li key={booking.id}>
+              <BookingCard
+                id={booking.id}
+                title={listing.title || "Listing unavailable"}
+                locationText={listing.location_text}
+                status={booking.status}
+                startAt={booking.start_at}
+                endAt={booking.end_at}
+                guestsCount={booking.guests_count}
+                totalAmount={booking.total_amount}
+                currency={booking.currency}
+                photoUrl={listing.photo_url}
+                actions={guestBookingActions(booking)}
+              />
+            </li>
+          );
+        })}
+      </ul>
+    </section>
   );
 }

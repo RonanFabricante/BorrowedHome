@@ -3,25 +3,22 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { formatCurrency } from "@/lib/utils";
-import { format } from "date-fns";
-import { 
-  Building2, Calendar, Clock, Users, DollarSign, 
-  CheckCircle2, Eye, XCircle, AlertCircle, Edit, ExternalLink, 
-  MessageCircle, Inbox, Plus 
-} from "lucide-react";
+import { BookingCard, type BookingCardAction } from "@/components/booking-card";
+import { BookingThumb } from "@/components/booking-thumb";
+import { StatusChip } from "@/components/status-chip";
+import { EmptyState } from "@/components/empty-state";
+import { formatCurrency, cn } from "@/lib/utils";
+import { normalizeBookingStatus } from "@/lib/bookingStatus";
 
-export function MyListingsList({ 
-  listings, 
+export function MyListingsList({
+  listings,
   pendingBookings,
   confirmedBookings,
   declinedBookings,
   otherBookings,
   listingsWithActiveBookings,
-}: { 
+}: {
   listings: any[];
   pendingBookings: any[];
   confirmedBookings: any[];
@@ -40,22 +37,19 @@ export function MyListingsList({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ booking_id: bookingId, action: "accept" }),
       });
-
       const data = await response.json();
-
       if (!response.ok) {
         if (data.error === "STRIPE_ONBOARDING_REQUIRED") {
           throw new Error("STRIPE_ONBOARDING_REQUIRED");
         }
         throw new Error(data.message || data.error || "Failed to accept booking");
       }
-
       return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["bookings"] });
       queryClient.invalidateQueries({ queryKey: ["listings"] });
-      router.refresh(); // Refresh the page to show updated bookings
+      router.refresh();
     },
     onError: (error: any) => {
       if (error.message === "STRIPE_ONBOARDING_REQUIRED") {
@@ -71,7 +65,6 @@ export function MyListingsList({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ booking_id: bookingId, action: "reject" }),
       });
-
       const data = await response.json();
       if (!response.ok) {
         throw new Error(data.message || data.error || "Failed to decline booking");
@@ -81,262 +74,206 @@ export function MyListingsList({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["bookings"] });
       queryClient.invalidateQueries({ queryKey: ["listings"] });
-      router.refresh(); // Refresh the page to show updated bookings
+      router.refresh();
     },
   });
 
-  const renderBookingCard = (booking: any, showActions: boolean = true) => {
+  const hostActions = (booking: any, showAcceptDecline: boolean): BookingCardAction[] => {
+    const status = normalizeBookingStatus(booking.status);
+    const actions: BookingCardAction[] = [];
+    const busy = acceptBooking.isPending || declineBooking.isPending;
+
+    if (showAcceptDecline && (status === "REQUESTED" || status === "PENDING")) {
+      actions.push({
+        label: acceptBooking.isPending ? "Accepting…" : "Accept",
+        primary: true,
+        disabled: busy,
+        onClick: () => acceptBooking.mutate(booking.id),
+      });
+      actions.push({
+        label: declineBooking.isPending ? "Declining…" : "Decline",
+        variant: "destructive",
+        disabled: busy,
+        onClick: () => declineBooking.mutate(booking.id),
+      });
+    } else if (status === "CONFIRMED") {
+      actions.push({
+        label: "Message guest",
+        href: `/bookings/${booking.id}/messages`,
+        primary: true,
+      });
+    }
+
+    actions.push({
+      label: "View details",
+      href: `/bookings/${booking.id}/confirm`,
+      variant: "ghost",
+    });
+    return actions;
+  };
+
+  const toCard = (booking: any, showAcceptDecline: boolean) => {
     const listing = booking.listings;
     const guest = booking.profiles;
     if (!listing) return null;
-
-    const startDate = new Date(booking.start_at);
-    const endDate = new Date(booking.end_at);
-    // New requests use REQUESTED; PENDING kept for legacy rows
-    const isPendingRequest = booking.status === "REQUESTED" || booking.status === "PENDING";
-
     return (
-      <Card 
-        key={booking.id} 
-        className={
-          isPendingRequest ? "border-blue-200" :
-          booking.status === "CONFIRMED" ? "border-green-200" :
-          booking.status === "DECLINED" ? "border-red-200" :
-          "border-gray-200"
-        }
-      >
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Building2 className="w-5 h-5 text-muted-foreground" />
-              <div>
-                <CardTitle className="text-lg">{listing.title || "Listing"}</CardTitle>
-                <p className="text-sm text-muted-foreground mt-1">
-                  {isPendingRequest && `Request from ${guest?.full_name || "Guest"}`}
-                  {booking.status === "CONFIRMED" && `Confirmed booking with ${guest?.full_name || "Guest"}`}
-                  {booking.status === "DECLINED" && `Declined request from ${guest?.full_name || "Guest"}`}
-                  {!isPendingRequest && !["CONFIRMED", "DECLINED"].includes(booking.status) && 
-                    `Booking with ${guest?.full_name || "Guest"}`}
-                </p>
-              </div>
-            </div>
-            <Badge
-              variant={
-                booking.status === "CONFIRMED" ? "default" :
-                isPendingRequest ? "outline" :
-                booking.status === "DECLINED" ? "destructive" :
-                "secondary"
-              }
-              className="flex items-center gap-1"
-            >
-              {booking.status === "COMPLETED" && <CheckCircle2 className="w-3 h-3" />}
-              {isPendingRequest && <AlertCircle className="w-3 h-3" />}
-              {booking.status === "DECLINED" && <XCircle className="w-3 h-3" />}
-              {booking.status}
-            </Badge>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-wrap items-center gap-4 mb-4">
-            <div className="flex items-center gap-2">
-              <Calendar className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-              <span className="text-sm">
-                <span className="font-semibold">Date:</span>{" "}
-                {format(startDate, "EEEE, MMMM d, yyyy")}
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Clock className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-              <span className="text-sm">
-                <span className="font-semibold">Time:</span>{" "}
-                {format(startDate, "h:mm a")} - {format(endDate, "h:mm a")}
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Users className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-              <span className="text-sm">
-                <span className="font-semibold">Guests:</span> {booking.guests_count}
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <DollarSign className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-              <span className="text-sm">
-                <span className="font-semibold">Total:</span>{" "}
-                {formatCurrency(booking.total_amount, booking.currency)}
-              </span>
-            </div>
-            <div className="flex items-center gap-2 ml-auto">
-              <Button asChild variant="ghost" size="sm" className="flex items-center gap-2">
-                <Link href={`/bookings/${booking.id}/confirm`}>
-                  <Eye className="w-4 h-4" />
-                  View Details
-                </Link>
-              </Button>
-            </div>
-          </div>
-          <div className="flex gap-2">
-            {showActions && isPendingRequest && (
-              <>
-                <Button
-                  onClick={() => acceptBooking.mutate(booking.id)}
-                  disabled={acceptBooking.isPending || declineBooking.isPending}
-                  size="sm"
-                  className="flex items-center gap-2"
-                >
-                  <CheckCircle2 className="w-4 h-4" />
-                  {acceptBooking.isPending ? "Accepting..." : "Accept"}
-                </Button>
-                <Button
-                  onClick={() => declineBooking.mutate(booking.id)}
-                  disabled={acceptBooking.isPending || declineBooking.isPending}
-                  variant="destructive"
-                  size="sm"
-                  className="flex items-center gap-2"
-                >
-                  <XCircle className="w-4 h-4" />
-                  {declineBooking.isPending ? "Declining..." : "Decline"}
-                </Button>
-              </>
-            )}
-            {booking.status === "CONFIRMED" && (
-              <Button asChild variant="outline" size="sm" className="flex items-center gap-2">
-                <Link href={`/bookings/${booking.id}/messages`}>
-                  <MessageCircle className="w-4 h-4" />
-                  Message Guest
-                </Link>
-              </Button>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+      <BookingCard
+        key={booking.id}
+        id={booking.id}
+        title={listing.title || "Listing"}
+        locationText={listing.location_text}
+        subtitle={`${(guest?.full_name || "Guest").toLowerCase()} · ${(listing.location_text || "").toLowerCase()}`}
+        status={booking.status}
+        startAt={booking.start_at}
+        endAt={booking.end_at}
+        guestsCount={booking.guests_count}
+        totalAmount={booking.total_amount}
+        currency={booking.currency}
+        photoUrl={listing.photo_url}
+        actions={hostActions(booking, showAcceptDecline)}
+      />
     );
   };
+
   return (
-    <div className="space-y-8">
-      {/* Booking Requests Section */}
-      {pendingBookings.length > 0 && (
-        <div>
-          <h2 className="text-2xl font-semibold mb-4">Booking Requests</h2>
-          <div className="space-y-4">
-            {pendingBookings.map((booking) => renderBookingCard(booking, true))}
-          </div>
-        </div>
-      )}
+    <div className="space-y-10">
+      <BookingSection label="booking requests" items={pendingBookings.map((b) => toCard(b, true))} />
+      <BookingSection label="confirmed" items={confirmedBookings.map((b) => toCard(b, false))} />
+      <BookingSection label="awaiting payment & other" items={otherBookings.map((b) => toCard(b, false))} />
+      <BookingSection label="declined" items={declinedBookings.map((b) => toCard(b, false))} />
 
-      {/* Confirmed Bookings Section */}
-      {confirmedBookings.length > 0 && (
-        <div>
-          <h2 className="text-2xl font-semibold mb-4">Confirmed Bookings</h2>
-          <div className="space-y-4">
-            {confirmedBookings.map((booking) => renderBookingCard(booking, false))}
-          </div>
+      <section>
+        <div className="mb-4 flex items-center gap-3">
+          <h2 className="bh-micro">my listings</h2>
+          <div className="h-px flex-1 bg-border" aria-hidden />
+          <span className="bh-data text-xs text-muted-foreground">{listings.length}</span>
         </div>
-      )}
 
-      {/* Declined Bookings Section */}
-      {declinedBookings.length > 0 && (
-        <div>
-          <h2 className="text-2xl font-semibold mb-4">Declined Bookings</h2>
-          <div className="space-y-4">
-            {declinedBookings.map((booking) => renderBookingCard(booking, false))}
-          </div>
-        </div>
-      )}
-
-      {/* Other Bookings Section (CANCELLED, COMPLETED, etc.) */}
-      {otherBookings.length > 0 && (
-        <div>
-          <h2 className="text-2xl font-semibold mb-4">Other Bookings</h2>
-          <div className="space-y-4">
-            {otherBookings.map((booking) => renderBookingCard(booking, false))}
-          </div>
-        </div>
-      )}
-
-      {/* Listings Section */}
-      <div>
-        <h2 className="text-2xl font-semibold mb-4">My Listings</h2>
         {listings.length === 0 ? (
-          <div className="text-center py-12">
-            <Inbox className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-            <p className="text-muted-foreground mb-4">
-              You don&apos;t have any listings yet.
-            </p>
-            <Button asChild className="flex items-center gap-2 mx-auto">
-              <Link href="/host/onboard">
-                <Plus className="w-4 h-4" />
-                Create Your First Listing
-              </Link>
-            </Button>
-          </div>
+          <EmptyState
+            title="no listings yet — share a spare kitchen"
+            description="List day-use spaces in your home. Guests book by the hour; you host on your terms."
+            actionLabel="Create listing"
+            actionHref="/host/onboard"
+          />
         ) : (
-          <div className="space-y-4">
+          <ul className="space-y-3">
             {listings.filter(Boolean).map((listing) => (
-        <Card key={listing.id}>
-          <CardContent className="p-6">
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-2">
-                  <Building2 className="w-5 h-5 text-muted-foreground" />
-                  <h3 className="text-xl font-semibold">{listing.title || "Untitled listing"}</h3>
-                  {listing.published ? (
-                    <Badge>Published</Badge>
-                  ) : (
-                    <Badge variant="outline">Draft</Badge>
-                  )}
-                </div>
-                <p className="text-muted-foreground mb-2">
-                  {listing.location_text}
-                </p>
-                <p className="text-sm mb-1">
-                  <span className="font-semibold">Spaces:</span>{" "}
-                  {listing.listing_spaces
-                    ?.map((s: any) => s.space_type)
-                    .join(", ")}
-                </p>
-                <p className="text-sm mb-1">
-                  <span className="font-semibold">Max guests:</span>{" "}
-                  {listing.max_guests}
-                </p>
-                <p className="font-semibold flex items-center gap-1">
-                  <DollarSign className="w-4 h-4" />
-                  From {formatCurrency(listing.hourly_rate, listing.currency)}/hr
-                </p>
-              </div>
-              <div className="flex flex-col gap-2">
-                <Button asChild variant="outline" size="sm" className="flex items-center gap-2">
-                  <Link href={`/listings/${listing.id}`}>
-                    <ExternalLink className="w-4 h-4" />
-                    View
-                  </Link>
-                </Button>
-                {listingsWithActiveBookings.has(listing.id) ? (
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    disabled
-                    title="Cannot edit listing with active or confirmed bookings"
-                    className="flex items-center gap-2"
-                  >
-                    <Edit className="w-4 h-4" />
-                    Edit (Disabled)
-                  </Button>
-                ) : (
-                  <Button asChild variant="ghost" size="sm" className="flex items-center gap-2">
-                    <Link href={`/listings/${listing.id}/edit`}>
-                      <Edit className="w-4 h-4" />
-                      Edit
-                    </Link>
-                  </Button>
-                )}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+              <li key={listing.id}>
+                <ListingCard
+                  listing={listing}
+                  canEdit={!listingsWithActiveBookings.has(listing.id)}
+                />
+              </li>
             ))}
+          </ul>
+        )}
+      </section>
+    </div>
+  );
+}
+
+function BookingSection({
+  label,
+  items,
+}: {
+  label: string;
+  items: (React.ReactNode | null)[];
+}) {
+  const filtered = items.filter(Boolean);
+  if (!filtered.length) return null;
+  return (
+    <section>
+      <div className="mb-4 flex items-center gap-3">
+        <h2 className="bh-micro">{label}</h2>
+        <div className="h-px flex-1 bg-border" aria-hidden />
+        <span className="bh-data text-xs text-muted-foreground">{filtered.length}</span>
+      </div>
+      <ul className="space-y-3">
+        {filtered.map((node, i) => (
+          <li key={i}>{node}</li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+function ListingCard({
+  listing,
+  canEdit,
+}: {
+  listing: any;
+  canEdit: boolean;
+}) {
+  const spaces =
+    listing.listing_spaces
+      ?.map((s: any) => String(s.space_type).toLowerCase())
+      .join(" · ") || "spaces tbd";
+
+  return (
+    <article
+      className={cn(
+        "group relative flex flex-col gap-4 rounded-[var(--radius-lg)] border border-border bg-card p-4",
+        "transition-[border-color,box-shadow,transform] duration-200",
+        "hover:border-[hsl(var(--color-accent-ink)/0.45)] hover:shadow-elevated hover:-translate-y-0.5",
+        "focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2",
+        "motion-reduce:transform-none sm:flex-row sm:items-center"
+      )}
+    >
+      <Link
+        href={`/listings/${listing.id}`}
+        className="absolute inset-0 z-0 rounded-[var(--radius-lg)]"
+        aria-label={`View listing: ${listing.title}`}
+      />
+      <BookingThumb
+        src={listing.photo_url}
+        alt=""
+        className="relative z-[1] pointer-events-none"
+      />
+      <div className="relative z-[1] min-w-0 flex-1 pointer-events-none">
+        <div className="mb-1 flex flex-wrap items-center gap-2">
+          <h3 className="font-display text-xl font-bold lowercase tracking-tight line-clamp-1">
+            {listing.title || "Untitled listing"}
+          </h3>
+          <StatusChip
+            status={listing.published ? "published" : "draft"}
+            kind="listing"
+          />
+        </div>
+        <p className="bh-caption mb-3">
+          {(listing.location_text || "").toLowerCase()}
+        </p>
+        <div className="flex flex-wrap gap-x-5 gap-y-2">
+          <div>
+            <div className="bh-micro mb-0.5">spaces</div>
+            <div className="bh-data text-sm">{spaces}</div>
           </div>
+          <div>
+            <div className="bh-micro mb-0.5">guests</div>
+            <div className="bh-data text-sm">up to {listing.max_guests}</div>
+          </div>
+          <div>
+            <div className="bh-micro mb-0.5">from</div>
+            <div className="bh-data text-sm font-semibold text-accent-ink">
+              {formatCurrency(listing.hourly_rate, listing.currency)}/hr
+            </div>
+          </div>
+        </div>
+      </div>
+      <div className="relative z-[2] flex w-full flex-row gap-2 sm:w-auto sm:flex-col">
+        <Button asChild size="sm" className="w-full sm:w-auto">
+          <Link href={`/listings/${listing.id}`}>View</Link>
+        </Button>
+        {canEdit ? (
+          <Button asChild variant="ghost" size="sm" className="w-full sm:w-auto">
+            <Link href={`/listings/${listing.id}/edit`}>Edit</Link>
+          </Button>
+        ) : (
+          <Button variant="ghost" size="sm" disabled title="Active bookings block edits">
+            Edit locked
+          </Button>
         )}
       </div>
-    </div>
+    </article>
   );
 }

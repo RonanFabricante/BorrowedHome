@@ -6,13 +6,14 @@ interface DashboardHeaderProps {
 }
 
 export function DashboardHeader({
-  title = "Host Dashboard",
-  subtitle = "Manage your bookings, requests, and earnings",
+  title = "host dashboard",
+  subtitle = "bookings · requests · earnings",
 }: DashboardHeaderProps) {
   return (
-    <div className="mb-6">
+    <div className="mb-8">
+      <p className="bh-micro mb-2">host</p>
       <h1 className={typographyClasses.h1}>{title}</h1>
-      <p className={`${typographyClasses.mutedText} mt-2`}>{subtitle}</p>
+      <p className="bh-data mt-2 text-sm text-accent-ink">{subtitle}</p>
     </div>
   );
 }

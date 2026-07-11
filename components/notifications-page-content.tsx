@@ -94,26 +94,24 @@ export function NotificationsPageContent({ userId }: NotificationsPageContentPro
 
   if (isLoading) {
     return (
-      <div className="space-y-4">
-        <h1 className="text-3xl font-bold">Notifications</h1>
-        <div className="space-y-3">
-          {[1, 2, 3].map((i) => (
-            <Card key={i} className="animate-pulse">
-              <CardContent className="p-6">
-                <div className="h-4 bg-slate-200 rounded w-3/4 mb-2"></div>
-                <div className="h-4 bg-slate-200 rounded w-1/2"></div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+      <div className="space-y-3">
+        {[1, 2, 3].map((i) => (
+          <div
+            key={i}
+            className="h-24 animate-pulse rounded-[var(--radius-lg)] border border-border bg-muted/60"
+          />
+        ))}
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Notifications</h1>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="bh-data text-sm text-accent-ink">
+          {filteredNotifications.length}{" "}
+          {filter === "unread" ? "unread" : "total"}
+        </p>
         <div className="flex items-center gap-3">
           <div className="flex gap-2">
             <Button

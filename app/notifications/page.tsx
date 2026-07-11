@@ -14,9 +14,15 @@ export default async function NotificationsPage() {
   }
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-background">
       <Nav />
-      <main className="container mx-auto px-4 py-8">
+      <main className="mx-auto w-full max-w-[920px] px-4 py-8 sm:px-6 sm:py-12">
+        <header className="mb-8">
+          <p className="bh-micro mb-2">inbox</p>
+          <h1 className="font-display text-3xl font-bold lowercase tracking-tighter sm:text-4xl">
+            notifications
+          </h1>
+        </header>
         <NotificationsPageContent userId={user.id} />
       </main>
     </div>

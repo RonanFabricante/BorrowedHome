@@ -31,8 +31,10 @@ function NavLink({
       <Button
         variant="ghost"
         className={cn(
+          "relative rounded-none px-3",
           className,
-          isActive && "bg-accent text-accent-foreground font-medium"
+          isActive &&
+            "font-semibold text-foreground shadow-[inset_0_-2px_0_0_hsl(var(--color-accent))]"
         )}
         aria-current={isActive ? "page" : undefined}
       >

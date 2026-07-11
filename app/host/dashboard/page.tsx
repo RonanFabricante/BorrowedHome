@@ -31,17 +31,20 @@ export default async function HostDashboardPage({
     return (
       <div className="min-h-screen">
         <Nav />
-        <main className="container mx-auto px-4 py-16">
-          <div className="max-w-md mx-auto text-center">
-            <h1 className="text-3xl font-bold mb-4">Host Dashboard</h1>
+        <main className="mx-auto w-full max-w-[920px] px-4 py-16 sm:px-6">
+          <div className="mx-auto max-w-md text-center">
+            <p className="bh-micro mb-2">host</p>
+            <h1 className="font-display text-3xl font-bold lowercase tracking-tighter mb-4">
+              host dashboard
+            </h1>
             <p className="text-muted-foreground mb-8">
               Create a listing to start hosting and access your dashboard.
             </p>
             <a
               href="/host/onboard"
-              className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+              className="inline-flex items-center justify-center rounded-md bg-cta px-4 py-2 text-sm font-semibold text-cta-foreground hover:bg-cta/90"
             >
-              Create a Listing
+              Create a listing
             </a>
           </div>
         </main>
@@ -61,9 +64,9 @@ export default async function HostDashboardPage({
     : [];
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-background">
       <Nav />
-      <main className="container mx-auto px-4 py-8">
+      <main className="mx-auto w-full max-w-[920px] px-4 py-8 sm:px-6 sm:py-12">
         <HostDashboardContent
           hostId={user.id}
           summary={summary}
