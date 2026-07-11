@@ -209,7 +209,7 @@ export function HostDashboardEarnings({ hostId }: HostDashboardEarningsProps) {
                           }`}
                         >
                           {entry.type === "credit" || entry.type === "payout" ? "+" : "-"}
-                          {formatCurrency(entry.amount_cents)}
+                          {formatCurrency(entry.amount_cents, entry.currency)}
                         </div>
                       </div>
                     ))}

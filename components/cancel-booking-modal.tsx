@@ -17,6 +17,7 @@ interface CancelBookingModalProps {
   totalAmount: number;
   refundAmount: number;
   refundMessage: string;
+  currency?: string;
   onSuccess?: () => void;
 }
 
@@ -27,6 +28,7 @@ export function CancelBookingModal({
   totalAmount,
   refundAmount,
   refundMessage,
+  currency = "aud",
   onSuccess,
 }: CancelBookingModalProps) {
   const router = useRouter();
@@ -94,7 +96,7 @@ export function CancelBookingModal({
               {refundMessage}
             </p>
             <p className="text-sm font-semibold">
-              Refund Amount: {formatCurrency(refundAmount)}
+              Refund Amount: {formatCurrency(refundAmount, currency)}
             </p>
           </div>
 

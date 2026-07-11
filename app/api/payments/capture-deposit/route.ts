@@ -3,9 +3,10 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { stripe } from "@/lib/stripe/server";
 import {
-  STRIPE_MIN_AMOUNT_CENTS,
-  STRIPE_MIN_AMOUNT_MESSAGE,
+  stripeMinAmountMessage,
+  stripeMinAmountMinor,
 } from "@/lib/payments/stripeMinAmount";
+import { DEFAULT_CURRENCY, normalizeCurrency } from "@/lib/currency";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -100,18 +101,19 @@ export async function POST(request: NextRequest) {
 
     // Capture the deposit (full or partial)
     const captureAmount = amount ? Math.round(amount) : undefined;
+    const currency = normalizeCurrency(payment.currency || DEFAULT_CURRENCY);
+    const minMinor = stripeMinAmountMinor(currency);
 
     if (
       captureAmount !== undefined &&
-      (captureAmount < STRIPE_MIN_AMOUNT_CENTS ||
-        captureAmount > payment.deposit_amount)
+      (captureAmount < minMinor || captureAmount > payment.deposit_amount)
     ) {
       return NextResponse.json(
         {
           error:
-            captureAmount < STRIPE_MIN_AMOUNT_CENTS
-              ? STRIPE_MIN_AMOUNT_MESSAGE
-              : `Capture amount must be between ${STRIPE_MIN_AMOUNT_CENTS} and ${payment.deposit_amount} cents`,
+            captureAmount < minMinor
+              ? stripeMinAmountMessage(currency)
+              : `Capture amount must be between ${minMinor} and ${payment.deposit_amount} (minor units)`,
         },
         { status: 400 }
       );
@@ -138,7 +140,9 @@ export async function POST(request: NextRequest) {
         const transfer = await stripe.transfers.create(
           {
             amount: captureAmount || payment.deposit_amount,
-            currency: "aud",
+            currency: normalizeCurrency(
+              payment.currency || DEFAULT_CURRENCY
+            ),
             destination: host.stripe_account_id,
             metadata: {
               booking_id: bookingId,

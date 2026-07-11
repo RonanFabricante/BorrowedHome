@@ -231,6 +231,7 @@ export async function POST(request: NextRequest) {
         startTime: startAt.toISOString(),
         endTime: endAt.toISOString(),
         totalAmount: booking.total_amount,
+        currency: booking.currency,
       };
 
       sendHostBookingRequestedEmail(hostEmail, hostProfile?.full_name || "Host", emailData).catch(

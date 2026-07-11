@@ -165,6 +165,7 @@ export async function POST(request: NextRequest) {
                     startTime: booking.start_at,
                     endTime: booking.end_at,
                     totalAmount: booking.total_amount,
+                    currency: booking.currency,
                   };
 
                   // Send emails (don't await - fire and forget)

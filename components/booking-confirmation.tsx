@@ -164,7 +164,7 @@ export function BookingConfirmation({ booking, isHost = false }: { booking: any;
             <div>
               <p className="text-sm text-muted-foreground">Total Amount</p>
               <p className="font-semibold text-2xl">
-                {formatCurrency(booking.total_amount)}
+                {formatCurrency(booking.total_amount, booking.currency)}
               </p>
             </div>
           </CardContent>
@@ -437,11 +437,11 @@ export function BookingConfirmation({ booking, isHost = false }: { booking: any;
             <div>
               <p className="text-sm text-muted-foreground">Total Amount</p>
               <p className="font-semibold text-2xl">
-                {formatCurrency(booking.total_amount)}
+                {formatCurrency(booking.total_amount, booking.currency)}
               </p>
               {booking.deposit_amount > 0 && (
                 <p className="text-sm text-muted-foreground">
-                  Includes {formatCurrency(booking.deposit_amount)} deposit
+                  Includes {formatCurrency(booking.deposit_amount, booking.currency)} deposit
                 </p>
               )}
             </div>
@@ -476,6 +476,7 @@ export function BookingConfirmation({ booking, isHost = false }: { booking: any;
             bookingId={booking.id}
             amount={booking.total_amount}
             depositAmount={booking.deposit_amount || 0}
+            currency={booking.currency}
             onSuccess={() => {
               // Reload so the page reflects the confirmed booking (address,
               // messaging) once the server/webhook has updated its status.
@@ -570,7 +571,7 @@ export function BookingConfirmation({ booking, isHost = false }: { booking: any;
             <div>
               <p className="text-sm text-muted-foreground">Total Amount</p>
               <p className="font-semibold text-2xl">
-                {formatCurrency(booking.total_amount)}
+                {formatCurrency(booking.total_amount, booking.currency)}
               </p>
             </div>
           </CardContent>
@@ -641,11 +642,11 @@ export function BookingConfirmation({ booking, isHost = false }: { booking: any;
           <div>
             <p className="text-sm text-muted-foreground">Total Amount</p>
             <p className="font-semibold text-2xl">
-              {formatCurrency(booking.total_amount)}
+              {formatCurrency(booking.total_amount, booking.currency)}
             </p>
             {booking.deposit_amount > 0 && (
               <p className="text-sm text-muted-foreground">
-                Includes {formatCurrency(booking.deposit_amount)} deposit
+                Includes {formatCurrency(booking.deposit_amount, booking.currency)} deposit
               </p>
             )}
           </div>
@@ -807,6 +808,7 @@ export function BookingConfirmation({ booking, isHost = false }: { booking: any;
           totalAmount={booking.total_amount}
           refundAmount={cancellationPolicy.refundAmount}
           refundMessage={cancellationPolicy.message}
+          currency={booking.currency}
           onSuccess={() => {
             // Refresh page to show updated status
             window.location.reload();

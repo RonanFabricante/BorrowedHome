@@ -6,6 +6,7 @@ import { Elements, PaymentElement, useStripe, useElements } from "@stripe/react-
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCurrency } from "@/lib/utils";
+import { DEFAULT_CURRENCY } from "@/lib/currency";
 
 // Initialize Stripe
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
@@ -14,10 +15,17 @@ interface PaymentFormProps {
   bookingId: string;
   amount: number;
   depositAmount: number;
+  currency?: string;
   onSuccess: () => void;
 }
 
-function CheckoutForm({ bookingId, amount, depositAmount, onSuccess }: PaymentFormProps) {
+function CheckoutForm({
+  bookingId,
+  amount,
+  depositAmount,
+  currency = DEFAULT_CURRENCY,
+  onSuccess,
+}: PaymentFormProps) {
   const stripe = useStripe();
   const elements = useElements();
   const [error, setError] = useState<string | null>(null);
@@ -135,18 +143,24 @@ function CheckoutForm({ bookingId, amount, depositAmount, onSuccess }: PaymentFo
         </div>
       )}
       <Button type="submit" disabled={!stripe || loading} className="w-full">
-        {loading ? "Processing..." : `Pay ${formatCurrency(amount)}`}
+        {loading ? "Processing..." : `Pay ${formatCurrency(amount, currency)}`}
       </Button>
       {depositAmount > 0 && (
         <p className="text-xs text-muted-foreground text-center">
-          A {formatCurrency(depositAmount)} security deposit will also be held on this card (not charged)
+          A {formatCurrency(depositAmount, currency)} security deposit will also be held on this card (not charged)
         </p>
       )}
     </form>
   );
 }
 
-export function PaymentForm({ bookingId, amount, depositAmount, onSuccess }: PaymentFormProps) {
+export function PaymentForm({
+  bookingId,
+  amount,
+  depositAmount,
+  currency = DEFAULT_CURRENCY,
+  onSuccess,
+}: PaymentFormProps) {
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [depositClientSecret, setDepositClientSecret] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -225,6 +239,7 @@ export function PaymentForm({ bookingId, amount, depositAmount, onSuccess }: Pay
             bookingId={bookingId}
             amount={amount}
             depositAmount={depositAmount}
+            currency={currency}
             onSuccess={onSuccess}
           />
         </Elements>

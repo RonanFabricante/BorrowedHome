@@ -110,7 +110,7 @@ export function MyBookingsList({ bookings }: { bookings: any[] }) {
                       <DollarSign className="w-4 h-4 text-muted-foreground flex-shrink-0" />
                       <span className="text-sm">
                         <span className="font-semibold">Total:</span>{" "}
-                        {formatCurrency(booking.total_amount)}
+                        {formatCurrency(booking.total_amount, booking.currency)}
                       </span>
                     </div>
                   </div>

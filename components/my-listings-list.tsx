@@ -162,7 +162,7 @@ export function MyListingsList({
               <DollarSign className="w-4 h-4 text-muted-foreground flex-shrink-0" />
               <span className="text-sm">
                 <span className="font-semibold">Total:</span>{" "}
-                {formatCurrency(booking.total_amount)}
+                {formatCurrency(booking.total_amount, booking.currency)}
               </span>
             </div>
             <div className="flex items-center gap-2 ml-auto">
@@ -300,7 +300,7 @@ export function MyListingsList({
                 </p>
                 <p className="font-semibold flex items-center gap-1">
                   <DollarSign className="w-4 h-4" />
-                  From {formatCurrency(listing.hourly_rate)}/hr
+                  From {formatCurrency(listing.hourly_rate, listing.currency)}/hr
                 </p>
               </div>
               <div className="flex flex-col gap-2">

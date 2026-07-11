@@ -4,6 +4,7 @@ import { stripe, PLATFORM_FEE_PERCENTAGE } from "@/lib/stripe/server";
 import { checkAccountStatus, computeOnboardingStatus, findStripeAccountByUserId } from "@/lib/stripe/connect";
 import { isPaymentPending, normalizeBookingStatus } from "@/lib/bookingStatus";
 import { validateStripeAmountCents } from "@/lib/payments/stripeMinAmount";
+import { DEFAULT_CURRENCY, normalizeCurrency } from "@/lib/currency";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -261,12 +262,16 @@ export async function POST(request: NextRequest) {
     const platformFee = booking.platform_fee_amount;
     const totalAmount = bookingAmount + platformFee;
     const depositAmount = booking.deposit_amount || 0;
+    const currency = normalizeCurrency(booking.currency || DEFAULT_CURRENCY);
 
-    const totalError = validateStripeAmountCents(totalAmount);
+    const totalError = validateStripeAmountCents(totalAmount, { currency });
     if (totalError) {
       return NextResponse.json({ error: totalError }, { status: 400 });
     }
-    const depositError = validateStripeAmountCents(depositAmount, { allowZero: true });
+    const depositError = validateStripeAmountCents(depositAmount, {
+      allowZero: true,
+      currency,
+    });
     if (depositError) {
       return NextResponse.json({ error: depositError }, { status: 400 });
     }
@@ -283,7 +288,7 @@ export async function POST(request: NextRequest) {
     // Create PaymentIntent for booking + platform fee
     const paymentIntent = await stripe.paymentIntents.create({
       amount: totalAmount,
-      currency: "aud",
+      currency,
       capture_method: "manual",
       payment_method_types: ["card"],
       customer: customer.id,
@@ -305,7 +310,7 @@ export async function POST(request: NextRequest) {
     if (depositAmount > 0) {
       const depositIntent = await stripe.paymentIntents.create({
         amount: depositAmount,
-        currency: "aud",
+        currency,
         capture_method: "manual",
         payment_method_types: ["card"],
         customer: customer.id,
@@ -329,6 +334,7 @@ export async function POST(request: NextRequest) {
         stripe_deposit_intent_id: depositIntentId,
         amount: totalAmount,
         deposit_amount: depositAmount,
+        currency,
         status: "pending",
       });
 

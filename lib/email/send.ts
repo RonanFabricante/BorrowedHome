@@ -1,6 +1,8 @@
 // Email service for BorrowedHome
 // Sends transactional emails via Postmark API or Supabase SMTP
 
+import { formatCurrencyAmount, DEFAULT_CURRENCY } from "@/lib/currency";
+
 interface EmailOptions {
   to: string;
   subject: string;
@@ -16,6 +18,7 @@ export interface BookingEmailData {
   startTime: string;
   endTime: string;
   totalAmount: number;
+  currency?: string;
   paymentDeadline?: string;
   bookingUrl?: string; // Optional - some emails construct URL from bookingId
   refundAmount?: number; // For cancellation emails
@@ -27,8 +30,8 @@ const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://borrowedhome.app";
 /**
  * Format currency for email display
  */
-function formatCurrency(cents: number): string {
-  return `$${(cents / 100).toFixed(2)}`;
+function formatCurrency(cents: number, currency: string = DEFAULT_CURRENCY): string {
+  return formatCurrencyAmount(cents, currency);
 }
 
 /**
@@ -123,7 +126,7 @@ export async function sendHostBookingRequestedEmail(
         <ul>
           <li>Guest: ${data.guestName || "Guest"}</li>
           <li>Date & Time: ${formatDateTime(data.startTime)} - ${formatDateTime(data.endTime)}</li>
-          <li>Total Amount: ${formatCurrency(data.totalAmount)}</li>
+          <li>Total Amount: ${formatCurrency(data.totalAmount, data.currency)}</li>
         </ul>
         <p>Please review and respond to this request.</p>
         <a href="${bookingUrl}" class="button">View Booking Request</a>
@@ -187,7 +190,7 @@ export async function sendGuestPaymentRequiredEmail(
         <p><strong>Booking Details:</strong></p>
         <ul>
           <li>Date & Time: ${formatDateTime(data.startTime)} - ${formatDateTime(data.endTime)}</li>
-          <li>Total Amount: ${formatCurrency(data.totalAmount)}</li>
+          <li>Total Amount: ${formatCurrency(data.totalAmount, data.currency)}</li>
         </ul>
         <p>Please complete payment within the next ${hoursRemaining} hour${hoursRemaining !== 1 ? 's' : ''} to confirm your booking.</p>
         <a href="${bookingUrl}" class="button">Complete Payment</a>
@@ -290,7 +293,7 @@ export async function sendGuestBookingConfirmedEmail(
         <p><strong>Booking Details:</strong></p>
         <ul>
           <li>Date & Time: ${formatDateTime(data.startTime)} - ${formatDateTime(data.endTime)}</li>
-          <li>Total Amount: ${formatCurrency(data.totalAmount)}</li>
+          <li>Total Amount: ${formatCurrency(data.totalAmount, data.currency)}</li>
         </ul>
         <p>Your payment has been received and your booking is confirmed.</p>
         <a href="${bookingUrl}" class="button">View Booking Details</a>
@@ -343,7 +346,7 @@ export async function sendHostBookingConfirmedEmail(
         <ul>
           <li>Guest: ${data.guestName || "Guest"}</li>
           <li>Date & Time: ${formatDateTime(data.startTime)} - ${formatDateTime(data.endTime)}</li>
-          <li>Total Amount: ${formatCurrency(data.totalAmount)}</li>
+          <li>Total Amount: ${formatCurrency(data.totalAmount, data.currency)}</li>
         </ul>
         <a href="${bookingUrl}" class="button">View Booking Details</a>
         <div class="footer">
@@ -422,7 +425,7 @@ export async function sendHostBookingCancelledByGuestEmail(
   const refundInfo = data.paymentAction === "voided"
     ? "The payment authorization was voided and funds will be released by your bank (typically within a few business days)."
     : data.paymentAction === "refunded"
-    ? `A refund of ${formatCurrency(data.refundAmount || data.totalAmount)} has been initiated and may take 5-10 business days depending on your bank.`
+    ? `A refund of ${formatCurrency(data.refundAmount || data.totalAmount, data.currency)} has been initiated and may take 5-10 business days depending on your bank.`
     : "Payment processing is pending.";
 
   const html = `
@@ -449,7 +452,7 @@ export async function sendHostBookingCancelledByGuestEmail(
         <ul>
           <li>Guest: ${data.guestName || "Guest"}</li>
           <li>Date & Time: ${formatDateTime(data.startTime)} - ${formatDateTime(data.endTime)}</li>
-          <li>Total Amount: ${formatCurrency(data.totalAmount)}</li>
+          <li>Total Amount: ${formatCurrency(data.totalAmount, data.currency)}</li>
         </ul>
         <p><strong>Refund Information:</strong></p>
         <p>${refundInfo}</p>
@@ -482,7 +485,7 @@ export async function sendGuestBookingCancelledByGuestEmail(
   const refundInfo = data.paymentAction === "voided"
     ? "The payment authorization was voided and funds will be released by your bank (typically within a few business days)."
     : data.paymentAction === "refunded"
-    ? `A refund of ${formatCurrency(data.refundAmount || data.totalAmount)} has been initiated and may take 5-10 business days depending on your bank.`
+    ? `A refund of ${formatCurrency(data.refundAmount || data.totalAmount, data.currency)} has been initiated and may take 5-10 business days depending on your bank.`
     : "Payment processing is pending.";
 
   const html = `
@@ -508,7 +511,7 @@ export async function sendGuestBookingCancelledByGuestEmail(
         <p><strong>Booking Details:</strong></p>
         <ul>
           <li>Date & Time: ${formatDateTime(data.startTime)} - ${formatDateTime(data.endTime)}</li>
-          <li>Total Amount: ${formatCurrency(data.totalAmount)}</li>
+          <li>Total Amount: ${formatCurrency(data.totalAmount, data.currency)}</li>
         </ul>
         <p><strong>Refund Information:</strong></p>
         <p>${refundInfo}</p>
@@ -540,7 +543,7 @@ export async function sendGuestBookingCancelledByHostEmail(
   const refundInfo = data.paymentAction === "voided"
     ? "The payment authorization was voided and funds will be released by your bank (typically within a few business days)."
     : data.paymentAction === "refunded"
-    ? `A full refund of ${formatCurrency(data.refundAmount || data.totalAmount)} has been initiated and may take 5-10 business days depending on your bank.`
+    ? `A full refund of ${formatCurrency(data.refundAmount || data.totalAmount, data.currency)} has been initiated and may take 5-10 business days depending on your bank.`
     : "Payment processing is pending.";
 
   const html = `
@@ -566,7 +569,7 @@ export async function sendGuestBookingCancelledByHostEmail(
         <p><strong>Booking Details:</strong></p>
         <ul>
           <li>Date & Time: ${formatDateTime(data.startTime)} - ${formatDateTime(data.endTime)}</li>
-          <li>Total Amount: ${formatCurrency(data.totalAmount)}</li>
+          <li>Total Amount: ${formatCurrency(data.totalAmount, data.currency)}</li>
         </ul>
         <p><strong>Refund Information:</strong></p>
         <p>${refundInfo}</p>
@@ -599,7 +602,7 @@ export async function sendHostBookingCancelledByHostEmail(
   const refundInfo = data.paymentAction === "voided"
     ? "The payment authorization was voided and funds will be released to the guest's bank (typically within a few business days)."
     : data.paymentAction === "refunded"
-    ? `A full refund of ${formatCurrency(data.refundAmount || data.totalAmount)} has been initiated and may take 5-10 business days depending on the guest's bank.`
+    ? `A full refund of ${formatCurrency(data.refundAmount || data.totalAmount, data.currency)} has been initiated and may take 5-10 business days depending on the guest's bank.`
     : "Payment processing is pending.";
 
   const html = `
@@ -626,7 +629,7 @@ export async function sendHostBookingCancelledByHostEmail(
         <ul>
           <li>Guest: ${data.guestName || "Guest"}</li>
           <li>Date & Time: ${formatDateTime(data.startTime)} - ${formatDateTime(data.endTime)}</li>
-          <li>Total Amount: ${formatCurrency(data.totalAmount)}</li>
+          <li>Total Amount: ${formatCurrency(data.totalAmount, data.currency)}</li>
         </ul>
         <p><strong>Refund Information:</strong></p>
         <p>${refundInfo}</p>

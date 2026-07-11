@@ -135,6 +135,7 @@ export async function POST(request: NextRequest) {
             startTime: booking.start_at,
             endTime: booking.end_at,
             totalAmount: booking.total_amount,
+            currency: booking.currency,
           };
 
           await sendGuestPaymentExpiredEmail(guestEmail, guestProfile?.full_name || "Guest", emailData);

@@ -1,15 +1,17 @@
-import { type ClassValue, clsx } from "clsx"
-import { twMerge } from "tailwind-merge"
+import { type ClassValue, clsx } from "clsx";
+import { twMerge } from "tailwind-merge";
+import { DEFAULT_CURRENCY, formatCurrencyAmount } from "@/lib/currency";
 
 export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs))
+  return twMerge(clsx(inputs));
 }
 
-export function formatCurrency(cents: number): string {
-  return new Intl.NumberFormat("en-AU", {
-    style: "currency",
-    currency: "AUD",
-  }).format(cents / 100);
+/** Format Stripe/DB minor units for display. Defaults to AUD for legacy callers. */
+export function formatCurrency(
+  cents: number,
+  currency: string = DEFAULT_CURRENCY
+): string {
+  return formatCurrencyAmount(cents, currency);
 }
 
 /** Convert 24h "HH:mm" or "HH:mm:ss" to 12-hour AM/PM for display. */

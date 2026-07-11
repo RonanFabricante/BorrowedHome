@@ -5,6 +5,7 @@
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { stripe } from "@/lib/stripe/server";
+import { DEFAULT_CURRENCY, normalizeCurrency } from "@/lib/currency";
 
 const REVIEW_WINDOW_HOURS = 24;
 
@@ -41,6 +42,7 @@ export async function autoCaptureWithReviewWindow(
         total_amount,
         platform_fee_amount,
         deposit_amount,
+        currency,
         listings!inner(
           host_id,
           title
@@ -52,6 +54,7 @@ export async function autoCaptureWithReviewWindow(
           stripe_deposit_intent_id,
           amount,
           deposit_amount,
+          currency,
           deposit_released_at,
           review_window_ends_at,
           dispute_reported_at,
@@ -251,7 +254,11 @@ async function captureAndTransferToHost(
     const transfer = await stripe.transfers.create(
       {
         amount: hostAmount,
-        currency: "aud",
+        currency: normalizeCurrency(
+          (payment as { currency?: string }).currency ||
+            (booking as { currency?: string }).currency ||
+            DEFAULT_CURRENCY
+        ),
         destination: host.stripe_account_id,
         metadata: {
           booking_id: bookingId,

@@ -95,11 +95,11 @@ export function ListingsGrid({ listings, location }: ListingsGridProps) {
                 <div className="flex items-end justify-between gap-2">
                   <div>
                     <span className="block font-semibold">
-                      From {formatCurrency(hourlyRate)}/hr
+                      From {formatCurrency(hourlyRate, listing.currency)}/hr
                     </span>
                     {hourlyEquivalent < hourlyRate && (
                       <span className="text-xs text-muted-foreground">
-                        As low as {formatCurrency(hourlyEquivalent)}/hr for longer bookings
+                        As low as {formatCurrency(hourlyEquivalent, listing.currency)}/hr for longer bookings
                       </span>
                     )}
                   </div>

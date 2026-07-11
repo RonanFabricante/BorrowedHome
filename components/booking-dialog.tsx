@@ -398,21 +398,21 @@ export function BookingDialog({
             <div className="space-y-2">
               <div className="flex justify-between">
                 <span>Base price ({priceBreakdown.durationHours?.toFixed(1) || 0} hours)</span>
-                <span>{formatCurrency(priceBreakdown.basePrice)}</span>
+                <span>{formatCurrency(priceBreakdown.basePrice, listing.currency)}</span>
               </div>
               <div className="flex justify-between">
                 <span>Platform fee (10%)</span>
-                <span>{formatCurrency(priceBreakdown.fee)}</span>
+                <span>{formatCurrency(priceBreakdown.fee, listing.currency)}</span>
               </div>
               {priceBreakdown.deposit > 0 && (
                 <div className="flex justify-between">
                   <span>Damage deposit</span>
-                  <span>{formatCurrency(priceBreakdown.deposit)}</span>
+                  <span>{formatCurrency(priceBreakdown.deposit, listing.currency)}</span>
                 </div>
               )}
               <div className="flex justify-between font-semibold pt-2 border-t">
                 <span>Total</span>
-                <span>{formatCurrency(priceBreakdown.total)}</span>
+                <span>{formatCurrency(priceBreakdown.total, listing.currency)}</span>
               </div>
             </div>
           </div>

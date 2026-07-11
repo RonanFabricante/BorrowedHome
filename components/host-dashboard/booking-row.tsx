@@ -101,7 +101,7 @@ export function BookingRow({
             <div className="text-sm lg:block hidden">
               <div className="text-slate-600">Total</div>
               <div className="font-semibold text-slate-900">
-                {formatCurrency(booking.total_amount)}
+                {formatCurrency(booking.total_amount, booking.currency)}
               </div>
             </div>
           </div>
@@ -163,7 +163,7 @@ export function BookingRow({
           <div className="flex items-center justify-between">
             <span className="text-sm text-slate-600">Total</span>
             <span className="text-base font-semibold text-slate-900">
-              {formatCurrency(booking.total_amount)}
+              {formatCurrency(booking.total_amount, booking.currency)}
             </span>
           </div>
         </div>

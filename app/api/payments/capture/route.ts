@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { stripe } from "@/lib/stripe/server";
 import { PLATFORM_FEE_PERCENTAGE } from "@/lib/stripe/server";
+import { DEFAULT_CURRENCY, normalizeCurrency } from "@/lib/currency";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -40,6 +41,7 @@ export async function POST(request: NextRequest) {
           guest_id,
           total_amount,
           platform_fee_amount,
+          currency,
           listings!inner(
             host_id,
             title
@@ -176,7 +178,9 @@ export async function POST(request: NextRequest) {
     const transfer = await stripe.transfers.create(
       {
         amount: hostAmount,
-        currency: "aud",
+        currency: normalizeCurrency(
+          payment.currency || payment.bookings?.currency || DEFAULT_CURRENCY
+        ),
         destination: host.stripe_account_id,
         metadata: {
           booking_id: bookingId,

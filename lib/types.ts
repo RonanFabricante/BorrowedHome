@@ -17,6 +17,10 @@ export interface Listing {
   title: string;
   description: string | null;
   location_text: string;
+  /** ISO 3166-1 alpha-2 property country */
+  country?: string;
+  /** ISO 4217 lowercase charge currency (follows property country) */
+  currency?: string;
   /** Private; only present for hosts or after CONFIRMED/COMPLETED */
   address_text?: string | null;
   max_guests: number;
@@ -83,6 +87,8 @@ export interface Booking {
   total_amount: number;
   platform_fee_amount: number;
   deposit_amount: number;
+  /** Snapshotted from listing at request time */
+  currency?: string;
   created_at: string;
   listing?: Listing;
   guest?: Profile;

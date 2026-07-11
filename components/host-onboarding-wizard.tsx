@@ -20,6 +20,17 @@ import Image from "next/image";
 import { HostDeclarationModal } from "@/components/host-declaration-modal";
 import { onboardingSummaryHost, TERMS_VERSION } from "@/lib/legal/terms-au";
 import { PlaceAutocomplete, NormalizedPlace } from "@/components/place-autocomplete";
+import {
+  DEFAULT_COUNTRY,
+  DEFAULT_CURRENCY,
+  currencyForCountry,
+  currencyLabel,
+  normalizeCountryCode,
+  stripeMinAmountMajor,
+  stripeMinAmountMessage,
+  toMinorUnits,
+  validateStripeAmountMajor,
+} from "@/lib/currency";
 
 const spaceOptions: { value: SpaceType; label: string; icon: any }[] = [
   { value: "KITCHEN", label: "Kitchen", icon: ChefHat },
@@ -28,66 +39,87 @@ const spaceOptions: { value: SpaceType; label: string; icon: any }[] = [
   { value: "GARDEN", label: "Garden/Pool", icon: Trees },
 ];
 
-const onboardingSchema = z.object({
-  // Step 1: Spaces
-  spaces: z.array(z.enum(["KITCHEN", "DINING", "LIVING", "GARDEN"])).min(1),
-  
-  // Step 2: Basic Info
-  title: z.string().min(5, "Title must be at least 5 characters"),
-  description: z.string().min(20, "Description must be at least 20 characters"),
-  location_text: z.string().min(2, "Location is required"),
-  address_text: z.string().min(5, "Address is required"),
-  max_guests: z.number().min(1).max(50),
-  
-  // Step 3: Availability
-  availability: z.array(z.object({
-    day_of_week: z.number().min(0).max(6),
-    start_time: z.string(),
-    end_time: z.string(),
-  })).min(1),
-  
-  // Step 4: Rules
-  host_present: z.boolean(),
-  cooking_allowed: z.boolean(),
-  alcohol_allowed: z.boolean(),
-  noise_tolerance: z.enum(["LOW", "MEDIUM", "HIGH"]),
-  cleaning_expectations: z.string().optional(),
-  additional_instructions: z.string().max(1000, "Additional instructions must be 1000 characters or less").optional(),
-  
-  // Step 4.5: Facilities & Supplies
-  toilet_access: z.enum(["shared", "private", "limited", "none"]),
-  toilet_access_notes: z.string().optional(),
-  consumables_policy_host_notes: z.string().optional(),
-  provides_toilet_paper: z.boolean(),
-  provides_pantry_staples: z.boolean(),
-  provides_groceries: z.boolean(),
-  
-  // Step 5: Pricing
-  hourly_rate: z
-    .number({ invalid_type_error: "Hourly rate is required" })
-    .min(0.5, "Amount must be at least $0.50 AUD"),
-  half_day_rate: z
-    .number({ invalid_type_error: "Half-day rate is required" })
-    .min(0.5, "Amount must be at least $0.50 AUD"),
-  full_day_rate: z
-    .number({ invalid_type_error: "Full-day rate is required" })
-    .min(0.5, "Amount must be at least $0.50 AUD"),
-  deposit_amount: z
-    .number({ invalid_type_error: "Deposit must be a number" })
-    .min(0)
-    .refine((v) => v === 0 || v >= 0.5, {
-      message: "Amount must be at least $0.50 AUD",
-    }),
-}).refine((data) => {
-  // Require toilet_access_notes when toilet_access is limited or none
-  if (data.toilet_access === "limited" || data.toilet_access === "none") {
-    return data.toilet_access_notes && data.toilet_access_notes.trim().length > 0;
-  }
-  return true;
-}, {
-  message: "Please explain the toilet arrangements",
-  path: ["toilet_access_notes"],
-});
+const onboardingSchema = z
+  .object({
+    // Step 1: Spaces
+    spaces: z.array(z.enum(["KITCHEN", "DINING", "LIVING", "GARDEN"])).min(1),
+
+    // Step 2: Basic Info
+    title: z.string().min(5, "Title must be at least 5 characters"),
+    description: z.string().min(20, "Description must be at least 20 characters"),
+    location_text: z.string().min(2, "Location is required"),
+    address_text: z.string().min(5, "Address is required"),
+    country: z.string().min(2),
+    currency: z.string().min(3),
+    max_guests: z.number().min(1).max(50),
+
+    // Step 3: Availability
+    availability: z
+      .array(
+        z.object({
+          day_of_week: z.number().min(0).max(6),
+          start_time: z.string(),
+          end_time: z.string(),
+        })
+      )
+      .min(1),
+
+    // Step 4: Rules
+    host_present: z.boolean(),
+    cooking_allowed: z.boolean(),
+    alcohol_allowed: z.boolean(),
+    noise_tolerance: z.enum(["LOW", "MEDIUM", "HIGH"]),
+    cleaning_expectations: z.string().optional(),
+    additional_instructions: z
+      .string()
+      .max(1000, "Additional instructions must be 1000 characters or less")
+      .optional(),
+
+    // Step 4.5: Facilities & Supplies
+    toilet_access: z.enum(["shared", "private", "limited", "none"]),
+    toilet_access_notes: z.string().optional(),
+    consumables_policy_host_notes: z.string().optional(),
+    provides_toilet_paper: z.boolean(),
+    provides_pantry_staples: z.boolean(),
+    provides_groceries: z.boolean(),
+
+    // Step 5: Pricing (min validated in superRefine against listing currency)
+    hourly_rate: z.number({ invalid_type_error: "Hourly rate is required" }),
+    half_day_rate: z.number({ invalid_type_error: "Half-day rate is required" }),
+    full_day_rate: z.number({ invalid_type_error: "Full-day rate is required" }),
+    deposit_amount: z.number({ invalid_type_error: "Deposit must be a number" }).min(0),
+  })
+  .superRefine((data, ctx) => {
+    if (
+      (data.toilet_access === "limited" || data.toilet_access === "none") &&
+      !(data.toilet_access_notes && data.toilet_access_notes.trim().length > 0)
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Please explain the toilet arrangements",
+        path: ["toilet_access_notes"],
+      });
+    }
+
+    const currency = data.currency || DEFAULT_CURRENCY;
+    const minMsg = stripeMinAmountMessage(currency);
+    for (const field of ["hourly_rate", "half_day_rate", "full_day_rate"] as const) {
+      const err = validateStripeAmountMajor(data[field], currency);
+      if (err) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: minMsg, path: [field] });
+      }
+    }
+    const depositErr = validateStripeAmountMajor(data.deposit_amount, currency, {
+      allowZero: true,
+    });
+    if (depositErr) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: minMsg,
+        path: ["deposit_amount"],
+      });
+    }
+  });
 
 type OnboardingFormData = z.infer<typeof onboardingSchema>;
 
@@ -134,9 +166,26 @@ export function HostOnboardingWizard() {
       description: "",
       location_text: "",
       address_text: "",
+      country: DEFAULT_COUNTRY,
+      currency: DEFAULT_CURRENCY,
       cleaning_expectations: "",
     },
   });
+
+  const listingCurrency = form.watch("currency") || DEFAULT_CURRENCY;
+  const listingCurrencyLabel = currencyLabel(listingCurrency);
+  const minMajor = stripeMinAmountMajor(listingCurrency);
+
+  const applyPlaceCountry = (place: NormalizedPlace | null, preferAddress: boolean) => {
+    if (!place?.country) return;
+    const country = normalizeCountryCode(place.country);
+    const currency = currencyForCountry(country);
+    // Prefer full address country when both are set
+    if (preferAddress || !addressPlace?.country) {
+      form.setValue("country", country, { shouldValidate: true });
+      form.setValue("currency", currency, { shouldValidate: true });
+    }
+  };
 
   // Photo upload handlers
   const handlePhotoUpload = (files: FileList | null, spaceType: SpaceType) => {
@@ -217,6 +266,8 @@ export function HostOnboardingWizard() {
           title: data.title,
           description: data.description,
           location_text: data.location_text,
+          country: data.country || DEFAULT_COUNTRY,
+          currency: data.currency || DEFAULT_CURRENCY,
           max_guests: data.max_guests,
           host_present: data.host_present,
           cooking_allowed: data.cooking_allowed,
@@ -232,10 +283,10 @@ export function HostOnboardingWizard() {
           provides_toilet_paper: data.provides_toilet_paper,
           provides_pantry_staples: data.provides_pantry_staples,
           provides_groceries: data.provides_groceries,
-          hourly_rate: Math.round(data.hourly_rate * 100), // Convert to cents
-          half_day_rate: Math.round(data.half_day_rate * 100),
-          full_day_rate: Math.round(data.full_day_rate * 100),
-          deposit_amount: Math.round(data.deposit_amount * 100),
+          hourly_rate: toMinorUnits(data.hourly_rate, data.currency),
+          half_day_rate: toMinorUnits(data.half_day_rate, data.currency),
+          full_day_rate: toMinorUnits(data.full_day_rate, data.currency),
+          deposit_amount: toMinorUnits(data.deposit_amount, data.currency),
           published: false, // Host can publish later
         })
         .select()
@@ -491,10 +542,10 @@ export function HostOnboardingWizard() {
             setLocationPlace(place);
             if (place) {
               form.setValue("location_text", place.label, { shouldValidate: true });
+              applyPlaceCountry(place, false);
             }
           }}
-          placeholder="e.g., Surry Hills, NSW"
-          country="au"
+          placeholder="e.g., Surry Hills, NSW or Brooklyn, NY"
         />
         {form.formState.errors.location_text && (
           <p className="text-sm text-destructive mt-1">
@@ -514,10 +565,10 @@ export function HostOnboardingWizard() {
             setAddressPlace(place);
             if (place) {
               form.setValue("address_text", place.label, { shouldValidate: true });
+              applyPlaceCountry(place, true);
             }
           }}
           placeholder="e.g., 123 Main St, Surry Hills"
-          country="au"
           types="address"
         />
         {form.formState.errors.address_text && (
@@ -526,7 +577,8 @@ export function HostOnboardingWizard() {
           </p>
         )}
         <p className="text-sm text-muted-foreground mt-1">
-          This will only be shown to confirmed bookings
+          This will only be shown to confirmed bookings. Currency is set from this address
+          ({listingCurrencyLabel}).
         </p>
       </div>
       <div>
@@ -971,16 +1023,17 @@ export function HostOnboardingWizard() {
     <div className="space-y-4">
       <h2 className="text-2xl font-bold mb-4">Pricing</h2>
       <p className="text-muted-foreground mb-6">
-        Set your rates in AUD. Stripe requires charges of at least $0.50.
+        Set your rates in {listingCurrencyLabel} (from the property address).
+        Stripe requires charges of at least {stripeMinAmountMessage(listingCurrency).replace("Amount must be at least ", "")}.
       </p>
       <div>
-        <Label htmlFor="hourly_rate">Hourly Rate ($)</Label>
+        <Label htmlFor="hourly_rate">Hourly Rate ({listingCurrencyLabel})</Label>
         <Input
           id="hourly_rate"
           type="number"
           step="0.01"
           {...form.register("hourly_rate", { valueAsNumber: true })}
-          min={0.5}
+          min={minMajor}
         />
         {form.formState.errors.hourly_rate && (
           <p className="text-sm text-destructive mt-1">
@@ -989,13 +1042,13 @@ export function HostOnboardingWizard() {
         )}
       </div>
       <div>
-        <Label htmlFor="half_day_rate">Half-Day Rate (4 hours) ($)</Label>
+        <Label htmlFor="half_day_rate">Half-Day Rate (4 hours) ({listingCurrencyLabel})</Label>
         <Input
           id="half_day_rate"
           type="number"
           step="0.01"
           {...form.register("half_day_rate", { valueAsNumber: true })}
-          min={0.5}
+          min={minMajor}
         />
         {form.formState.errors.half_day_rate && (
           <p className="text-sm text-destructive mt-1">
@@ -1004,13 +1057,13 @@ export function HostOnboardingWizard() {
         )}
       </div>
       <div>
-        <Label htmlFor="full_day_rate">Full-Day Rate (8 hours) ($)</Label>
+        <Label htmlFor="full_day_rate">Full-Day Rate (8 hours) ({listingCurrencyLabel})</Label>
         <Input
           id="full_day_rate"
           type="number"
           step="0.01"
           {...form.register("full_day_rate", { valueAsNumber: true })}
-          min={0.5}
+          min={minMajor}
         />
         {form.formState.errors.full_day_rate && (
           <p className="text-sm text-destructive mt-1">
@@ -1019,7 +1072,7 @@ export function HostOnboardingWizard() {
         )}
       </div>
       <div>
-        <Label htmlFor="deposit_amount">Damage Deposit ($)</Label>
+        <Label htmlFor="deposit_amount">Damage Deposit ({listingCurrencyLabel})</Label>
         <Input
           id="deposit_amount"
           type="number"
@@ -1028,7 +1081,8 @@ export function HostOnboardingWizard() {
           min={0}
         />
         <p className="text-sm text-muted-foreground mt-1">
-          Optional. If set, must be at least $0.50 AUD. Refundable deposit to cover potential damage.
+          Optional. If set, must meet Stripe&apos;s minimum for {listingCurrencyLabel}.
+          Refundable deposit to cover potential damage.
         </p>
         {form.formState.errors.deposit_amount && (
           <p className="text-sm text-destructive mt-1">

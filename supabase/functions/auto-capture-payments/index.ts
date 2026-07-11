@@ -20,6 +20,7 @@ interface Payment {
   stripe_deposit_intent_id: string | null;
   amount: number;
   deposit_amount: number;
+  currency?: string;
   review_window_ends_at: string | null;
   dispute_reported_at: string | null;
   auto_capture_scheduled_at: string | null;
@@ -33,6 +34,7 @@ interface Booking {
   total_amount: number;
   platform_fee_amount: number;
   deposit_amount: number;
+  currency?: string;
   listings: {
     host_id: string;
     title: string;
@@ -177,7 +179,7 @@ async function captureAndTransferToHost(
 
     const transferParams = new URLSearchParams({
       amount: hostAmount.toString(),
-      currency: "aud",
+      currency: (payment.currency || booking.currency || "aud").toLowerCase(),
       destination: hostData.stripe_account_id,
       "metadata[booking_id]": bookingId,
       "metadata[type]": "booking_payment",
@@ -297,6 +299,7 @@ async function autoCaptureWithReviewWindow(
         total_amount,
         platform_fee_amount,
         deposit_amount,
+        currency,
         listings!inner(
           host_id,
           title
@@ -308,6 +311,7 @@ async function autoCaptureWithReviewWindow(
           stripe_deposit_intent_id,
           amount,
           deposit_amount,
+          currency,
           review_window_ends_at,
           dispute_reported_at,
           auto_capture_scheduled_at,

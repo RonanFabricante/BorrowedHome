@@ -150,8 +150,7 @@ export function SearchForm() {
               }
             }}
             onBlur={() => setTouched((t) => ({ ...t, location: true }))}
-            placeholder="e.g. Surry Hills"
-            country="au"
+            placeholder="e.g. Surry Hills or Brooklyn"
             className="w-full"
           />
           {showFieldError("location") && (

@@ -7,6 +7,7 @@ import {
   type BookingEmailData,
 } from "@/lib/email/send";
 import { validateStripeAmountCents } from "@/lib/payments/stripeMinAmount";
+import { DEFAULT_CURRENCY, normalizeCurrency } from "@/lib/currency";
 
 export const dynamic = "force-dynamic";
 
@@ -120,6 +121,7 @@ export async function POST(request: NextRequest) {
           startTime: booking.start_at,
           endTime: booking.end_at,
           totalAmount: booking.total_amount,
+          currency: booking.currency,
         };
 
         sendGuestRequestRejectedEmail(guestEmail, guestProfile?.full_name || "Guest", emailData).catch(
@@ -200,12 +202,18 @@ export async function POST(request: NextRequest) {
       const platformFee = acceptedBooking.platform_fee_amount;
       const totalAmount = bookingAmount + platformFee;
       const depositAmount = acceptedBooking.deposit_amount || 0;
+      const currency = normalizeCurrency(
+        acceptedBooking.currency || DEFAULT_CURRENCY
+      );
 
-      const totalError = validateStripeAmountCents(totalAmount);
+      const totalError = validateStripeAmountCents(totalAmount, { currency });
       if (totalError) {
         return NextResponse.json({ error: totalError }, { status: 400 });
       }
-      const depositError = validateStripeAmountCents(depositAmount, { allowZero: true });
+      const depositError = validateStripeAmountCents(depositAmount, {
+        allowZero: true,
+        currency,
+      });
       if (depositError) {
         return NextResponse.json({ error: depositError }, { status: 400 });
       }
@@ -222,7 +230,7 @@ export async function POST(request: NextRequest) {
 
       const paymentIntent = await stripe.paymentIntents.create({
         amount: totalAmount,
-        currency: "aud",
+        currency,
         capture_method: "manual",
         payment_method_types: ["card"],
         customer: customer.id,
@@ -240,7 +248,7 @@ export async function POST(request: NextRequest) {
       if (depositAmount > 0) {
         const depositIntent = await stripe.paymentIntents.create({
           amount: depositAmount,
-          currency: "aud",
+          currency,
           capture_method: "manual",
           payment_method_types: ["card"],
           customer: customer.id,
@@ -264,6 +272,7 @@ export async function POST(request: NextRequest) {
           stripe_deposit_intent_id: depositIntentId,
           amount: totalAmount,
           deposit_amount: depositAmount,
+          currency,
           status: "pending",
         });
 
@@ -325,6 +334,7 @@ export async function POST(request: NextRequest) {
           startTime: acceptedBooking.start_at,
           endTime: acceptedBooking.end_at,
           totalAmount,
+          currency: acceptedBooking.currency,
           paymentDeadline: acceptedBooking.payment_deadline_at,
         };
 

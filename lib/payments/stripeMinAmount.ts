@@ -1,51 +1,60 @@
-/** Stripe's minimum charge for AUD (cents). */
-export const STRIPE_MIN_AMOUNT_CENTS = 50;
+/**
+ * Stripe minimum charge helpers (currency-aware).
+ * Prefer importing from @/lib/currency for new code.
+ */
 
-/** Same minimum in dollars for host pricing forms. */
-export const STRIPE_MIN_AMOUNT_DOLLARS = 0.5;
+import {
+  DEFAULT_CURRENCY,
+  stripeMinAmountMajor,
+  stripeMinAmountMessage,
+  stripeMinAmountMinor,
+  validateStripeAmountMajor,
+  validateStripeAmountMinor,
+} from "@/lib/currency";
 
-export const STRIPE_MIN_AMOUNT_MESSAGE =
-  "Amount must be at least $0.50 AUD";
+/** @deprecated Use stripeMinAmountMinor(currency) — AUD default for legacy callers. */
+export const STRIPE_MIN_AMOUNT_CENTS = stripeMinAmountMinor(DEFAULT_CURRENCY);
 
-/** True when amountCents is chargeable via Stripe (AUD). */
-export function meetsStripeMinAmount(amountCents: number): boolean {
-  return Number.isFinite(amountCents) && amountCents >= STRIPE_MIN_AMOUNT_CENTS;
+/** @deprecated Use stripeMinAmountMajor(currency) */
+export const STRIPE_MIN_AMOUNT_DOLLARS = stripeMinAmountMajor(DEFAULT_CURRENCY);
+
+/** @deprecated Use stripeMinAmountMessage(currency) */
+export const STRIPE_MIN_AMOUNT_MESSAGE = stripeMinAmountMessage(DEFAULT_CURRENCY);
+
+export function meetsStripeMinAmount(
+  amountCents: number,
+  currency: string = DEFAULT_CURRENCY
+): boolean {
+  return (
+    Number.isFinite(amountCents) &&
+    amountCents >= stripeMinAmountMinor(currency)
+  );
 }
 
-/**
- * Validate a Stripe charge amount in cents.
- * Returns an error message or null if valid.
- * Pass `allowZero` for optional deposits (0 = no deposit).
- */
 export function validateStripeAmountCents(
   amountCents: number,
-  options: { allowZero?: boolean } = {}
+  options: { allowZero?: boolean; currency?: string } = {}
 ): string | null {
-  if (!Number.isFinite(amountCents) || amountCents < 0) {
-    return STRIPE_MIN_AMOUNT_MESSAGE;
-  }
-  if (options.allowZero && amountCents === 0) {
-    return null;
-  }
-  if (amountCents < STRIPE_MIN_AMOUNT_CENTS) {
-    return STRIPE_MIN_AMOUNT_MESSAGE;
-  }
-  return null;
+  return validateStripeAmountMinor(
+    amountCents,
+    options.currency ?? DEFAULT_CURRENCY,
+    { allowZero: options.allowZero }
+  );
 }
 
-/** Validate a dollar amount from host pricing forms. */
 export function validateStripeAmountDollars(
   amountDollars: number,
-  options: { allowZero?: boolean } = {}
+  options: { allowZero?: boolean; currency?: string } = {}
 ): string | null {
-  if (!Number.isFinite(amountDollars) || amountDollars < 0) {
-    return STRIPE_MIN_AMOUNT_MESSAGE;
-  }
-  if (options.allowZero && amountDollars === 0) {
-    return null;
-  }
-  if (amountDollars < STRIPE_MIN_AMOUNT_DOLLARS) {
-    return STRIPE_MIN_AMOUNT_MESSAGE;
-  }
-  return null;
+  return validateStripeAmountMajor(
+    amountDollars,
+    options.currency ?? DEFAULT_CURRENCY,
+    { allowZero: options.allowZero }
+  );
 }
+
+export {
+  stripeMinAmountMinor,
+  stripeMinAmountMajor,
+  stripeMinAmountMessage,
+};

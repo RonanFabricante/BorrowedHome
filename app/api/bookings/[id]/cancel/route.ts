@@ -289,6 +289,7 @@ export async function POST(
       startTime: booking.start_at,
       endTime: booking.end_at,
       totalAmount: booking.total_amount,
+      currency: booking.currency,
       refundAmount: policyResult.refundableAmountCents,
       paymentAction: paymentResult?.action === "failed" ? "none" : (paymentResult?.action || "none"),
     };

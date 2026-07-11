@@ -317,19 +317,19 @@ export function ListingDetail({
                 <div className="flex justify-between mb-1">
                   <span>Hourly</span>
                   <span className="font-semibold">
-                    {formatCurrency(listing.hourly_rate)}
+                    {formatCurrency(listing.hourly_rate, listing.currency)}
                   </span>
                 </div>
                 <div className="flex justify-between mb-1">
                   <span>Half-day (4 hours)</span>
                   <span className="font-semibold">
-                    {formatCurrency(listing.half_day_rate)}
+                    {formatCurrency(listing.half_day_rate, listing.currency)}
                   </span>
                 </div>
                 <div className="flex justify-between">
                   <span>Full-day (8 hours)</span>
                   <span className="font-semibold">
-                    {formatCurrency(listing.full_day_rate)}
+                    {formatCurrency(listing.full_day_rate, listing.currency)}
                   </span>
                 </div>
               </div>
@@ -338,7 +338,7 @@ export function ListingDetail({
                   <div className="flex justify-between">
                     <span>Damage deposit</span>
                     <span className="font-semibold">
-                      {formatCurrency(listing.deposit_amount)}
+                      {formatCurrency(listing.deposit_amount, listing.currency)}
                     </span>
                   </div>
                 </div>
