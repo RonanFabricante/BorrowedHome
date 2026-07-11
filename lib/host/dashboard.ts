@@ -21,6 +21,7 @@ export interface HostBooking {
   created_at: string;
   payment_deadline_at: string | null;
   total_amount: number;
+  currency?: string;
   guests_count: number;
   listing: {
     id: string;
@@ -203,6 +204,7 @@ export async function getHostBookings(
       created_at,
       payment_deadline_at,
       total_amount,
+      currency,
       guests_count,
       listings!inner(id, title, location_text, host_id),
       profiles!bookings_guest_id_fkey(id, full_name)
@@ -250,6 +252,7 @@ export async function getHostBookings(
     created_at: b.created_at,
     payment_deadline_at: b.payment_deadline_at,
     total_amount: b.total_amount,
+    currency: b.currency,
     guests_count: b.guests_count,
     listing: {
       id: b.listings?.id ?? "",
