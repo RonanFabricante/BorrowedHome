@@ -1,26 +1,34 @@
 import type { Metadata } from "next";
-import { Fraunces, Source_Sans_3 } from "next/font/google";
+import { Space_Grotesk, Source_Sans_3, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
 import { Footer } from "@/components/footer";
 import { IdleTimeoutHandler } from "@/components/idle-timeout-handler";
 
 /**
- * Display: Fraunces — soft modern serif with optical sizing and soft
- * terminals; editorial without Canela licensing cost. Body: Source Sans 3 —
- * humanist companion that stays calm next to the loud headline.
+ * Display: Space Grotesk — aggressive contemporary grotesque for oversized
+ * lowercase headlines. Mono: IBM Plex Mono — all stats, times, prices,
+ * captions. Body: Source Sans 3 — calm humanist for reading.
  */
-const display = Fraunces({
+const display = Space_Grotesk({
   subsets: ["latin"],
   variable: "--font-display",
   display: "swap",
-  weight: ["300", "500", "600"],
+  weight: ["400", "500", "600", "700"],
   preload: true,
 });
 
 const body = Source_Sans_3({
   subsets: ["latin"],
   variable: "--font-body",
+  display: "swap",
+  weight: ["400", "500", "600"],
+  preload: true,
+});
+
+const mono = IBM_Plex_Mono({
+  subsets: ["latin"],
+  variable: "--font-mono",
   display: "swap",
   weight: ["400", "500", "600"],
   preload: true,
@@ -41,11 +49,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en-AU" className={`${display.variable} ${body.variable}`}>
+    <html
+      lang="en-AU"
+      className={`${display.variable} ${body.variable} ${mono.variable}`}
+    >
       <body className="font-sans">
         <Providers>
           <IdleTimeoutHandler />
-          <div className="min-h-screen flex flex-col">
+          <div className="flex min-h-screen flex-col">
             {children}
             <Footer />
           </div>

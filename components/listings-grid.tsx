@@ -43,7 +43,11 @@ export function ListingsGrid({ listings, location }: ListingsGridProps) {
   return (
     <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
       {listings.map((listing) => {
-        const heroPhoto = listing.photos?.sort((a, b) => a.sort_order - b.sort_order)[0];
+        const sortedPhotos = [...(listing.photos || [])].sort(
+          (a, b) => a.sort_order - b.sort_order
+        );
+        const heroPhoto = sortedPhotos[0];
+        const hoverPhoto = sortedPhotos[1];
         const hourlyRate = listing.hourly_rate;
         const hourlyEquivalent = Math.min(
           listing.hourly_rate,
@@ -57,13 +61,25 @@ export function ListingsGrid({ listings, location }: ListingsGridProps) {
               <div className="bh-plate m-3 mb-0 aspect-[4/3]">
                 <div className="relative h-full w-full overflow-hidden rounded-[calc(var(--radius)-2px)] bg-muted">
                   {heroPhoto?.url ? (
-                    <Image
-                      src={heroPhoto.url}
-                      alt={listing.title}
-                      fill
-                      sizes="(max-width: 768px) 100vw, 33vw"
-                      className="object-cover"
-                    />
+                    <>
+                      <Image
+                        src={heroPhoto.url}
+                        alt={listing.title}
+                        fill
+                        sizes="(max-width: 768px) 100vw, 33vw"
+                        className="object-cover transition-opacity duration-300 group-hover:opacity-0 motion-reduce:transition-none"
+                      />
+                      {hoverPhoto?.url && (
+                        <Image
+                          src={hoverPhoto.url}
+                          alt=""
+                          fill
+                          sizes="(max-width: 768px) 100vw, 33vw"
+                          className="object-cover opacity-0 transition-opacity duration-300 group-hover:opacity-100 motion-reduce:opacity-0"
+                          aria-hidden
+                        />
+                      )}
+                    </>
                   ) : (
                     <div className="absolute inset-0 bg-muted" aria-hidden />
                   )}
@@ -76,11 +92,11 @@ export function ListingsGrid({ listings, location }: ListingsGridProps) {
                 )}
               </div>
               <CardContent className="p-4 pt-2">
-                <h3 className="mb-1 font-display text-lg font-medium line-clamp-1">
+                <h3 className="mb-1 font-display text-lg font-bold lowercase tracking-tight line-clamp-1">
                   {listing.title}
                 </h3>
-                <p className="mb-3 line-clamp-1 text-sm text-muted-foreground">
-                  {listing.location_text}
+                <p className="bh-caption mb-3 line-clamp-1">
+                  {(listing.location_text || "").toLowerCase()}
                 </p>
                 <div className="mb-3 flex flex-wrap items-center gap-2">
                   {listing.spaces?.map((space) => {
@@ -96,16 +112,16 @@ export function ListingsGrid({ listings, location }: ListingsGridProps) {
                 </div>
                 <div className="flex items-end justify-between gap-2">
                   <div>
-                    <span className="block font-semibold">
+                    <span className="bh-data block text-sm font-semibold text-accent-ink">
                       From {formatCurrency(hourlyRate, listing.currency)}/hr
                     </span>
                     {hourlyEquivalent < hourlyRate && (
-                      <span className="text-xs text-muted-foreground">
-                        As low as {formatCurrency(hourlyEquivalent, listing.currency)}/hr for longer bookings
+                      <span className="bh-data text-xs text-muted-foreground">
+                        As low as {formatCurrency(hourlyEquivalent, listing.currency)}/hr
                       </span>
                     )}
                   </div>
-                  <span className="shrink-0 text-sm text-muted-foreground">
+                  <span className="bh-data shrink-0 text-xs text-muted-foreground">
                     Up to {listing.max_guests} guests
                   </span>
                 </div>

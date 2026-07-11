@@ -2,30 +2,41 @@
 
 Source of truth: `app/globals.css` (`:root`).
 
-## Color (6 roles)
+## Accent choice
+
+**Electric chartreuse** `~#C6F84C` (`--color-accent`) — daylight energy for a day-use marketplace (late-morning sun through leaves), not racing lime. Large numerals and CTA fills use the electric value; **`--color-accent-ink`** (~olive chartreuse) is used for text-sized accents to meet WCAG AA on warm white.
+
+## Color (6 roles + accent-ink companion)
 
 | Token | Role | Approx |
 |-------|------|--------|
-| `--color-primary` | Eucalyptus green — brand, day arc, links | `#1F3D2B` |
-| `--color-accent` | Clay/ochre — primary CTAs only | `#A85A30` |
+| `--color-primary` | Eucalyptus — brand, nav emphasis | `#1F3D2B` |
+| `--color-accent` | Electric chartreuse — CTA fills, day arc, large marks | `#C6F84C` |
+| `--color-accent-ink` | Darkened accent for AA text / underlines | `#4A6B12` |
 | `--color-bg` | Warm off-white page ground | `#F6F3ED` |
 | `--color-ink` | Warm near-black text | `#221E1A` |
-| `--color-error` | Destructive / errors | `#AE2E2E` |
-| `--color-success` | Success states | `#2C6B4A` |
+| `--color-error` | Destructive | `#AE2E2E` |
+| `--color-success` | Success | `#2C6B4A` |
 
-`--warning` aliases `--color-accent` for soft alerts (not a 7th hue).
+CTA = accent fill + ink foreground (not white-on-chartreuse).
 
-## Type
+## Type (3 faces)
 
-- **Display:** Fraunces (serif) — `h1` / `h2` / hero only
-- **Body/UI:** Source Sans 3
-- Scale: 1.25 major third (`--text-xs` … `--text-4xl`, `--text-hero` via `clamp`)
+- **Display:** Space Grotesk — oversized lowercase headlines (`--font-display`)
+- **Data:** IBM Plex Mono — stats, times, prices, captions (`--font-mono`, `.bh-data` / `.bh-micro`)
+- **Body:** Source Sans 3 — reading UI (`--font-body`)
 
-## Elevation & radius
+Hero scale: `--text-hero` via `clamp()`.
 
-- `--shadow-card`, `--shadow-elevated`
-- `--radius-sm` / `--radius` / `--radius-lg`
+## Motion
+
+- Hero headline settle ≤600ms
+- Count-up on scroll ≤800ms (once)
+- Scroll reveal fade+rise
+- Home card image hover swap
+- `prefers-reduced-motion` disables all
+- Search card inputs: no entrance animation
 
 ## Signature
 
-`DayArc` — max 3 placements: homepage hero, booking confirm, footer.
+`DayArc` — sunrise → 9:00 PM with live “now” marker. Max 3 placements: homepage hero, booking confirm, footer.

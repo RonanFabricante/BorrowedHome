@@ -7,9 +7,9 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        /** Primary CTA — clay accent reserved for main actions only */
+        /** Primary CTA — electric chartreuse fill, near-black label */
         default:
-          "bg-cta text-cta-foreground hover:bg-cta/90 active:bg-cta/95 focus-visible:ring-cta",
+          "bg-cta text-cta-foreground hover:bg-cta/90 active:bg-cta/95 focus-visible:ring-ring font-semibold",
         destructive:
           "bg-destructive text-destructive-foreground hover:bg-destructive/90",
         outline:

@@ -13,6 +13,7 @@ import { PaymentForm } from "@/components/payment-form";
 import { createClient } from "@/lib/supabase/client";
 import { CancelBookingModal } from "@/components/cancel-booking-modal";
 import { canCancelBooking, computeCancellationPolicy } from "@/lib/cancellation/policy";
+import { DayArc } from "@/components/day-arc";
 
 export function BookingConfirmation({ booking, isHost = false }: { booking: any; isHost?: boolean }) {
   const supabase = createClient();
@@ -619,6 +620,7 @@ export function BookingConfirmation({ booking, isHost = false }: { booking: any;
         <p className="text-muted-foreground">
           {listing.title} • {listing.location_text}
         </p>
+        <DayArc className="mt-6 max-w-sm" />
       </div>
 
       <Card className="mb-6">
