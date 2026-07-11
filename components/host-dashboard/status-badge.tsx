@@ -1,1 +1,1 @@
-export { StatusChip as StatusBadge, StatusChip } from "@/components/status-chip";
+export { StatusBadge } from "@/components/status-chip";

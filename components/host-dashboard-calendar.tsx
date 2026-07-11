@@ -2,12 +2,12 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, addMonths, subMonths } from "date-fns";
+import { ChevronLeft, ChevronRight, MessageCircle, Eye } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths } from "date-fns";
-import { ChevronLeft, ChevronRight, MessageCircle, Eye } from "lucide-react";
-import { CalendarEvent } from "@/lib/host/dashboard";
 import { StatusChip } from "@/components/status-chip";
+import { CalendarEvent } from "@/lib/host/dashboard";
 import { resolveStatusStyle } from "@/lib/ui/tokens";
 
 interface HostDashboardCalendarProps {
