@@ -76,7 +76,7 @@ export async function POST(request: NextRequest) {
           // Check if booking is PAYMENT_PENDING and within deadline
           const { data: booking } = await supabase
             .from("bookings")
-            .select("status, payment_deadline_at, guest_id, listing_id, start_at, end_at, total_amount, cancelled_at, payment_authorized_at")
+            .select("status, payment_deadline_at, guest_id, listing_id, start_at, end_at, total_amount, currency, cancelled_at, payment_authorized_at")
             .eq("id", bookingId)
             .single();
 

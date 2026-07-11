@@ -38,6 +38,7 @@ export async function POST(request: NextRequest) {
         start_at,
         end_at,
         total_amount,
+        currency,
         expired_at,
         listings!inner(
           id,
