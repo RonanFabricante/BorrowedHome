@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatCurrency, formatTime } from "@/lib/utils";
-import { ChefHat, UtensilsCrossed, Home, Trees, Check } from "lucide-react";
+import { ChefHat, UtensilsCrossed, Home, Trees, Waves, Warehouse, Check } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { BookingDialog } from "@/components/booking-dialog";
@@ -20,13 +20,17 @@ const spaceIcons = {
   DINING: UtensilsCrossed,
   LIVING: Home,
   GARDEN: Trees,
+  POOL: Waves,
+  GARAGE: Warehouse,
 };
 
 const spaceLabels = {
   KITCHEN: "Kitchen",
   DINING: "Dining Room",
   LIVING: "Living Room",
-  GARDEN: "Garden/Pool",
+  GARDEN: "Garden",
+  POOL: "Swimming Pool",
+  GARAGE: "Garage",
 };
 
 export function ListingDetail({

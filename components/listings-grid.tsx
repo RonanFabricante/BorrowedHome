@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Listing } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils";
-import { ChefHat, UtensilsCrossed, Home, Trees } from "lucide-react";
+import { ChefHat, UtensilsCrossed, Home, Trees, Waves, Warehouse } from "lucide-react";
 import Image from "next/image";
 import { EmptyState } from "@/components/empty-state";
 
@@ -14,6 +14,8 @@ const spaceIcons = {
   DINING: UtensilsCrossed,
   LIVING: Home,
   GARDEN: Trees,
+  POOL: Waves,
+  GARAGE: Warehouse,
 };
 
 interface ListingsGridProps {

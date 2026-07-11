@@ -63,7 +63,9 @@ export default async function ReviewPage({
     KITCHEN: "Kitchen",
     DINING: "Dining",
     LIVING: "Living Room",
-    GARDEN: "Garden/Pool",
+    GARDEN: "Garden",
+    POOL: "Swimming Pool",
+    GARAGE: "Garage",
   };
   const spaceLabel = spaces
     .map((s: any) => spaceLabels[s.space_type] || s.space_type)

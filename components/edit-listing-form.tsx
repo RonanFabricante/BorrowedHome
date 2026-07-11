@@ -15,7 +15,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select } from "@/components/ui/select";
 import { Listing, ListingPhoto, SpaceType, NoiseTolerance } from "@/lib/types";
-import { ChefHat, UtensilsCrossed, Home, Trees, Upload, X } from "lucide-react";
+import { ChefHat, UtensilsCrossed, Home, Trees, Waves, Warehouse, Upload, X } from "lucide-react";
 import Image from "next/image";
 import { hostDeclarationCheckboxLabel, TERMS_VERSION } from "@/lib/legal/terms-au";
 import { HostDeclarationModal } from "@/components/host-declaration-modal";
@@ -37,12 +37,14 @@ const spaceOptions: { value: SpaceType; label: string; icon: any }[] = [
   { value: "KITCHEN", label: "Kitchen", icon: ChefHat },
   { value: "DINING", label: "Dining Room", icon: UtensilsCrossed },
   { value: "LIVING", label: "Living Room", icon: Home },
-  { value: "GARDEN", label: "Garden/Pool", icon: Trees },
+  { value: "GARDEN", label: "Garden", icon: Trees },
+  { value: "POOL", label: "Swimming Pool", icon: Waves },
+  { value: "GARAGE", label: "Garage", icon: Warehouse },
 ];
 
 const editSchema = z
   .object({
-    spaces: z.array(z.enum(["KITCHEN", "DINING", "LIVING", "GARDEN"])).min(1),
+    spaces: z.array(z.enum(["KITCHEN", "DINING", "LIVING", "GARDEN", "POOL", "GARAGE"])).min(1),
     title: z.string().min(5, "Title must be at least 5 characters"),
     description: z.string().min(20, "Description must be at least 20 characters"),
     location_text: z.string().min(2, "Location is required"),
