@@ -331,7 +331,11 @@ async function autoCaptureWithReviewWindow(
       };
     }
 
-    const bookingData = booking as Booking & { payments: Payment[] };
+    // uniq_payments_booking_id makes PostgREST return payments as an object
+    // (one-to-one), not an array — normalize so [0] access still works.
+    const bookingData = booking as Booking & {
+      payments: Payment | Payment[] | null;
+    };
 
     // Only process if booking is COMPLETED
     if (bookingData.status !== "COMPLETED") {
@@ -342,7 +346,12 @@ async function autoCaptureWithReviewWindow(
       };
     }
 
-    const payment = bookingData.payments[0];
+    const paymentsList = Array.isArray(bookingData.payments)
+      ? bookingData.payments
+      : bookingData.payments
+        ? [bookingData.payments]
+        : [];
+    const payment = paymentsList[0];
     if (!payment) {
       return {
         success: false,

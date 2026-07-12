@@ -84,7 +84,15 @@ export async function autoCaptureWithReviewWindow(
       };
     }
 
-    const payment = booking.payments[0];
+    // uniq_payments_booking_id makes PostgREST return payments as an object
+    // (one-to-one), not an array — normalize so indexing still works.
+    const paymentsRaw = booking.payments as unknown;
+    const paymentsList = Array.isArray(paymentsRaw)
+      ? paymentsRaw
+      : paymentsRaw
+        ? [paymentsRaw]
+        : [];
+    const payment = paymentsList[0];
     if (!payment) {
       return {
         success: false,
