@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
 import { Logo } from "@/components/logo";
-import { Calendar, LayoutList, DollarSign, UserPlus, LogOut } from "lucide-react";
+import { Calendar, LayoutList, DollarSign, UserPlus, LogOut, Shield } from "lucide-react";
 import { NotificationsBell } from "@/components/notifications-bell";
 import { cn } from "@/lib/utils";
 
@@ -50,40 +50,43 @@ export function Nav() {
   const supabase = createClient();
   const [user, setUser] = useState<any>(null);
   const [isHost, setIsHost] = useState<boolean>(false);
+  const [isSuperadmin, setIsSuperadmin] = useState(false);
+
+  const refreshRoleFlags = (userId: string | undefined) => {
+    if (!userId) {
+      setIsHost(false);
+      setIsSuperadmin(false);
+      return;
+    }
+
+    supabase
+      .from("listings")
+      .select("id")
+      .eq("host_id", userId)
+      .limit(1)
+      .then(({ data: listings, error }) => {
+        setIsHost(!error && (listings?.length ?? 0) > 0);
+      });
+
+    supabase
+      .from("profiles")
+      .select("is_superadmin")
+      .eq("id", userId)
+      .maybeSingle()
+      .then(({ data: profile }) => {
+        setIsSuperadmin(!!profile?.is_superadmin);
+      });
+  };
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
       setUser(data.user);
-
-      if (data.user) {
-        supabase
-          .from("listings")
-          .select("id")
-          .eq("host_id", data.user.id)
-          .limit(1)
-          .then(({ data: listings, error }) => {
-            setIsHost(!error && (listings?.length ?? 0) > 0);
-          });
-      } else {
-        setIsHost(false);
-      }
+      refreshRoleFlags(data.user?.id);
     });
 
     const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
-
-      if (session?.user) {
-        supabase
-          .from("listings")
-          .select("id")
-          .eq("host_id", session.user.id)
-          .limit(1)
-          .then(({ data: listings, error }) => {
-            setIsHost(!error && (listings?.length ?? 0) > 0);
-          });
-      } else {
-        setIsHost(false);
-      }
+      refreshRoleFlags(session?.user?.id);
     });
 
     return () => {
@@ -108,6 +111,16 @@ export function Nav() {
           {user ? (
             <>
               <NotificationsBell />
+              {isSuperadmin && (
+                <NavLink
+                  href="/admin"
+                  matchPrefix
+                  className="hidden sm:flex items-center gap-2"
+                >
+                  <Shield className="w-4 h-4" />
+                  Admin
+                </NavLink>
+              )}
               <NavLink href="/my-bookings" className="hidden sm:flex items-center gap-2">
                 <Calendar className="w-4 h-4" />
                 My Bookings

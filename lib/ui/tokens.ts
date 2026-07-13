@@ -88,6 +88,16 @@ export const ledgerTypeStyles: Record<string, StatusStyle> = {
   refund: style("Refund", "warning"),
 };
 
+/** Payment row statuses (admin + host) */
+export const paymentStatusStyles: Record<string, StatusStyle> = {
+  pending: style("Pending", "muted"),
+  authorised: style("Authorised", "warning"),
+  authorized: style("Authorised", "warning"),
+  captured: style("Captured", "accent"),
+  released: style("Released", "muted"),
+  failed: style("Failed", "destructive"),
+};
+
 export type BookingStatus = BookingStatusKey;
 
 export function resolveStatusStyle(status: string | null | undefined): StatusStyle {

@@ -8,6 +8,7 @@ export interface Profile {
   full_name: string | null;
   is_host: boolean;
   is_guest: boolean;
+  is_superadmin?: boolean;
   created_at: string;
 }
 

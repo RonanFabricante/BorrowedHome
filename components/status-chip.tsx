@@ -2,11 +2,12 @@ import { cn } from "@/lib/utils";
 import {
   listingStatusStyles,
   ledgerTypeStyles,
+  paymentStatusStyles,
   resolveStatusStyle,
   type StatusStyle,
 } from "@/lib/ui/tokens";
 
-type ChipKind = "booking" | "listing" | "ledger";
+type ChipKind = "booking" | "listing" | "ledger" | "payment";
 
 interface StatusChipProps {
   status: string;
@@ -21,6 +22,9 @@ function resolve(kind: ChipKind, status: string): StatusStyle {
   }
   if (kind === "ledger") {
     return ledgerTypeStyles[status.toLowerCase()] || resolveStatusStyle(status);
+  }
+  if (kind === "payment") {
+    return paymentStatusStyles[status.toLowerCase()] || resolveStatusStyle(status);
   }
   return resolveStatusStyle(status);
 }
