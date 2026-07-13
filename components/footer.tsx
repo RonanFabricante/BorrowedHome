@@ -39,6 +39,12 @@ export function Footer() {
             >
               Become a host
             </Link>
+            <Link
+              href="/faq"
+              className="text-muted-foreground transition-colors hover:text-foreground"
+            >
+              FAQ
+            </Link>
             <a
               href={`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent("BorrowedHome support")}`}
               className="text-muted-foreground transition-colors hover:text-foreground"

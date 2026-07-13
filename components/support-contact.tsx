@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 export const SUPPORT_EMAIL = "hello@borrowedhome.app";
 
 type SupportContactProps = {
@@ -7,7 +9,7 @@ type SupportContactProps = {
 };
 
 /**
- * Public support contact — mailto only (works for users who cannot sign in).
+ * Public support contact — FAQ + mailto (works for users who cannot sign in).
  */
 export function SupportContact({ compact = false, className }: SupportContactProps) {
   const mailto = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(
@@ -24,10 +26,11 @@ export function SupportContact({ compact = false, className }: SupportContactPro
       }
     >
       {compact ? "Trouble signing up or logging in? " : "Need help? "}
-      <a
-        href={mailto}
-        className="text-primary hover:underline"
-      >
+      <Link href="/faq" className="text-primary hover:underline">
+        Read the FAQ
+      </Link>
+      {" · "}
+      <a href={mailto} className="text-primary hover:underline">
         {SUPPORT_EMAIL}
       </a>
     </p>
