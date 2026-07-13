@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Logo } from "@/components/logo";
 import { BookingRulesLine } from "@/components/booking-rules-line";
 import { DayArc } from "@/components/day-arc";
+import { SUPPORT_EMAIL } from "@/components/support-contact";
 
 export function Footer() {
   return (
@@ -12,6 +13,15 @@ export function Footer() {
           <div className="space-y-3">
             <Logo size="sm" href="/" showText />
             <BookingRulesLine className="text-xs" />
+            <p className="text-sm text-muted-foreground">
+              Need help?{" "}
+              <a
+                href={`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent("BorrowedHome support")}`}
+                className="text-foreground transition-colors hover:text-primary"
+              >
+                {SUPPORT_EMAIL}
+              </a>
+            </p>
             <p className="text-sm text-muted-foreground">
               &copy; {new Date().getFullYear()} BorrowedHome. All rights reserved.
             </p>
@@ -29,6 +39,12 @@ export function Footer() {
             >
               Become a host
             </Link>
+            <a
+              href={`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent("BorrowedHome support")}`}
+              className="text-muted-foreground transition-colors hover:text-foreground"
+            >
+              Contact
+            </a>
             <Link
               href="/terms/guest-au"
               className="text-muted-foreground transition-colors hover:text-foreground"

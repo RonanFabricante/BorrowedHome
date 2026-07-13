@@ -13,6 +13,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import Link from "next/link";
 import { Logo } from "@/components/logo";
 import { Nav } from "@/components/nav";
+import { SupportContact } from "@/components/support-contact";
 
 const loginSchema = z.object({
   email: z.string().email("Enter a valid email address."),
@@ -124,6 +125,7 @@ export default function LoginPage() {
                 Sign up
               </Link>
             </p>
+            <SupportContact compact />
           </CardContent>
         </Card>
       </div>

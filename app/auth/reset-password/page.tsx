@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import Link from "next/link";
 import { Logo } from "@/components/logo";
+import { SupportContact } from "@/components/support-contact";
 
 const resetSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -138,6 +139,7 @@ export default function ResetPasswordPage() {
           >
             Back to login
           </Button>
+          <SupportContact compact />
         </CardContent>
       </Card>
     </div>

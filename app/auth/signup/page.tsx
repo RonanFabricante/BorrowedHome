@@ -15,6 +15,7 @@ import Link from "next/link";
 import { onboardingSummaryGuest, TERMS_VERSION } from "@/lib/legal/terms-au";
 import { Logo } from "@/components/logo";
 import { Nav } from "@/components/nav";
+import { SupportContact } from "@/components/support-contact";
 import { differenceInYears, parse } from "date-fns";
 
 // Helper function to calculate age from date of birth
@@ -261,6 +262,7 @@ export default function SignupPage() {
               Log in
             </Link>
           </p>
+          <SupportContact compact />
         </CardContent>
       </Card>
       </div>
