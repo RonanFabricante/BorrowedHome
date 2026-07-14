@@ -93,7 +93,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Only capture a deposit that is actually held (authorized)
-    const depositIntent = await stripe.paymentIntents.retrieve(
+    let depositIntent = await stripe.paymentIntents.retrieve(
       payment.stripe_deposit_intent_id
     );
     if (depositIntent.status !== "requires_capture") {
@@ -124,16 +124,11 @@ export async function POST(request: NextRequest) {
     }
 
     console.log(`[CaptureDeposit] Capturing deposit ${payment.stripe_deposit_intent_id} for booking ${bookingId}${captureAmount ? ` (amount: ${captureAmount} cents)` : " (full amount)"}`);
-    
-    let depositIntent = await stripe.paymentIntents.retrieve(
-      payment.stripe_deposit_intent_id
+
+    depositIntent = await stripe.paymentIntents.capture(
+      payment.stripe_deposit_intent_id,
+      captureAmount ? { amount_to_capture: captureAmount } : {}
     );
-    if (depositIntent.status === "requires_capture") {
-      depositIntent = await stripe.paymentIntents.capture(
-        payment.stripe_deposit_intent_id,
-        captureAmount ? { amount_to_capture: captureAmount } : {}
-      );
-    }
 
     if (depositIntent.status !== "succeeded") {
       return NextResponse.json(
