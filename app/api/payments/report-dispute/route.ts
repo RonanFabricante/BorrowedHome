@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import {
+  assertNotSuspended,
+  suspendedResponse,
+} from "@/lib/auth/assertNotSuspended";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -20,6 +24,8 @@ export async function POST(request: NextRequest) {
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    await assertNotSuspended(user.id);
 
     const { bookingId, reason } = await request.json();
 
@@ -156,6 +162,8 @@ export async function POST(request: NextRequest) {
       reportedBy: isGuest ? "guest" : "host",
     });
   } catch (error: any) {
+    const suspended = suspendedResponse(error);
+    if (suspended) return suspended;
     console.error("[Dispute] Error reporting dispute:", error);
     return NextResponse.json(
       { error: error.message || "Failed to report dispute" },

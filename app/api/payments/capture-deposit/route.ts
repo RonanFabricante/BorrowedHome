@@ -11,6 +11,11 @@ import {
   depositPayoutIdempotencyKey,
   resolveHostPayoutFromPaymentIntent,
 } from "@/lib/stripe/hostPayout";
+import { requireHostStripeReady } from "@/lib/stripe/refreshHostStatus";
+import {
+  assertNotSuspended,
+  suspendedResponse,
+} from "@/lib/auth/assertNotSuspended";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -27,6 +32,8 @@ export async function POST(request: NextRequest) {
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    await assertNotSuspended(user.id);
 
     const { bookingId, amount, reason } = await request.json();
 
@@ -143,12 +150,22 @@ export async function POST(request: NextRequest) {
     // otherwise land on the platform balance). Deduct Stripe processing fee.
     const { data: host } = await supabase
       .from("hosts")
-      .select("stripe_account_id, stripe_charges_enabled, stripe_payouts_enabled")
+      .select("stripe_account_id")
       .eq("user_id", listings.host_id)
       .single();
 
     let transferId: string | null = null;
-    if (host?.stripe_account_id && host.stripe_charges_enabled && host.stripe_payouts_enabled) {
+    let hostReady = false;
+    if (host?.stripe_account_id) {
+      try {
+        await requireHostStripeReady(listings.host_id, host.stripe_account_id);
+        hostReady = true;
+      } catch {
+        hostReady = false;
+      }
+    }
+
+    if (host?.stripe_account_id && hostReady) {
       try {
         const payout = await resolveHostPayoutFromPaymentIntent({
           paymentIntentId: payment.stripe_deposit_intent_id,
@@ -205,6 +222,8 @@ export async function POST(request: NextRequest) {
       transferId,
     });
   } catch (error: any) {
+    const suspended = suspendedResponse(error);
+    if (suspended) return suspended;
     console.error("Deposit capture error:", error);
     return NextResponse.json(
       { error: error.message || "Failed to capture deposit" },

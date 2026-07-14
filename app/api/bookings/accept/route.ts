@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { requireHostStripeReady } from "@/lib/stripe/refreshHostStatus";
+import {
+  assertNotSuspended,
+  suspendedResponse,
+} from "@/lib/auth/assertNotSuspended";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -7,11 +12,15 @@ export const dynamic = "force-dynamic";
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    await assertNotSuspended(user.id);
 
     const { bookingId } = await request.json();
 
@@ -23,28 +32,34 @@ export async function POST(request: NextRequest) {
       console.log("[Accept Booking] Request:", { bookingId, hostId: user.id });
     }
 
-    // Check if host has completed Stripe onboarding
     const { data: host } = await supabase
       .from("hosts")
-      .select("*")
+      .select("stripe_account_id")
       .eq("user_id", user.id)
       .single();
 
-    if (!host || host.stripe_onboarding_status !== "complete") {
+    try {
+      await requireHostStripeReady(user.id, host?.stripe_account_id);
+    } catch (stripeErr: any) {
       return NextResponse.json(
         {
-          error: "STRIPE_ONBOARDING_REQUIRED",
-          message: "You must complete Stripe onboarding before accepting bookings",
+          error: stripeErr.code || "STRIPE_ONBOARDING_REQUIRED",
+          message:
+            stripeErr.message ||
+            "You must complete Stripe onboarding before accepting bookings",
+          details: stripeErr.details,
         },
         { status: 400 }
       );
     }
 
-    // Accept booking using existing function
-    const { data: booking, error: bookingError } = await supabase.rpc("accept_booking", {
-      p_booking_id: bookingId,
-      p_host_id: user.id,
-    });
+    const { data: booking, error: bookingError } = await supabase.rpc(
+      "accept_booking",
+      {
+        p_booking_id: bookingId,
+        p_host_id: user.id,
+      }
+    );
 
     if (bookingError) {
       return NextResponse.json(
@@ -61,11 +76,10 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Payment initiation will be handled by frontend calling /api/payments/initiate
-    // This keeps the accept flow separate from payment processing
-
     return NextResponse.json({ success: true, booking });
   } catch (error: any) {
+    const suspended = suspendedResponse(error);
+    if (suspended) return suspended;
     console.error("Accept booking error:", error);
     return NextResponse.json(
       { error: error.message || "Failed to accept booking" },

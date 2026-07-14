@@ -5,6 +5,10 @@ import {
   type BookingEmailData,
 } from "@/lib/email/send";
 import { validate as validateBookingTime } from "@/lib/bookingTimeRules";
+import {
+  assertNotSuspended,
+  suspendedResponse,
+} from "@/lib/auth/assertNotSuspended";
 
 export const dynamic = "force-dynamic";
 
@@ -17,24 +21,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    try {
+      await assertNotSuspended(user.id);
+    } catch (e) {
+      const suspended = suspendedResponse(e);
+      if (suspended) return suspended;
+      throw e;
+    }
+
     const { createAdminClient } = await import("@/lib/supabase/admin");
     const { hasAcceptedGuestTerms } = await import("@/lib/legal/helpers");
     const adminClient = createAdminClient();
-
-    const { data: profile } = await adminClient
-      .from("profiles")
-      .select("is_suspended")
-      .eq("id", user.id)
-      .maybeSingle();
-
-    if (profile?.is_suspended) {
-      return NextResponse.json(
-        {
-          error: "Your account is suspended. Contact hello@borrowedhome.app for help.",
-        },
-        { status: 403 }
-      );
-    }
 
     const acceptedTerms = await hasAcceptedGuestTerms(adminClient, user.id);
     if (!acceptedTerms) {
@@ -292,6 +289,8 @@ export async function POST(request: NextRequest) {
       booking,
     });
   } catch (error: any) {
+    const suspended = suspendedResponse(error);
+    if (suspended) return suspended;
     console.error("[Booking Request] Unexpected error:", error);
     return NextResponse.json(
       { error: error.message || "Failed to create booking request" },

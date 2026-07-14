@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { stripe } from "@/lib/stripe/server";
+import {
+  assertNotSuspended,
+  suspendedResponse,
+} from "@/lib/auth/assertNotSuspended";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -95,6 +99,8 @@ export async function POST(request: NextRequest) {
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    await assertNotSuspended(user.id);
 
     const { bookingId, paymentIntentId } = await request.json();
 
@@ -241,6 +247,8 @@ export async function POST(request: NextRequest) {
       confirmReason: confirmResult.reason,
     });
   } catch (error: any) {
+    const suspended = suspendedResponse(error);
+    if (suspended) return suspended;
     console.error("Payment authorization error:", error);
     return NextResponse.json(
       { error: error.message || "Failed to authorize payment" },

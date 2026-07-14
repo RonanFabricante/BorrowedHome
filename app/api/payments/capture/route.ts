@@ -7,6 +7,11 @@ import {
   bookingPayoutIdempotencyKey,
   resolveHostPayoutFromPaymentIntent,
 } from "@/lib/stripe/hostPayout";
+import { requireHostStripeReady } from "@/lib/stripe/refreshHostStatus";
+import {
+  assertNotSuspended,
+  suspendedResponse,
+} from "@/lib/auth/assertNotSuspended";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -24,6 +29,8 @@ export async function POST(request: NextRequest) {
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    await assertNotSuspended(user.id);
 
     const { bookingId } = await request.json();
 
@@ -116,11 +123,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get host Stripe account
+    // Get host Stripe account and verify live readiness
     const hostId = listings.host_id;
     const { data: host, error: hostError } = await supabase
       .from("hosts")
-      .select("stripe_account_id, stripe_charges_enabled, stripe_payouts_enabled")
+      .select("stripe_account_id")
       .eq("user_id", hostId)
       .single();
 
@@ -131,16 +138,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!host.stripe_account_id) {
+    try {
+      await requireHostStripeReady(hostId, host.stripe_account_id);
+    } catch (stripeErr: any) {
       return NextResponse.json(
-        { error: "Host Stripe account ID not set. Please complete onboarding." },
-        { status: 400 }
-      );
-    }
-
-    if (!host.stripe_charges_enabled || !host.stripe_payouts_enabled) {
-      return NextResponse.json(
-        { error: "Host Stripe account not fully enabled. Please complete onboarding." },
+        {
+          error:
+            stripeErr.message ||
+            "Host Stripe account not fully enabled. Please complete onboarding.",
+          details: stripeErr.details,
+        },
         { status: 400 }
       );
     }
@@ -273,6 +280,8 @@ export async function POST(request: NextRequest) {
       message: "Payment captured and transferred to host successfully"
     });
   } catch (error: any) {
+    const suspended = suspendedResponse(error);
+    if (suspended) return suspended;
     console.error("[Capture] Payment capture error:", error);
     return NextResponse.json(
       { error: error.message || "Failed to capture payment" },

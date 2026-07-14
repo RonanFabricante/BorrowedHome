@@ -122,9 +122,27 @@ async function captureAndTransferToHost(
       throw new Error("Host Stripe account ID not set");
     }
 
-    if (!hostData.stripe_charges_enabled || !hostData.stripe_payouts_enabled) {
+    // Live Stripe Connect readiness (do not trust DB flags alone)
+    const accountResponse = await fetch(
+      `https://api.stripe.com/v1/accounts/${hostData.stripe_account_id}`,
+      {
+        headers: {
+          Authorization: `Bearer ${stripeSecretKey}`,
+        },
+      }
+    );
+    if (!accountResponse.ok) {
+      throw new Error(`Failed to retrieve Stripe account: ${accountResponse.status}`);
+    }
+    const stripeAccount = await accountResponse.json();
+    const currentlyDue = stripeAccount.requirements?.currently_due || [];
+    if (
+      !stripeAccount.charges_enabled ||
+      !stripeAccount.payouts_enabled ||
+      currentlyDue.length > 0
+    ) {
       throw new Error(
-        "Host Stripe account not fully enabled (charges or payouts disabled)"
+        "Host Stripe account not fully enabled (charges, payouts, or requirements due)"
       );
     }
 

@@ -5,6 +5,10 @@ import { checkAccountStatus, computeOnboardingStatus, findStripeAccountByUserId 
 import { isPaymentPending, normalizeBookingStatus } from "@/lib/bookingStatus";
 import { validateStripeAmountCents } from "@/lib/payments/stripeMinAmount";
 import { DEFAULT_CURRENCY, normalizeCurrency } from "@/lib/currency";
+import {
+  assertNotSuspended,
+  suspendedResponse,
+} from "@/lib/auth/assertNotSuspended";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -17,6 +21,8 @@ export async function POST(request: NextRequest) {
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    await assertNotSuspended(user.id);
 
     const { bookingId } = await request.json();
 
@@ -387,6 +393,8 @@ export async function POST(request: NextRequest) {
         : null,
     });
   } catch (error: any) {
+    const suspended = suspendedResponse(error);
+    if (suspended) return suspended;
     console.error("Payment initiation error:", error);
     return NextResponse.json(
       { error: error.message || "Failed to initiate payment" },

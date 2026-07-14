@@ -180,7 +180,7 @@ export async function retryCaptureAndTransfer(
   const admin = createAdminClient();
   const { data: host, error: hostError } = await admin
     .from("hosts")
-    .select("stripe_account_id, stripe_charges_enabled, stripe_payouts_enabled")
+    .select("stripe_account_id")
     .eq("user_id", hostId)
     .maybeSingle();
 
@@ -188,10 +188,15 @@ export async function retryCaptureAndTransfer(
     return { success: false, message: "Host Stripe account not found or incomplete" };
   }
 
-  if (!host.stripe_charges_enabled || !host.stripe_payouts_enabled) {
+  try {
+    const { requireHostStripeReady } = await import("@/lib/stripe/refreshHostStatus");
+    await requireHostStripeReady(hostId, host.stripe_account_id);
+  } catch (e: any) {
     return {
       success: false,
-      message: "Host Stripe account not fully enabled (charges or payouts disabled)",
+      message:
+        e.message ||
+        "Host Stripe account not fully enabled (charges or payouts disabled)",
     };
   }
 

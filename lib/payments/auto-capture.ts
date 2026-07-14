@@ -194,10 +194,10 @@ async function captureAndTransferToHost(
       throw new Error("Host ID not found in booking data");
     }
 
-    // Get host Stripe account
+    // Get host Stripe account — verify live readiness (DB flags are not sole trust)
     const { data: host, error: hostError } = await supabase
       .from("hosts")
-      .select("stripe_account_id, stripe_charges_enabled, stripe_payouts_enabled")
+      .select("stripe_account_id")
       .eq("user_id", hostId)
       .single();
 
@@ -209,11 +209,8 @@ async function captureAndTransferToHost(
       throw new Error("Host Stripe account ID not set");
     }
 
-    if (!host.stripe_charges_enabled || !host.stripe_payouts_enabled) {
-      throw new Error(
-        "Host Stripe account not fully enabled (charges or payouts disabled)"
-      );
-    }
+    const { requireHostStripeReady } = await import("@/lib/stripe/refreshHostStatus");
+    await requireHostStripeReady(hostId, host.stripe_account_id);
 
     // Capture the payment intent (main booking payment).
     // If a previous run already captured but failed before updating the DB,

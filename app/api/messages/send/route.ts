@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createNotification } from "@/lib/notifications/create";
+import {
+  assertNotSuspended,
+  suspendedResponse,
+} from "@/lib/auth/assertNotSuspended";
 
 export const dynamic = "force-dynamic";
+
+const MAX_MESSAGE_LENGTH = 2000;
 
 export async function POST(request: NextRequest) {
   try {
@@ -13,12 +19,28 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    await assertNotSuspended(user.id);
+
     const body = await request.json();
     const { booking_id, message_body } = body;
 
     if (!booking_id || !message_body) {
       return NextResponse.json(
         { error: "booking_id and message_body are required" },
+        { status: 400 }
+      );
+    }
+
+    const trimmed = String(message_body).trim();
+    if (!trimmed) {
+      return NextResponse.json(
+        { error: "message_body cannot be empty" },
+        { status: 400 }
+      );
+    }
+    if (trimmed.length > MAX_MESSAGE_LENGTH) {
+      return NextResponse.json(
+        { error: `Messages must be under ${MAX_MESSAGE_LENGTH} characters` },
         { status: 400 }
       );
     }
@@ -71,7 +93,7 @@ export async function POST(request: NextRequest) {
       .insert({
         booking_id,
         sender_id: user.id,
-        body: message_body.trim(),
+        body: trimmed,
       })
       .select()
       .single();
@@ -138,6 +160,8 @@ export async function POST(request: NextRequest) {
       message,
     });
   } catch (error: any) {
+    const suspended = suspendedResponse(error);
+    if (suspended) return suspended;
     console.error("[Send Message] Unexpected error:", error);
     return NextResponse.json(
       { error: "Internal server error" },

@@ -8,6 +8,11 @@ import {
 } from "@/lib/email/send";
 import { validateStripeAmountCents } from "@/lib/payments/stripeMinAmount";
 import { DEFAULT_CURRENCY, normalizeCurrency } from "@/lib/currency";
+import { requireHostStripeReady } from "@/lib/stripe/refreshHostStatus";
+import {
+  assertNotSuspended,
+  suspendedResponse,
+} from "@/lib/auth/assertNotSuspended";
 
 export const dynamic = "force-dynamic";
 
@@ -19,6 +24,8 @@ export async function POST(request: NextRequest) {
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    await assertNotSuspended(user.id);
 
     const body = await request.json();
     const { booking_id, action } = body;
@@ -142,18 +149,23 @@ export async function POST(request: NextRequest) {
       if (process.env.NODE_ENV !== "production") {
         console.log("[Booking Respond] Accept requested:", { booking_id, actor: user.id });
       }
-      // Check if host has completed Stripe onboarding
+      // Check live Stripe Connect readiness (DB flags are not trustable alone)
       const { data: host } = await supabase
         .from("hosts")
-        .select("*")
+        .select("stripe_account_id")
         .eq("user_id", user.id)
         .single();
 
-      if (!host || host.stripe_onboarding_status !== "complete") {
+      try {
+        await requireHostStripeReady(user.id, host?.stripe_account_id);
+      } catch (stripeErr: any) {
         return NextResponse.json(
           {
-            error: "STRIPE_ONBOARDING_REQUIRED",
-            message: "You must complete Stripe onboarding before accepting bookings",
+            error: stripeErr.code || "STRIPE_ONBOARDING_REQUIRED",
+            message:
+              stripeErr.message ||
+              "You must complete Stripe onboarding before accepting bookings",
+            details: stripeErr.details,
           },
           { status: 400 }
         );
@@ -377,6 +389,8 @@ export async function POST(request: NextRequest) {
       { status: 400 }
     );
   } catch (error: any) {
+    const suspended = suspendedResponse(error);
+    if (suspended) return suspended;
     console.error("[Booking Respond] Error:", error);
     return NextResponse.json(
       { error: error.message || "Failed to respond to booking" },

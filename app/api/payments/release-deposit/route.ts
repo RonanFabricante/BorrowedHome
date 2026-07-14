@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { stripe } from "@/lib/stripe/server";
+import {
+  assertNotSuspended,
+  suspendedResponse,
+} from "@/lib/auth/assertNotSuspended";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -13,11 +17,15 @@ export const dynamic = "force-dynamic";
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    await assertNotSuspended(user.id);
 
     const { bookingId } = await request.json();
 
@@ -25,18 +33,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "bookingId is required" }, { status: 400 });
     }
 
-    // Fetch payment with deposit info
     const { data: payment, error: paymentError } = await supabase
       .from("payments")
-      .select(`
+      .select(
+        `
         *,
         bookings!inner(
           id,
+          status,
           listing_id,
           guest_id,
           listings!inner(host_id)
         )
-      `)
+      `
+      )
       .eq("booking_id", bookingId)
       .single();
 
@@ -47,12 +57,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Extract listings with type assertion (cast through unknown for safety)
     const listings = payment.bookings.listings as unknown as { host_id: string };
     if (!listings || listings.host_id !== user.id) {
       return NextResponse.json(
         { error: "Only the host can release deposits" },
         { status: 403 }
+      );
+    }
+
+    if (payment.bookings.status !== "COMPLETED") {
+      return NextResponse.json(
+        {
+          error: `Deposit can only be released after the booking is completed (current status: ${payment.bookings.status})`,
+        },
+        { status: 400 }
       );
     }
 
@@ -63,7 +81,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if deposit has already been released
     if (payment.deposit_released_at) {
       return NextResponse.json(
         { error: "Deposit has already been released" },
@@ -71,15 +88,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Cancel (release) the deposit intent
-    console.log(`[ReleaseDeposit] Canceling deposit PaymentIntent ${payment.stripe_deposit_intent_id} for booking ${bookingId}`);
+    console.log(
+      `[ReleaseDeposit] Canceling deposit PaymentIntent ${payment.stripe_deposit_intent_id} for booking ${bookingId}`
+    );
     await stripe.paymentIntents.cancel(payment.stripe_deposit_intent_id);
 
-    // Update payment record with deposit release timestamp
     const { error: updateError } = await createAdminClient()
       .from("payments")
-      .update({ 
-        deposit_released_at: new Date().toISOString()
+      .update({
+        deposit_released_at: new Date().toISOString(),
       })
       .eq("id", payment.id);
 
@@ -88,13 +105,17 @@ export async function POST(request: NextRequest) {
       throw updateError;
     }
 
-    console.log(`[ReleaseDeposit] Deposit released successfully for booking ${bookingId}`);
-    return NextResponse.json({ 
+    console.log(
+      `[ReleaseDeposit] Deposit released successfully for booking ${bookingId}`
+    );
+    return NextResponse.json({
       success: true,
       message: "Deposit released successfully",
-      releasedAt: new Date().toISOString()
+      releasedAt: new Date().toISOString(),
     });
   } catch (error: any) {
+    const suspended = suspendedResponse(error);
+    if (suspended) return suspended;
     console.error("Deposit release error:", error);
     return NextResponse.json(
       { error: error.message || "Failed to release deposit" },

@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import {
+  assertNotSuspended,
+  suspendedResponse,
+} from "@/lib/auth/assertNotSuspended";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -24,19 +28,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const admin = createAdminClient();
-    const { data: profile } = await admin
-      .from("profiles")
-      .select("is_suspended")
-      .eq("id", user.id)
-      .maybeSingle();
+    await assertNotSuspended(user.id);
 
-    if (profile?.is_suspended) {
-      return NextResponse.json(
-        { error: "Your account is suspended. Contact support." },
-        { status: 403 }
-      );
-    }
+    const admin = createAdminClient();
 
     const body = await request.json();
     const listingId = body.listingId as string | undefined;
@@ -95,6 +89,15 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (error) {
+      if (error.code === "23505") {
+        return NextResponse.json(
+          {
+            error:
+              "You already have an open report for this listing. Our team will review it.",
+          },
+          { status: 409 }
+        );
+      }
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
@@ -104,6 +107,8 @@ export async function POST(request: NextRequest) {
       message: "Report submitted. Our team will review it.",
     });
   } catch (e: any) {
+    const suspended = suspendedResponse(e);
+    if (suspended) return suspended;
     return NextResponse.json(
       { error: e.message || "Failed to submit report" },
       { status: 500 }

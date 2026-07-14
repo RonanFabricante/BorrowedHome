@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { getOrCreateConnectedAccount, createOnboardingLink } from "@/lib/stripe/connect";
+import {
+  assertNotSuspended,
+  suspendedResponse,
+} from "@/lib/auth/assertNotSuspended";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -8,11 +13,15 @@ export const dynamic = "force-dynamic";
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    await assertNotSuspended(user.id);
 
     if (!user.email) {
       return NextResponse.json(
@@ -24,17 +33,21 @@ export async function POST(request: NextRequest) {
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
     const returnUrl = `${appUrl}/host/payouts?return=1`;
     const refreshUrl = `${appUrl}/host/payouts?refresh=1`;
+    const admin = createAdminClient();
 
-    // Find or create host record
-    let { data: host, error: hostError } = await supabase
+    // Find or create host record (Stripe fields locked from client role)
+    let { data: host, error: hostError } = await admin
       .from("hosts")
       .select("*")
       .eq("user_id", user.id)
-      .single();
+      .maybeSingle();
 
-    if (hostError && hostError.code === "PGRST116") {
-      // Host record doesn't exist, create it
-      const { data: newHost, error: createError } = await supabase
+    if (hostError) {
+      throw hostError;
+    }
+
+    if (!host) {
+      const { data: newHost, error: createError } = await admin
         .from("hosts")
         .insert({
           user_id: user.id,
@@ -48,11 +61,8 @@ export async function POST(request: NextRequest) {
       }
 
       host = newHost;
-    } else if (hostError) {
-      throw hostError;
     }
 
-    // If host already has a Stripe account, create a new onboarding link
     if (host.stripe_account_id) {
       const onboardingUrl = await createOnboardingLink({
         accountId: host.stripe_account_id,
@@ -60,8 +70,7 @@ export async function POST(request: NextRequest) {
         refreshUrl,
       });
 
-      // Update status to in_progress
-      await supabase
+      await admin
         .from("hosts")
         .update({ stripe_onboarding_status: "in_progress" })
         .eq("user_id", user.id);
@@ -69,21 +78,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ url: onboardingUrl });
     }
 
-    // Create new Stripe Connect Express account
     const stripeAccountId = await getOrCreateConnectedAccount({
       userId: user.id,
       email: user.email,
     });
 
-    // Create onboarding link
     const onboardingUrl = await createOnboardingLink({
       accountId: stripeAccountId,
       returnUrl,
       refreshUrl,
     });
 
-    // Update host record with Stripe account ID and set status to in_progress
-    const { error: updateError } = await supabase
+    const { error: updateError } = await admin
       .from("hosts")
       .update({
         stripe_account_id: stripeAccountId,
@@ -92,7 +98,6 @@ export async function POST(request: NextRequest) {
       .eq("user_id", user.id);
 
     if (updateError) {
-      // Clean up Stripe account if DB update fails
       try {
         const { stripe } = await import("@/lib/stripe/server");
         await stripe.accounts.del(stripeAccountId);
@@ -104,6 +109,8 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ url: onboardingUrl });
   } catch (error: any) {
+    const suspended = suspendedResponse(error);
+    if (suspended) return suspended;
     console.error("Stripe Connect onboarding error:", error);
     return NextResponse.json(
       { error: error.message || "Failed to start Stripe onboarding" },

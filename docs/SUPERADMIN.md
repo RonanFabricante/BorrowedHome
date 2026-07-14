@@ -4,7 +4,7 @@ Internal ops UI at `/admin` for platform operators.
 
 ## Setup
 
-1. Apply migrations `032_superadmin_and_audit.sql` and `033_listing_reports_and_suspension.sql` in Supabase SQL Editor.
+1. Apply migrations `032_superadmin_and_audit.sql`, `033_listing_reports_and_suspension.sql`, and `034_privilege_and_stripe_hardening.sql` in Supabase SQL Editor.
 2. Grant yourself access (replace with your auth user UUID):
 
 ```sql
@@ -28,6 +28,8 @@ WHERE id = 'YOUR_USER_UUID';
 | Audit | `admin_actions` log |
 
 All mutations go through `/api/admin/*` (session + `is_superadmin` check) and use the service-role client. Every write is audited.
+
+Migration **034** locks `is_superadmin` / `is_suspended` and host Stripe Connect columns from client updates (service role only). Set superadmin only via SQL Editor / service role.
 
 ## Notes
 
