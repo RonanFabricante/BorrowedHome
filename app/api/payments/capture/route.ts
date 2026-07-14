@@ -265,8 +265,10 @@ export async function POST(request: NextRequest) {
       paymentIntent,
       transfer: {
         id: transfer.id,
-        amount: hostAmount,
+        amount: payout.hostAmount,
         currency: transfer.currency,
+        platformFee: payout.platformFee,
+        stripeFee: payout.stripeFee,
       },
       message: "Payment captured and transferred to host successfully"
     });
