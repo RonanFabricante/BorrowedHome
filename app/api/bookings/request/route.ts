@@ -247,8 +247,6 @@ export async function POST(request: NextRequest) {
       .single();
 
     // Fetch host user email from auth (using admin client)
-    const { createAdminClient } = await import("@/lib/supabase/admin");
-    const adminClient = createAdminClient();
     const { data: hostUser } = await adminClient.auth.admin.getUserById(listing.host_id);
     const hostEmail = hostUser?.user?.email;
 
