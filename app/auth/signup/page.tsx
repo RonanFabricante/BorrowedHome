@@ -98,7 +98,8 @@ export default function SignupPage() {
       // Retry logic in case session isn't fully established yet
       let acceptanceRecorded = false;
       let attempts = 0;
-      while (!acceptanceRecorded && attempts < 3) {
+      let lastAcceptanceError: string | null = null;
+      while (!acceptanceRecorded && attempts < 5) {
         const { error: acceptanceError } = await supabase
           .from("user_legal_acceptances")
           .insert({
@@ -114,16 +115,18 @@ export default function SignupPage() {
         if (!acceptanceError) {
           acceptanceRecorded = true;
         } else {
-          // If RLS error, wait and retry
-          if (acceptanceError.message.includes("row-level security")) {
-            attempts++;
-            await new Promise(resolve => setTimeout(resolve, 500));
-          } else {
-            // Other error, log but don't block signup
-            console.error("Failed to record terms acceptance:", acceptanceError);
-            break;
-          }
+          lastAcceptanceError = acceptanceError.message;
+          attempts++;
+          await new Promise((resolve) => setTimeout(resolve, 500));
         }
+      }
+
+      if (!acceptanceRecorded) {
+        throw new Error(
+          lastAcceptanceError
+            ? `Account created but we could not record Guest Terms acceptance (${lastAcceptanceError}). Please contact hello@borrowedhome.app before booking.`
+            : "Account created but Guest Terms acceptance failed. Please contact hello@borrowedhome.app before booking."
+        );
       }
 
       router.push("/");

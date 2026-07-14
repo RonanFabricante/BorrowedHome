@@ -87,3 +87,59 @@ ${dayUseRiskClauseMarkdown}
 ## Contact
 
 For questions about these Terms, contact: hello@borrowedhome.app`;
+
+// Host Agreement page content (AU)
+export const hostAgreementMarkdown = `# BorrowedHome Host Agreement (Australia)
+
+Last updated: July 9, 2026
+
+## Platform Role
+
+BorrowedHome operates an online marketplace that enables hosts to offer residential spaces for day-use only. BorrowedHome is not the owner, occupier, property manager, or insurer of your space unless expressly stated otherwise.
+
+Nothing in this Agreement excludes, restricts, or modifies any rights or remedies under the Australian Consumer Law that cannot lawfully be excluded.
+
+## Authority and Accuracy
+
+By listing a space you confirm that:
+
+- You are the lawful owner or occupier, or you have explicit legal authority to offer the space for day-use
+- Your photos, description, house rules, and availability are truthful, accurate, and not misleading
+- You will keep your listing current and correct material changes promptly
+
+Fake, “ghost,” or deliberately misleading listings may result in immediate removal, withheld payouts, account suspension, and referral to relevant authorities.
+
+## Day-Use Only
+
+All bookings are day-use only. Overnight stays, accommodation, lodging, and tenancy are prohibited. Bookings must end by the agreed end time (platform rules require endings by 9:00 PM unless a stricter house rule applies).
+
+You are responsible for complying with applicable laws, strata by-laws, lease conditions, council rules, and insurance requirements for your property and activities.
+
+## Insurance and Risk
+
+BorrowedHome does not provide property, public liability, or contents insurance for hosts or guests. You are responsible for assessing whether your existing insurance covers day-use visitors and for obtaining additional cover if needed.
+
+In-person interactions carry inherent risks. To the maximum extent permitted by law, you assume the risks associated with hosting guests at your property.
+
+## Payments and Off-Platform Conduct
+
+Payments, refunds, and deposits must be processed through BorrowedHome and Stripe. Do not solicit or accept off-platform payments for bookings made on the platform.
+
+Bypassing platform payments or messaging to avoid fees, deposits, or safety controls may result in suspension and forfeiture of protections that rely on platform records.
+
+## Platform Action
+
+BorrowedHome may, at its discretion:
+
+- Unpublish or remove listings
+- Suspend or terminate host accounts
+- Cancel bookings and handle refunds in accordance with platform policies
+- Investigate reports of misleading, unsafe, or fraudulent conduct
+
+## Host Declaration
+
+Before publishing a listing you must accept the Host Declaration presented in the product. That declaration forms part of your obligations under this Agreement.
+
+## Contact
+
+For questions about this Agreement, contact: hello@borrowedhome.app`;

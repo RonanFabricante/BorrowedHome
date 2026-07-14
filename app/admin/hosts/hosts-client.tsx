@@ -3,11 +3,13 @@
 import { useCallback, useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { AdminActionButton } from "@/components/admin/admin-action-button";
 
 type HostRow = {
   id: string;
   user_id: string;
   full_name: string | null;
+  is_suspended: boolean;
   stripe_account_id: string | null;
   stripe_charges_enabled: boolean;
   stripe_payouts_enabled: boolean;
@@ -53,6 +55,23 @@ export default function AdminHostsPage() {
     load();
   };
 
+  const setSuspended = async (
+    userId: string,
+    suspended: boolean,
+    reason?: string
+  ) => {
+    const res = await fetch("/api/admin/users/suspend", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId, suspended, reason }),
+    });
+    const json = await res.json();
+    return {
+      success: !!json.success,
+      message: json.message || json.error || "",
+    };
+  };
+
   return (
     <div className="space-y-6">
       <form onSubmit={apply} className="flex flex-wrap items-center gap-3">
@@ -74,14 +93,15 @@ export default function AdminHostsPage() {
         <p className="bh-caption text-muted-foreground">Loading…</p>
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[40rem] border-collapse text-left">
+          <table className="w-full min-w-[48rem] border-collapse text-left">
             <thead>
               <tr className="border-b border-border">
                 <th className="bh-micro py-3 pr-3">host</th>
                 <th className="bh-micro py-3 pr-3">onboarding</th>
                 <th className="bh-micro py-3 pr-3">charges</th>
                 <th className="bh-micro py-3 pr-3">payouts</th>
-                <th className="bh-micro py-3">stripe account</th>
+                <th className="bh-micro py-3 pr-3">account</th>
+                <th className="bh-micro py-3">actions</th>
               </tr>
             </thead>
             <tbody>
@@ -93,6 +113,11 @@ export default function AdminHostsPage() {
                   <td className="py-3 pr-3">
                     <div className="text-sm font-medium">
                       {h.full_name || "—"}
+                      {h.is_suspended && (
+                        <span className="ml-2 text-xs text-destructive">
+                          suspended
+                        </span>
+                      )}
                     </div>
                     <div className="bh-data text-xs text-muted-foreground">
                       {h.user_id.slice(0, 8)}…
@@ -107,8 +132,24 @@ export default function AdminHostsPage() {
                   <td className="bh-data py-3 pr-3 text-sm">
                     {h.stripe_payouts_enabled ? "yes" : "no"}
                   </td>
-                  <td className="bh-data py-3 text-xs">
+                  <td className="bh-data py-3 pr-3 text-xs">
                     {h.stripe_account_id || "—"}
+                  </td>
+                  <td className="py-3">
+                    <AdminActionButton
+                      label={h.is_suspended ? "Unsuspend" : "Suspend"}
+                      variant={h.is_suspended ? "secondary" : "destructive"}
+                      requireReason
+                      confirmMessage={
+                        h.is_suspended
+                          ? "Unsuspend this user?"
+                          : "Suspend this user and unpublish their listings?"
+                      }
+                      onAction={(reason) =>
+                        setSuspended(h.user_id, !h.is_suspended, reason)
+                      }
+                      onDone={load}
+                    />
                   </td>
                 </tr>
               ))}

@@ -1118,7 +1118,11 @@ export function HostOnboardingWizard() {
           ))}
         </ul>
         <p className="text-xs text-muted-foreground italic">
-          {onboardingSummaryHost.footer}
+          {onboardingSummaryHost.footer}{" "}
+          <a href="/terms/host-au" className="underline underline-offset-2">
+            Read the Host Agreement
+          </a>
+          .
         </p>
       </div>
       <div className="p-4 border rounded-lg">

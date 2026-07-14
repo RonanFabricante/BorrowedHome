@@ -44,20 +44,27 @@ export async function GET(request: NextRequest) {
   }
 
   const userIds = (hosts || []).map((h) => h.user_id);
-  let profiles: Record<string, { full_name: string | null }> = {};
+  let profiles: Record<
+    string,
+    { full_name: string | null; is_suspended: boolean }
+  > = {};
   if (userIds.length) {
     const { data: profileRows } = await admin
       .from("profiles")
-      .select("id, full_name")
+      .select("id, full_name, is_suspended")
       .in("id", userIds);
     for (const p of profileRows || []) {
-      profiles[p.id] = { full_name: p.full_name };
+      profiles[p.id] = {
+        full_name: p.full_name,
+        is_suspended: !!p.is_suspended,
+      };
     }
   }
 
   const enriched = (hosts || []).map((h) => ({
     ...h,
     full_name: profiles[h.user_id]?.full_name ?? null,
+    is_suspended: profiles[h.user_id]?.is_suspended ?? false,
   }));
 
   return NextResponse.json({ hosts: enriched });

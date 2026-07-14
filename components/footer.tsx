@@ -57,6 +57,12 @@ export function Footer() {
             >
               Guest Terms (AU)
             </Link>
+            <Link
+              href="/terms/host-au"
+              className="text-muted-foreground transition-colors hover:text-foreground"
+            >
+              Host Agreement (AU)
+            </Link>
           </div>
         </div>
       </div>

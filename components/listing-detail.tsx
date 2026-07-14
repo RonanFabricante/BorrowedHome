@@ -13,6 +13,7 @@ import { BookingDialog } from "@/components/booking-dialog";
 import { BookingRulesLine } from "@/components/booking-rules-line";
 import { ListingReviews } from "@/components/listing-reviews";
 import { HostReviewSummary } from "@/components/host-review-summary";
+import { ReportListingButton } from "@/components/report-listing-button";
 import { Star, ShieldCheck } from "lucide-react";
 
 const spaceIcons = {
@@ -357,7 +358,7 @@ export function ListingDetail({
                     <span>
                       Hosted by{" "}
                       <span className="font-medium">{listing.host.full_name}</span>
-                      {listing.published && " · Verified listing"}
+                      {listing.published && " · Published listing"}
                     </span>
                   </div>
                 )}
@@ -373,6 +374,9 @@ export function ListingDetail({
                     <a href="/auth/login">Log in to book</a>
                   </Button>
                 )}
+                <div className="mt-3">
+                  <ReportListingButton listingId={listing.id} />
+                </div>
               </div>
             </CardContent>
           </Card>

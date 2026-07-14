@@ -503,6 +503,11 @@ export function BookingDialog({
             </p>
           )}
 
+          <p className="rounded-md border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+            Always pay and message through BorrowedHome. Off-platform payments
+            increase fraud risk and are not protected by the platform.
+          </p>
+
           <div className="flex gap-4">
             <Button
               type="button"

@@ -222,6 +222,18 @@ export function EditListingForm({ listing }: { listing: any }) {
 
       // If publishing, check for host declaration acceptance and Stripe onboarding
       if (data.published && !listing.published) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("is_suspended")
+          .eq("id", user.id)
+          .maybeSingle();
+
+        if (profile?.is_suspended) {
+          throw new Error(
+            "Your account is suspended. Contact hello@borrowedhome.app for help."
+          );
+        }
+
         // Check if user has accepted host declaration for current version
         const { data: existingAcceptance } = await supabase
           .from("user_legal_acceptances")

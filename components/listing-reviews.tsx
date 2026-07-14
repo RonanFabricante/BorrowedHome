@@ -69,7 +69,7 @@ export function ListingReviews({
         <CardHeader>
           <CardTitle>Reviews</CardTitle>
           <p className="text-sm text-muted-foreground">
-            Verified day-use bookings
+            Completed day-use bookings
           </p>
         </CardHeader>
         <CardContent>
@@ -88,7 +88,7 @@ export function ListingReviews({
       <CardHeader>
         <CardTitle>Reviews</CardTitle>
         <p className="text-sm text-muted-foreground">
-          Verified day-use bookings
+          From completed day-use bookings
         </p>
         <div className="flex items-center gap-2 mt-2">
           <div className="flex items-center gap-1">
@@ -113,7 +113,7 @@ export function ListingReviews({
                 </div>
                 <Badge variant="outline" className="text-xs">
                   <CheckCircle2 className="w-3 h-3 mr-1" />
-                  Verified booking
+                  Completed booking
                 </Badge>
               </div>
               

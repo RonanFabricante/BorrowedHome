@@ -50,6 +50,12 @@ export async function GET() {
       .limit(10),
   ]);
 
+  // Soft-fail until migration 033 is applied
+  const openReports = await admin
+    .from("listing_reports")
+    .select("id", { count: "exact", head: true })
+    .eq("status", "open");
+
   const statusCounts: Record<string, number> = {};
   for (const row of bookingsByStatus.data || []) {
     const s = (row as { status: string }).status;
@@ -63,6 +69,7 @@ export async function GET() {
     publishedListings: publishedListings.count ?? 0,
     draftListings: draftListings.count ?? 0,
     hostsIncompleteConnect: hostsIncomplete.count ?? 0,
+    openListingReports: openReports.error ? 0 : openReports.count ?? 0,
     recentActions: recentActions.data || [],
   });
 }

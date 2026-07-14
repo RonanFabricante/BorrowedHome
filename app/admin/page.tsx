@@ -12,6 +12,7 @@ type Overview = {
   publishedListings: number;
   draftListings: number;
   hostsIncompleteConnect: number;
+  openListingReports: number;
   recentActions: Array<{
     id: string;
     action: string;
@@ -54,6 +55,11 @@ export default function AdminOverviewPage() {
       label: "Dispute holds",
       value: data.disputeHolds,
       href: "/admin/payments?disputes=1",
+    },
+    {
+      label: "Open listing reports",
+      value: data.openListingReports,
+      href: "/admin/reports?status=open",
     },
     {
       label: "Published listings",

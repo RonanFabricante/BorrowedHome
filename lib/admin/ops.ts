@@ -503,6 +503,87 @@ export async function setListingPublishedAdmin(
   };
 }
 
+/**
+ * Suspend or unsuspend a user. On suspend, unpublish all of their listings.
+ */
+export async function setUserSuspendedAdmin(
+  actorId: string,
+  userId: string,
+  suspended: boolean,
+  reason?: string
+): Promise<OpsResult> {
+  if (!reason?.trim()) {
+    return { success: false, message: "Reason is required" };
+  }
+
+  const admin = createAdminClient();
+  const { data: profile, error } = await admin
+    .from("profiles")
+    .select("id, is_suspended, full_name")
+    .eq("id", userId)
+    .maybeSingle();
+
+  if (error || !profile) {
+    return { success: false, message: "User not found" };
+  }
+
+  const { error: updateError } = await admin
+    .from("profiles")
+    .update({ is_suspended: suspended })
+    .eq("id", userId);
+
+  if (updateError) {
+    return {
+      success: false,
+      message: updateError.message,
+      error: updateError.message,
+    };
+  }
+
+  let unpublishedCount = 0;
+  if (suspended) {
+    const { data: listings } = await admin
+      .from("listings")
+      .select("id")
+      .eq("host_id", userId)
+      .eq("published", true);
+
+    if (listings?.length) {
+      const { error: unpublishError } = await admin
+        .from("listings")
+        .update({ published: false })
+        .eq("host_id", userId)
+        .eq("published", true);
+
+      if (!unpublishError) {
+        unpublishedCount = listings.length;
+      }
+    }
+  }
+
+  await logAdminAction({
+    actorId,
+    action: suspended ? "suspend_user" : "unsuspend_user",
+    entityType: "profile",
+    entityId: userId,
+    reason,
+    payload: {
+      full_name: profile.full_name,
+      previous: profile.is_suspended,
+      next: suspended,
+      unpublishedCount,
+    },
+  });
+
+  return {
+    success: true,
+    message: suspended
+      ? `User suspended${unpublishedCount ? `; ${unpublishedCount} listing(s) unpublished` : ""}`
+      : "User unsuspended",
+    details: { suspended, unpublishedCount },
+  };
+}
+
 export async function clearDisputeHoldAdmin(
   actorId: string,
   bookingId: string,

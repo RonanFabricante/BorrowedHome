@@ -17,6 +17,37 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const { createAdminClient } = await import("@/lib/supabase/admin");
+    const { hasAcceptedGuestTerms } = await import("@/lib/legal/helpers");
+    const adminClient = createAdminClient();
+
+    const { data: profile } = await adminClient
+      .from("profiles")
+      .select("is_suspended")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (profile?.is_suspended) {
+      return NextResponse.json(
+        {
+          error: "Your account is suspended. Contact hello@borrowedhome.app for help.",
+        },
+        { status: 403 }
+      );
+    }
+
+    const acceptedTerms = await hasAcceptedGuestTerms(adminClient, user.id);
+    if (!acceptedTerms) {
+      return NextResponse.json(
+        {
+          error: "GUEST_TERMS_REQUIRED",
+          message:
+            "Please accept the current Guest Terms before booking. Sign out and sign in again, or visit /terms/guest-au and contact support if this persists.",
+        },
+        { status: 403 }
+      );
+    }
+
     const body = await request.json();
     const {
       listing_id,

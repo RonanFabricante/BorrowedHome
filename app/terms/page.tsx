@@ -15,7 +15,18 @@ export default function TermsPage() {
               </p>
 
               <p className="mb-6">
-                By creating an account or using BorrowedHome, you agree to the following Terms & Conditions. If you do not agree, you must not use the platform.
+                By creating an account or using BorrowedHome, you agree to the following Terms &amp; Conditions. If you do not agree, you must not use the platform.
+              </p>
+              <p className="mb-6 text-sm text-muted-foreground">
+                Role-specific documents:{" "}
+                <a href="/terms/guest-au" className="underline underline-offset-2">
+                  Guest Terms (AU)
+                </a>
+                {" · "}
+                <a href="/terms/host-au" className="underline underline-offset-2">
+                  Host Agreement (AU)
+                </a>
+                .
               </p>
 
               <section className="mb-8">

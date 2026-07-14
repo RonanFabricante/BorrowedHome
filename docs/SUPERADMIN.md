@@ -4,7 +4,7 @@ Internal ops UI at `/admin` for platform operators.
 
 ## Setup
 
-1. Apply migration `032_superadmin_and_audit.sql` in Supabase SQL Editor.
+1. Apply migrations `032_superadmin_and_audit.sql` and `033_listing_reports_and_suspension.sql` in Supabase SQL Editor.
 2. Grant yourself access (replace with your auth user UUID):
 
 ```sql
@@ -19,11 +19,12 @@ WHERE id = 'YOUR_USER_UUID';
 
 | Area | Actions |
 |------|---------|
-| Overview | KPIs: stuck payments, disputes, listings, incomplete Connect |
+| Overview | KPIs: stuck payments, disputes, open reports, listings, incomplete Connect |
 | Bookings | Filter; force status (COMPLETED / CANCELLED / EXPIRED / CONFIRMED / DECLINED) with reason |
 | Payments | Sync from Stripe; capture + transfer; release deposit; clear dispute hold |
 | Listings | Publish / unpublish |
-| Hosts | Connect onboarding / charges / payouts status |
+| Reports | Listing report inbox; dismiss / review / unpublish / suspend host |
+| Hosts | Connect status; suspend / unsuspend user (suspend unpublishes their listings) |
 | Audit | `admin_actions` log |
 
 All mutations go through `/api/admin/*` (session + `is_superadmin` check) and use the service-role client. Every write is audited.

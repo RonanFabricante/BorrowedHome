@@ -103,14 +103,16 @@ export const FAQ_SECTIONS: FaqSection[] = [
         answer: [
           "In-app messaging unlocks after a booking is confirmed.",
           "Use it for arrival details, house rules questions, and coordination — not as a substitute for the booking request flow.",
+          "Always pay and message through BorrowedHome. Off-platform payments increase fraud risk and are not protected by the platform.",
         ],
       },
       {
         id: "cancel-guest",
         question: "Can I cancel a booking?",
         answer: [
-          "Confirmed bookings can be cancelled through the booking flow where available. Refunds depend on timing and the booking’s payment state.",
-          "If you’re stuck or something looks wrong, email support with your booking details.",
+          "You can cancel a request before the host accepts, or contact support if a confirmed booking needs to be cancelled.",
+          "Refunds depend on timing and payment state: if payment was only authorised (not yet captured), a cancellation typically releases the hold; after capture, refunds are handled case-by-case.",
+          "There is no separate free-cancellation window published beyond what the booking status and support process allow. Email support with your booking details if you’re stuck.",
         ],
         links: [
           {
@@ -118,6 +120,23 @@ export const FAQ_SECTIONS: FaqSection[] = [
             label: SUPPORT_EMAIL,
           },
         ],
+      },
+      {
+        id: "report-listing",
+        question: "How do I report a listing?",
+        answer: [
+          "On any listing page, use Report listing to flag misleading, unsafe, or suspected fraudulent listings.",
+          "Our team reviews reports in the admin console and may unpublish listings or suspend accounts.",
+        ],
+      },
+      {
+        id: "insurance-guest",
+        question: "Am I insured when I book?",
+        answer: [
+          "BorrowedHome does not provide personal insurance for guests. Day-use visits carry normal in-person risks.",
+          "Hosts are responsible for their own property and liability cover. Review house rules carefully and only book spaces you’re comfortable using.",
+        ],
+        links: [{ href: "/terms/guest-au", label: "Guest Terms (AU)" }],
       },
     ],
   },
@@ -133,7 +152,10 @@ export const FAQ_SECTIONS: FaqSection[] = [
           "The onboarding wizard walks you through photos, spaces, availability, house rules, and pricing.",
           "To receive payouts you’ll connect a Stripe account so funds can be transferred after completed bookings.",
         ],
-        links: [{ href: "/host/onboard", label: "Become a host" }],
+        links: [
+          { href: "/host/onboard", label: "Become a host" },
+          { href: "/terms/host-au", label: "Host Agreement (AU)" },
+        ],
       },
       {
         id: "what-can-list",
@@ -173,6 +195,15 @@ export const FAQ_SECTIONS: FaqSection[] = [
           "If something goes wrong, use the dispute / deposit tools for that booking rather than informal side payments.",
         ],
       },
+      {
+        id: "insurance-host",
+        question: "Does BorrowedHome insure my home?",
+        answer: [
+          "No. BorrowedHome does not provide property, contents, or public liability insurance for hosts.",
+          "Check whether your home insurance covers day-use visitors and arrange additional cover if needed before publishing.",
+        ],
+        links: [{ href: "/terms/host-au", label: "Host Agreement (AU)" }],
+      },
     ],
   },
   {
@@ -205,10 +236,11 @@ export const FAQ_SECTIONS: FaqSection[] = [
         id: "terms",
         question: "Where are the legal terms?",
         answer: [
-          "Guest Terms (Australia) and related agreements are linked from signup and the site footer. Please read them before hosting or booking.",
+          "Guest Terms and the Host Agreement (Australia) are linked from signup, hosting flows, and the site footer. Please read them before hosting or booking.",
         ],
         links: [
           { href: "/terms/guest-au", label: "Guest Terms (AU)" },
+          { href: "/terms/host-au", label: "Host Agreement (AU)" },
           { href: "/terms", label: "Terms overview" },
         ],
       },
