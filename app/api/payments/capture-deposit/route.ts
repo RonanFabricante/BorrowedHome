@@ -7,6 +7,10 @@ import {
   stripeMinAmountMinor,
 } from "@/lib/payments/stripeMinAmount";
 import { DEFAULT_CURRENCY, normalizeCurrency } from "@/lib/currency";
+import {
+  depositPayoutIdempotencyKey,
+  resolveHostPayoutFromPaymentIntent,
+} from "@/lib/stripe/hostPayout";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -121,13 +125,27 @@ export async function POST(request: NextRequest) {
 
     console.log(`[CaptureDeposit] Capturing deposit ${payment.stripe_deposit_intent_id} for booking ${bookingId}${captureAmount ? ` (amount: ${captureAmount} cents)` : " (full amount)"}`);
     
-    await stripe.paymentIntents.capture(
-      payment.stripe_deposit_intent_id,
-      captureAmount ? { amount_to_capture: captureAmount } : {}
+    let depositIntent = await stripe.paymentIntents.retrieve(
+      payment.stripe_deposit_intent_id
     );
+    if (depositIntent.status === "requires_capture") {
+      depositIntent = await stripe.paymentIntents.capture(
+        payment.stripe_deposit_intent_id,
+        captureAmount ? { amount_to_capture: captureAmount } : {}
+      );
+    }
+
+    if (depositIntent.status !== "succeeded") {
+      return NextResponse.json(
+        { error: `Deposit capture failed with status: ${depositIntent.status}` },
+        { status: 500 }
+      );
+    }
+
+    const capturedDepositCents = captureAmount || payment.deposit_amount;
 
     // Transfer captured deposit funds to the host's Connect account (they
-    // otherwise land on the platform balance).
+    // otherwise land on the platform balance). Deduct Stripe processing fee.
     const { data: host } = await supabase
       .from("hosts")
       .select("stripe_account_id, stripe_charges_enabled, stripe_payouts_enabled")
@@ -137,9 +155,14 @@ export async function POST(request: NextRequest) {
     let transferId: string | null = null;
     if (host?.stripe_account_id && host.stripe_charges_enabled && host.stripe_payouts_enabled) {
       try {
+        const payout = await resolveHostPayoutFromPaymentIntent({
+          paymentIntentId: payment.stripe_deposit_intent_id,
+          totalAmount: capturedDepositCents,
+          platformFee: 0,
+        });
         const transfer = await stripe.transfers.create(
           {
-            amount: captureAmount || payment.deposit_amount,
+            amount: payout.hostAmount,
             currency: normalizeCurrency(
               payment.currency || DEFAULT_CURRENCY
             ),
@@ -147,9 +170,10 @@ export async function POST(request: NextRequest) {
             metadata: {
               booking_id: bookingId,
               type: "deposit_capture",
+              stripe_fee_cents: String(payout.stripeFee),
             },
           },
-          { idempotencyKey: `deposit-payout-${bookingId}` }
+          { idempotencyKey: depositPayoutIdempotencyKey(bookingId) }
         );
         transferId = transfer.id;
       } catch (transferError: any) {

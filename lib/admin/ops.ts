@@ -8,6 +8,10 @@ import { stripe } from "@/lib/stripe/server";
 import { DEFAULT_CURRENCY, normalizeCurrency } from "@/lib/currency";
 import { logAdminAction } from "@/lib/admin/audit";
 import type { BookingStatus } from "@/lib/types";
+import {
+  bookingPayoutIdempotencyKey,
+  resolveHostPayoutFromPaymentIntent,
+} from "@/lib/stripe/hostPayout";
 
 function asOne<T>(value: T | T[] | null | undefined): T | null {
   if (!value) return null;
@@ -209,12 +213,19 @@ export async function retryCaptureAndTransfer(
 
   const totalAmount = payment.amount as number;
   const platformFee = (booking.platform_fee_amount as number) || 0;
-  const hostAmount = totalAmount - platformFee;
 
-  if (hostAmount <= 0) {
+  let payout;
+  try {
+    payout = await resolveHostPayoutFromPaymentIntent({
+      paymentIntentId: payment.stripe_payment_intent_id,
+      totalAmount,
+      platformFee,
+    });
+  } catch (feeErr: any) {
     return {
       success: false,
-      message: `Invalid host amount: ${hostAmount}`,
+      message: feeErr.message || "Failed to calculate host payout",
+      error: feeErr.message,
     };
   }
 
@@ -222,7 +233,7 @@ export async function retryCaptureAndTransfer(
   try {
     const transfer = await stripe.transfers.create(
       {
-        amount: hostAmount,
+        amount: payout.hostAmount,
         currency: normalizeCurrency(
           (payment.currency as string) ||
             (booking.currency as string) ||
@@ -234,9 +245,11 @@ export async function retryCaptureAndTransfer(
           type: "booking_payment",
           listing_title: (listing?.title as string) || "Unknown",
           admin_retry: "true",
+          platform_fee_cents: String(payout.platformFee),
+          stripe_fee_cents: String(payout.stripeFee),
         },
       },
-      { idempotencyKey: `booking-payout-${bookingId}` }
+      { idempotencyKey: bookingPayoutIdempotencyKey(bookingId) }
     );
     transferId = transfer.id;
   } catch (err: any) {
@@ -249,7 +262,9 @@ export async function retryCaptureAndTransfer(
       payload: {
         stripeStatus: paymentIntent.status,
         error: err.message,
-        hostAmount,
+        hostAmount: payout.hostAmount,
+        stripeFee: payout.stripeFee,
+        platformFee: payout.platformFee,
       },
     });
     return {
@@ -259,7 +274,9 @@ export async function retryCaptureAndTransfer(
       details: {
         stripeStatus: paymentIntent.status,
         capturedInStripe: true,
-        hostAmount,
+        hostAmount: payout.hostAmount,
+        stripeFee: payout.stripeFee,
+        platformFee: payout.platformFee,
       },
     };
   }
@@ -309,16 +326,22 @@ export async function retryCaptureAndTransfer(
     reason,
     payload: {
       transferId,
-      hostAmount,
-      platformFee,
+      hostAmount: payout.hostAmount,
+      platformFee: payout.platformFee,
+      stripeFee: payout.stripeFee,
       stripeStatus: paymentIntent.status,
     },
   });
 
   return {
     success: true,
-    message: `Captured and transferred ${hostAmount} cents to host`,
-    details: { transferId, hostAmount, platformFee },
+    message: `Captured and transferred ${payout.hostAmount} cents to host (Stripe fee ${payout.stripeFee} deducted)`,
+    details: {
+      transferId,
+      hostAmount: payout.hostAmount,
+      platformFee: payout.platformFee,
+      stripeFee: payout.stripeFee,
+    },
   };
 }
 

@@ -128,30 +128,67 @@ async function captureAndTransferToHost(
       );
     }
 
-    // Capture the payment intent using Stripe REST API
+    // Capture if still requires_capture; otherwise reconcile already-succeeded PIs.
     console.log(
       `[AutoCapture] Capturing PaymentIntent ${payment.stripe_payment_intent_id}`
     );
 
-    const captureResponse = await fetch(
-      `https://api.stripe.com/v1/payment_intents/${payment.stripe_payment_intent_id}/capture`,
+    let paymentIntent: any;
+    const retrieveResponse = await fetch(
+      `https://api.stripe.com/v1/payment_intents/${payment.stripe_payment_intent_id}?expand[]=latest_charge.balance_transaction`,
       {
-        method: "POST",
+        method: "GET",
         headers: {
-          "Authorization": `Bearer ${stripeSecretKey}`,
-          "Content-Type": "application/x-www-form-urlencoded",
+          Authorization: `Bearer ${stripeSecretKey}`,
         },
       }
     );
 
-    if (!captureResponse.ok) {
-      const errorData = await captureResponse.json();
+    if (!retrieveResponse.ok) {
+      const errorData = await retrieveResponse.json();
       throw new Error(
-        `PaymentIntent capture failed: ${errorData.error?.message || captureResponse.statusText}`
+        `PaymentIntent retrieve failed: ${errorData.error?.message || retrieveResponse.statusText}`
       );
     }
 
-    const paymentIntent = await captureResponse.json();
+    paymentIntent = await retrieveResponse.json();
+
+    if (paymentIntent.status === "requires_capture") {
+      const captureResponse = await fetch(
+        `https://api.stripe.com/v1/payment_intents/${payment.stripe_payment_intent_id}/capture`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${stripeSecretKey}`,
+            "Content-Type": "application/x-www-form-urlencoded",
+          },
+        }
+      );
+
+      if (!captureResponse.ok) {
+        const errorData = await captureResponse.json();
+        throw new Error(
+          `PaymentIntent capture failed: ${errorData.error?.message || captureResponse.statusText}`
+        );
+      }
+
+      const afterCapture = await fetch(
+        `https://api.stripe.com/v1/payment_intents/${payment.stripe_payment_intent_id}?expand[]=latest_charge.balance_transaction`,
+        {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${stripeSecretKey}`,
+          },
+        }
+      );
+      if (!afterCapture.ok) {
+        const errorData = await afterCapture.json();
+        throw new Error(
+          `PaymentIntent re-fetch failed: ${errorData.error?.message || afterCapture.statusText}`
+        );
+      }
+      paymentIntent = await afterCapture.json();
+    }
 
     if (paymentIntent.status !== "succeeded") {
       throw new Error(
@@ -159,19 +196,47 @@ async function captureAndTransferToHost(
       );
     }
 
-    // Calculate amounts
-    const totalAmount = payment.amount; // Total charged to guest in cents
+    // Stripe processing fee from charge balance_transaction (host covers this)
+    let stripeFee = 0;
+    const latestCharge = paymentIntent.latest_charge;
+    const balanceTx =
+      latestCharge && typeof latestCharge === "object"
+        ? latestCharge.balance_transaction
+        : null;
+
+    if (balanceTx && typeof balanceTx === "object" && typeof balanceTx.fee === "number") {
+      stripeFee = balanceTx.fee;
+    } else if (typeof balanceTx === "string") {
+      const btRes = await fetch(
+        `https://api.stripe.com/v1/balance_transactions/${balanceTx}`,
+        {
+          method: "GET",
+          headers: { Authorization: `Bearer ${stripeSecretKey}` },
+        }
+      );
+      if (!btRes.ok) {
+        throw new Error("Cannot read Stripe fee: balance_transaction fetch failed");
+      }
+      const bt = await btRes.json();
+      stripeFee = bt.fee ?? 0;
+    } else {
+      throw new Error(
+        "Cannot read Stripe fee: balance_transaction not available yet — retry shortly"
+      );
+    }
+
+    const totalAmount = payment.amount;
     const platformFee = booking.platform_fee_amount || 0;
-    const hostAmount = totalAmount - platformFee;
+    const hostAmount = totalAmount - platformFee - stripeFee;
 
     if (hostAmount <= 0) {
       throw new Error(
-        `Invalid host amount calculated: ${hostAmount} (total: ${totalAmount}, fee: ${platformFee})`
+        `Invalid host amount: ${hostAmount} (total: ${totalAmount}, platform: ${platformFee}, stripe: ${stripeFee})`
       );
     }
 
     console.log(
-      `[AutoCapture] Amount breakdown - Total: ${totalAmount}, Platform Fee: ${platformFee}, Host Amount: ${hostAmount}`
+      `[AutoCapture] Amount breakdown - Total: ${totalAmount}, Platform Fee: ${platformFee}, Stripe Fee: ${stripeFee}, Host Amount: ${hostAmount}`
     );
 
     // Transfer to host's Stripe Connect account
@@ -184,16 +249,17 @@ async function captureAndTransferToHost(
       "metadata[booking_id]": bookingId,
       "metadata[type]": "booking_payment",
       "metadata[listing_title]": listingTitle,
+      "metadata[platform_fee_cents]": String(platformFee),
+      "metadata[stripe_fee_cents]": String(stripeFee),
     });
 
     const transferResponse = await fetch("https://api.stripe.com/v1/transfers", {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${stripeSecretKey}`,
+        Authorization: `Bearer ${stripeSecretKey}`,
         "Content-Type": "application/x-www-form-urlencoded",
-        // Shared with the Next.js capture paths so the host can never be
-        // paid out twice for the same booking.
-        "Idempotency-Key": `booking-payout-${bookingId}`,
+        // v2 = host payout nets Stripe fee (invalidates pre-fee idempotency keys)
+        "Idempotency-Key": `booking-payout-${bookingId}-v2`,
       },
       body: transferParams.toString(),
     });

@@ -2,8 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { stripe } from "@/lib/stripe/server";
-import { PLATFORM_FEE_PERCENTAGE } from "@/lib/stripe/server";
 import { DEFAULT_CURRENCY, normalizeCurrency } from "@/lib/currency";
+import {
+  bookingPayoutIdempotencyKey,
+  resolveHostPayoutFromPaymentIntent,
+} from "@/lib/stripe/hostPayout";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -144,40 +147,47 @@ export async function POST(request: NextRequest) {
 
     // Capture the payment intent
     console.log(`[Capture] Capturing PaymentIntent ${payment.stripe_payment_intent_id} for booking ${bookingId}`);
-    const paymentIntent = await stripe.paymentIntents.capture(
+    let paymentIntent = await stripe.paymentIntents.retrieve(
       payment.stripe_payment_intent_id
     );
+    if (paymentIntent.status === "requires_capture") {
+      paymentIntent = await stripe.paymentIntents.capture(
+        payment.stripe_payment_intent_id
+      );
+    }
 
     if (paymentIntent.status !== "succeeded") {
       throw new Error(`PaymentIntent capture failed with status: ${paymentIntent.status}`);
     }
 
-    // Calculate amounts for transfer
-    // payment.amount = totalAmount charged to guest (includes booking amount + platform fee)
-    // payment.bookings.platform_fee_amount = platform fee (already stored in booking)
-    // Host receives: total - platform fee
-    const totalAmount = payment.amount; // Total charged to guest in cents
-    const platformFee = payment.bookings.platform_fee_amount || 0; // Use stored platform fee from booking
-    const hostAmount = totalAmount - platformFee; // Host receives total minus platform fee
-    
-    // Ensure host amount is positive
-    if (hostAmount <= 0) {
+    // Host payout = guest total − platform fee − actual Stripe processing fee
+    const totalAmount = payment.amount;
+    const platformFee = payment.bookings.platform_fee_amount || 0;
+    let payout;
+    try {
+      payout = await resolveHostPayoutFromPaymentIntent({
+        paymentIntentId: payment.stripe_payment_intent_id,
+        totalAmount,
+        platformFee,
+      });
+    } catch (feeErr: any) {
       return NextResponse.json(
-        { error: `Invalid host amount calculated: ${hostAmount} (total: ${totalAmount}, fee: ${platformFee}). Check booking.platform_fee_amount.` },
+        { error: feeErr.message || "Failed to calculate host payout" },
         { status: 500 }
       );
     }
-    
-    // Log for debugging
-    console.log(`[Capture] Amount breakdown - Total: ${totalAmount}, Platform Fee: ${platformFee}, Host Amount: ${hostAmount}`);
 
-    console.log(`[Capture] Transferring ${hostAmount} cents to host ${hostId} (platform fee: ${platformFee}, total: ${totalAmount})`);
+    console.log(
+      `[Capture] Amount breakdown - Total: ${payout.totalAmount}, Platform Fee: ${payout.platformFee}, Stripe Fee: ${payout.stripeFee}, Host Amount: ${payout.hostAmount}`
+    );
+
+    console.log(`[Capture] Transferring ${payout.hostAmount} cents to host ${hostId}`);
 
     // Transfer to host's Stripe Connect account (idempotency key shared with
     // auto-capture so the host can never be paid out twice for one booking)
     const transfer = await stripe.transfers.create(
       {
-        amount: hostAmount,
+        amount: payout.hostAmount,
         currency: normalizeCurrency(
           payment.currency || payment.bookings?.currency || DEFAULT_CURRENCY
         ),
@@ -186,9 +196,11 @@ export async function POST(request: NextRequest) {
           booking_id: bookingId,
           type: "booking_payment",
           listing_title: listings.title || "Unknown",
+          platform_fee_cents: String(payout.platformFee),
+          stripe_fee_cents: String(payout.stripeFee),
         },
       },
-      { idempotencyKey: `booking-payout-${bookingId}` }
+      { idempotencyKey: bookingPayoutIdempotencyKey(bookingId) }
     );
 
     console.log(`[Capture] Transfer created: ${transfer.id}`);

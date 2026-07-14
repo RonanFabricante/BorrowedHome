@@ -6,6 +6,10 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { stripe } from "@/lib/stripe/server";
 import { DEFAULT_CURRENCY, normalizeCurrency } from "@/lib/currency";
+import {
+  bookingPayoutIdempotencyKey,
+  resolveHostPayoutFromPaymentIntent,
+} from "@/lib/stripe/hostPayout";
 
 const REVIEW_WINDOW_HOURS = 24;
 
@@ -233,24 +237,21 @@ async function captureAndTransferToHost(
       );
     }
 
-    // Calculate amounts
-    // payment.amount = totalAmount charged to guest (includes booking amount + platform fee)
-    // booking.platform_fee_amount = platform fee amount (already calculated and stored)
-    // booking.total_amount = base booking amount + platform fee (same as payment.amount should be)
-    const totalAmount = payment.amount; // Total charged to guest in cents
-    const platformFee = booking.platform_fee_amount || 0; // Use stored platform fee from booking
-    const hostAmount = totalAmount - platformFee; // Host receives total minus platform fee
-    
-    // Ensure host amount is positive
-    if (hostAmount <= 0) {
-      throw new Error(`Invalid host amount calculated: ${hostAmount} (total: ${totalAmount}, fee: ${platformFee}). Check booking.platform_fee_amount.`);
-    }
-    
-    // Log for debugging
-    console.log(`[AutoCapture] Amount breakdown - Total: ${totalAmount}, Platform Fee: ${platformFee}, Host Amount: ${hostAmount}`);
+    // Host payout = guest total − platform fee − actual Stripe processing fee
+    const totalAmount = payment.amount;
+    const platformFee = booking.platform_fee_amount || 0;
+    const payout = await resolveHostPayoutFromPaymentIntent({
+      paymentIntentId: payment.stripe_payment_intent_id,
+      totalAmount,
+      platformFee,
+    });
 
     console.log(
-      `[AutoCapture] Transferring ${hostAmount} cents to host ${hostId} (platform fee: ${platformFee})`
+      `[AutoCapture] Amount breakdown - Total: ${payout.totalAmount}, Platform Fee: ${payout.platformFee}, Stripe Fee: ${payout.stripeFee}, Host Amount: ${payout.hostAmount}`
+    );
+
+    console.log(
+      `[AutoCapture] Transferring ${payout.hostAmount} cents to host ${hostId}`
     );
 
     // Get listing title
@@ -261,7 +262,7 @@ async function captureAndTransferToHost(
     // updating the payment row.
     const transfer = await stripe.transfers.create(
       {
-        amount: hostAmount,
+        amount: payout.hostAmount,
         currency: normalizeCurrency(
           (payment as { currency?: string }).currency ||
             (booking as { currency?: string }).currency ||
@@ -272,9 +273,11 @@ async function captureAndTransferToHost(
           booking_id: bookingId,
           type: "booking_payment",
           listing_title: listingTitle,
+          platform_fee_cents: String(payout.platformFee),
+          stripe_fee_cents: String(payout.stripeFee),
         },
       },
-      { idempotencyKey: `booking-payout-${bookingId}` }
+      { idempotencyKey: bookingPayoutIdempotencyKey(bookingId) }
     );
 
     // Update payment status in database

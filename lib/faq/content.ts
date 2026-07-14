@@ -161,7 +161,7 @@ export const FAQ_SECTIONS: FaqSection[] = [
         question: "How and when do I get paid?",
         answer: [
           "Guest payments are processed through Stripe. After a booking completes and the review window ends (with no dispute), the rental is captured and your share is transferred to your connected Stripe account.",
-          "BorrowedHome keeps a platform fee; you receive the booking amount minus that fee. Payouts to your bank follow Stripe’s schedule for your connected account.",
+          "Your payout is the guest total minus BorrowedHome’s platform fee and Stripe’s card processing fee (the actual fee Stripe charged on that payment). Payouts to your bank follow Stripe’s schedule for your connected account.",
         ],
         links: [{ href: "/host/payouts", label: "Payouts & Connect" }],
       },
