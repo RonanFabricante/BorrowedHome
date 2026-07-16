@@ -235,6 +235,7 @@ export function BookingDialog({
           guests_count: data.guestsCount,
           guest_ack_toilet_access: data.guest_ack_toilet_access,
           guest_ack_consumables_policy: data.guest_ack_consumables_policy,
+          accepted_guest_terms: data.acceptedRules,
           message: null,
         }),
       });
@@ -493,8 +494,18 @@ export function BookingDialog({
               }
             />
             <Label htmlFor="acceptedRules" className="cursor-pointer">
-              I agree to the house rules and day-use terms. I understand this is
-              day-use only (bookings must end by 9:00 PM, no overnight) and I will return the space as I found it.
+              I agree to the house rules and the{" "}
+              <a
+                href="/terms/guest-au"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline"
+                onClick={(e) => e.stopPropagation()}
+              >
+                Guest Terms
+              </a>
+              . I understand this is day-use only (bookings must end by 9:00 PM,
+              no overnight) and I will return the space as I found it.
             </Label>
           </div>
           {errors.acceptedRules && (

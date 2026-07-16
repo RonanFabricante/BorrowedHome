@@ -33,18 +33,6 @@ export async function POST(request: NextRequest) {
     const { hasAcceptedGuestTerms } = await import("@/lib/legal/helpers");
     const adminClient = createAdminClient();
 
-    const acceptedTerms = await hasAcceptedGuestTerms(adminClient, user.id);
-    if (!acceptedTerms) {
-      return NextResponse.json(
-        {
-          error: "GUEST_TERMS_REQUIRED",
-          message:
-            "Please accept the current Guest Terms before booking. Sign out and sign in again, or visit /terms/guest-au and contact support if this persists.",
-        },
-        { status: 403 }
-      );
-    }
-
     const body = await request.json();
     const {
       listing_id,
@@ -53,7 +41,58 @@ export async function POST(request: NextRequest) {
       guests_count,
       guest_ack_toilet_access,
       guest_ack_consumables_policy,
+      accepted_guest_terms,
     } = body;
+
+    const acceptedTerms = await hasAcceptedGuestTerms(adminClient, user.id);
+    if (!acceptedTerms) {
+      // Acceptance is normally recorded at signup, but older accounts (or
+      // accounts whose signup insert failed) have no row. The booking dialog
+      // requires an explicit terms checkbox — record that consent here so
+      // those accounts self-heal instead of being blocked forever.
+      if (accepted_guest_terms === true) {
+        const { TERMS_VERSION } = await import("@/lib/legal/terms-au");
+        const { error: acceptanceError } = await adminClient
+          .from("user_legal_acceptances")
+          .upsert(
+            {
+              user_id: user.id,
+              doc_type: "guest_terms",
+              doc_version: TERMS_VERSION,
+              accepted_at: new Date().toISOString(),
+              metadata: { source: "booking_request", listing_id },
+            },
+            {
+              onConflict: "user_id,doc_type,doc_version",
+              ignoreDuplicates: true,
+            }
+          );
+
+        if (acceptanceError) {
+          console.error(
+            "[BookingRequest] Failed to record guest terms acceptance:",
+            acceptanceError.message
+          );
+          return NextResponse.json(
+            {
+              error: "GUEST_TERMS_REQUIRED",
+              message:
+                "We couldn't record your Guest Terms acceptance. Please try again or contact support.",
+            },
+            { status: 500 }
+          );
+        }
+      } else {
+        return NextResponse.json(
+          {
+            error: "GUEST_TERMS_REQUIRED",
+            message:
+              "Please accept the Guest Terms (tick the house rules and day-use terms checkbox) before booking.",
+          },
+          { status: 403 }
+        );
+      }
+    }
 
     // Validation
     if (!listing_id || !start_time || !end_time || !guests_count) {
