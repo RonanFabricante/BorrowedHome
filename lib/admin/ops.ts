@@ -5,13 +5,8 @@
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { stripe } from "@/lib/stripe/server";
-import { DEFAULT_CURRENCY, normalizeCurrency } from "@/lib/currency";
 import { logAdminAction } from "@/lib/admin/audit";
 import type { BookingStatus } from "@/lib/types";
-import {
-  bookingPayoutIdempotencyKey,
-  resolveHostPayoutFromPaymentIntent,
-} from "@/lib/stripe/hostPayout";
 
 function asOne<T>(value: T | T[] | null | undefined): T | null {
   if (!value) return null;
@@ -78,19 +73,25 @@ export async function syncPaymentFromStripe(
   const admin = createAdminClient();
 
   let nextStatus = payment.status as string;
-  if (pi.status === "succeeded") nextStatus = "captured";
-  else if (pi.status === "requires_capture") nextStatus = "authorised";
+  if (pi.status === "succeeded") {
+    // Charge on platform ≠ host paid. Only "captured" when Connect transfer exists.
+    nextStatus = payment.stripe_transfer_id
+      ? "captured"
+      : payment.status === "captured"
+        ? "captured" // orphan: keep so transfer retry can find it
+        : "authorised";
+  } else if (pi.status === "requires_capture") nextStatus = "authorised";
   else if (pi.status === "canceled") nextStatus = "released";
   else if (pi.status === "requires_payment_method") nextStatus = "pending";
 
   const updates: Record<string, unknown> = { status: nextStatus };
-  if (nextStatus === "captured") {
+  if (nextStatus === "captured" && payment.stripe_transfer_id) {
     updates.auto_capture_scheduled_at = null;
   }
 
   await admin.from("payments").update(updates).eq("id", payment.id);
 
-  if (nextStatus === "captured") {
+  if (nextStatus === "captured" && payment.stripe_transfer_id) {
     await admin
       .from("bookings")
       .update({
@@ -200,6 +201,14 @@ export async function retryCaptureAndTransfer(
     };
   }
 
+  if (payment.stripe_transfer_id) {
+    return {
+      success: true,
+      message: "Host transfer already completed",
+      details: { transferId: payment.stripe_transfer_id },
+    };
+  }
+
   let paymentIntent = await stripe.paymentIntents.retrieve(
     payment.stripe_payment_intent_id
   );
@@ -219,44 +228,27 @@ export async function retryCaptureAndTransfer(
   const totalAmount = payment.amount as number;
   const platformFee = (booking.platform_fee_amount as number) || 0;
 
+  let transferId: string;
   let payout;
   try {
-    payout = await resolveHostPayoutFromPaymentIntent({
-      paymentIntentId: payment.stripe_payment_intent_id,
+    const { completeHostPayout } = await import("@/lib/payments/completeHostPayout");
+    const result = await completeHostPayout({
+      bookingId,
+      paymentId: payment.id as string,
+      paymentIntentId: payment.stripe_payment_intent_id as string,
+      hostUserId: hostId,
+      stripeAccountId: host.stripe_account_id,
       totalAmount,
       platformFee,
+      currency:
+        (payment.currency as string) ||
+        (booking.currency as string) ||
+        undefined,
+      listingTitle: (listing?.title as string) || "Unknown",
+      transferMetadata: { admin_retry: "true" },
     });
-  } catch (feeErr: any) {
-    return {
-      success: false,
-      message: feeErr.message || "Failed to calculate host payout",
-      error: feeErr.message,
-    };
-  }
-
-  let transferId: string | undefined;
-  try {
-    const transfer = await stripe.transfers.create(
-      {
-        amount: payout.hostAmount,
-        currency: normalizeCurrency(
-          (payment.currency as string) ||
-            (booking.currency as string) ||
-            DEFAULT_CURRENCY
-        ),
-        destination: host.stripe_account_id,
-        metadata: {
-          booking_id: bookingId,
-          type: "booking_payment",
-          listing_title: (listing?.title as string) || "Unknown",
-          admin_retry: "true",
-          platform_fee_cents: String(payout.platformFee),
-          stripe_fee_cents: String(payout.stripeFee),
-        },
-      },
-      { idempotencyKey: bookingPayoutIdempotencyKey(bookingId) }
-    );
-    transferId = transfer.id;
+    transferId = result.transferId;
+    payout = result.payout;
   } catch (err: any) {
     await logAdminAction({
       actorId,
@@ -267,9 +259,6 @@ export async function retryCaptureAndTransfer(
       payload: {
         stripeStatus: paymentIntent.status,
         error: err.message,
-        hostAmount: payout.hostAmount,
-        stripeFee: payout.stripeFee,
-        platformFee: payout.platformFee,
       },
     });
     return {
@@ -279,28 +268,9 @@ export async function retryCaptureAndTransfer(
       details: {
         stripeStatus: paymentIntent.status,
         capturedInStripe: true,
-        hostAmount: payout.hostAmount,
-        stripeFee: payout.stripeFee,
-        platformFee: payout.platformFee,
       },
     };
   }
-
-  await admin
-    .from("payments")
-    .update({
-      status: "captured",
-      auto_capture_scheduled_at: null,
-    })
-    .eq("id", payment.id);
-
-  await admin
-    .from("bookings")
-    .update({
-      payment_status: "CAPTURED",
-      payment_captured_at: new Date().toISOString(),
-    })
-    .eq("id", bookingId);
 
   if (
     payment.stripe_deposit_intent_id &&
@@ -309,10 +279,10 @@ export async function retryCaptureAndTransfer(
   ) {
     try {
       const deposit = await stripe.paymentIntents.retrieve(
-        payment.stripe_deposit_intent_id
+        payment.stripe_deposit_intent_id as string
       );
       if (deposit.status !== "canceled" && deposit.status !== "succeeded") {
-        await stripe.paymentIntents.cancel(payment.stripe_deposit_intent_id);
+        await stripe.paymentIntents.cancel(payment.stripe_deposit_intent_id as string);
       }
       await admin
         .from("payments")

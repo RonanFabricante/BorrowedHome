@@ -33,6 +33,7 @@ Migration **034** locks `is_superadmin` / `is_suspended` and host Stripe Connect
 
 ## Notes
 
-- Capture + transfer is safe if the PaymentIntent is already `succeeded` (skips capture, retries transfer with idempotency key `booking-payout-{bookingId}`).
-- Transfer can still fail if the platform Stripe balance is too low (common on tiny test charges after fees).
+- Capture + transfer is complete only when `payments.stripe_transfer_id` is set. Charge capture alone leaves funds on the platform.
+- Cron / admin "retry capture" also retries rows that are `captured` but missing `stripe_transfer_id`.
+- Transfer can still fail if the platform Stripe available balance is too low (common on tiny test charges after fees, or when platform auto-payouts drain the balance first). Consider disabling platform automatic payouts or keeping a reserve.
 - Never set `is_superadmin` from the public signup UI.

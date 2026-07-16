@@ -2,12 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { stripe } from "@/lib/stripe/server";
-import { DEFAULT_CURRENCY, normalizeCurrency } from "@/lib/currency";
-import {
-  bookingPayoutIdempotencyKey,
-  resolveHostPayoutFromPaymentIntent,
-} from "@/lib/stripe/hostPayout";
-import { requireHostStripeReady } from "@/lib/stripe/refreshHostStatus";
+import { completeHostPayout, needsHostTransfer } from "@/lib/payments/completeHostPayout";
 import {
   assertNotSuspended,
   suspendedResponse,
@@ -24,7 +19,9 @@ export const dynamic = "force-dynamic";
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -38,10 +35,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "bookingId is required" }, { status: 400 });
     }
 
-    // Fetch payment with booking and listing details
     const { data: payment, error: paymentError } = await supabase
       .from("payments")
-      .select(`
+      .select(
+        `
         *,
         bookings!inner(
           id,
@@ -57,7 +54,8 @@ export async function POST(request: NextRequest) {
             title
           )
         )
-      `)
+      `
+      )
       .eq("booking_id", bookingId)
       .single();
 
@@ -68,8 +66,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verify user is the host
-    const listings = payment.bookings.listings as { host_id: string; title?: string } | undefined;
+    const listings = payment.bookings.listings as
+      | { host_id: string; title?: string }
+      | undefined;
     if (!listings || listings.host_id !== user.id) {
       return NextResponse.json(
         { error: "Only the host can capture payments" },
@@ -77,53 +76,57 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verify payment is authorised
-    if (payment.status !== "authorised") {
+    if (payment.stripe_transfer_id) {
+      return NextResponse.json({
+        success: true,
+        alreadyTransferred: true,
+        transferId: payment.stripe_transfer_id,
+        message: "Host transfer already completed",
+      });
+    }
+
+    if (!needsHostTransfer(payment)) {
       return NextResponse.json(
-        { error: `Payment must be authorised before capture (current status: ${payment.status})` },
+        {
+          error: `Payment must be authorised (or captured pending transfer). Current status: ${payment.status}`,
+        },
         { status: 400 }
       );
     }
 
-    // Only allow capture after the booking has completed. Before completion
-    // review_window_ends_at is NULL, so without this check a host could
-    // capture funds before the guest's visit even happens.
     if (payment.bookings.status !== "COMPLETED") {
       return NextResponse.json(
-        { error: `Payment can only be captured after the booking is completed (current status: ${payment.bookings.status})` },
+        {
+          error: `Payment can only be captured after the booking is completed (current status: ${payment.bookings.status})`,
+        },
         { status: 400 }
       );
     }
 
-    // Check if review window has ended (if set)
-    if (payment.review_window_ends_at) {
+    if (payment.status === "authorised" && payment.review_window_ends_at) {
       const reviewEnd = new Date(payment.review_window_ends_at);
-      const now = new Date();
-      
-      if (now < reviewEnd) {
+      if (new Date() < reviewEnd) {
         return NextResponse.json(
-          { 
+          {
             error: `Payment cannot be captured until review window ends at ${reviewEnd.toISOString()}`,
-            reviewWindowEndsAt: reviewEnd.toISOString()
+            reviewWindowEndsAt: reviewEnd.toISOString(),
           },
           { status: 400 }
         );
       }
     }
 
-    // Check if dispute was reported
     if (payment.dispute_reported_at) {
       return NextResponse.json(
-        { 
+        {
           error: "Payment cannot be captured while dispute is active",
           disputeReportedAt: payment.dispute_reported_at,
-          holdReason: payment.capture_hold_reason
+          holdReason: payment.capture_hold_reason,
         },
         { status: 400 }
       );
     }
 
-    // Get host Stripe account and verify live readiness
     const hostId = listings.host_id;
     const { data: host, error: hostError } = await supabase
       .from("hosts")
@@ -131,29 +134,19 @@ export async function POST(request: NextRequest) {
       .eq("user_id", hostId)
       .single();
 
-    if (hostError || !host) {
+    if (hostError || !host?.stripe_account_id) {
       return NextResponse.json(
-        { error: "Host Stripe account not found. Please complete onboarding at /host/payouts" },
+        {
+          error:
+            "Host Stripe account not found. Please complete onboarding at /host/payouts",
+        },
         { status: 404 }
       );
     }
 
-    try {
-      await requireHostStripeReady(hostId, host.stripe_account_id);
-    } catch (stripeErr: any) {
-      return NextResponse.json(
-        {
-          error:
-            stripeErr.message ||
-            "Host Stripe account not fully enabled. Please complete onboarding.",
-          details: stripeErr.details,
-        },
-        { status: 400 }
-      );
-    }
-
-    // Capture the payment intent
-    console.log(`[Capture] Capturing PaymentIntent ${payment.stripe_payment_intent_id} for booking ${bookingId}`);
+    console.log(
+      `[Capture] Capturing PaymentIntent ${payment.stripe_payment_intent_id} for booking ${bookingId}`
+    );
     let paymentIntent = await stripe.paymentIntents.retrieve(
       payment.stripe_payment_intent_id
     );
@@ -164,120 +157,86 @@ export async function POST(request: NextRequest) {
     }
 
     if (paymentIntent.status !== "succeeded") {
-      throw new Error(`PaymentIntent capture failed with status: ${paymentIntent.status}`);
-    }
-
-    // Host payout = guest total − platform fee − actual Stripe processing fee
-    const totalAmount = payment.amount;
-    const platformFee = payment.bookings.platform_fee_amount || 0;
-    let payout;
-    try {
-      payout = await resolveHostPayoutFromPaymentIntent({
-        paymentIntentId: payment.stripe_payment_intent_id,
-        totalAmount,
-        platformFee,
-      });
-    } catch (feeErr: any) {
-      return NextResponse.json(
-        { error: feeErr.message || "Failed to calculate host payout" },
-        { status: 500 }
+      throw new Error(
+        `PaymentIntent capture failed with status: ${paymentIntent.status}`
       );
     }
 
-    console.log(
-      `[Capture] Amount breakdown - Total: ${payout.totalAmount}, Platform Fee: ${payout.platformFee}, Stripe Fee: ${payout.stripeFee}, Host Amount: ${payout.hostAmount}`
-    );
-
-    console.log(`[Capture] Transferring ${payout.hostAmount} cents to host ${hostId}`);
-
-    // Transfer to host's Stripe Connect account (idempotency key shared with
-    // auto-capture so the host can never be paid out twice for one booking)
-    const transfer = await stripe.transfers.create(
-      {
-        amount: payout.hostAmount,
-        currency: normalizeCurrency(
-          payment.currency || payment.bookings?.currency || DEFAULT_CURRENCY
-        ),
-        destination: host.stripe_account_id,
-        metadata: {
-          booking_id: bookingId,
-          type: "booking_payment",
-          listing_title: listings.title || "Unknown",
-          platform_fee_cents: String(payout.platformFee),
-          stripe_fee_cents: String(payout.stripeFee),
+    let transferId: string;
+    let payout;
+    try {
+      const result = await completeHostPayout({
+        bookingId,
+        paymentId: payment.id,
+        paymentIntentId: payment.stripe_payment_intent_id,
+        hostUserId: hostId,
+        stripeAccountId: host.stripe_account_id,
+        totalAmount: payment.amount,
+        platformFee: payment.bookings.platform_fee_amount || 0,
+        currency: payment.currency || payment.bookings?.currency,
+        listingTitle: listings.title,
+      });
+      transferId = result.transferId;
+      payout = result.payout;
+    } catch (transferErr: any) {
+      console.error(
+        "[Capture] Host transfer failed after charge capture:",
+        transferErr
+      );
+      return NextResponse.json(
+        {
+          error:
+            transferErr.message ||
+            "Charge captured on platform but host transfer failed. Will retry when platform balance is available.",
+          capturedInStripe: true,
+          transferPending: true,
         },
-      },
-      { idempotencyKey: bookingPayoutIdempotencyKey(bookingId) }
-    );
+        { status: 502 }
+      );
+    }
 
-    console.log(`[Capture] Transfer created: ${transfer.id}`);
+    console.log(`[Capture] Transfer created: ${transferId}`);
 
-    // Update payment status (service role — client updates are locked)
     const admin = createAdminClient();
-    const { error: updateError } = await admin
-      .from("payments")
-      .update({ 
-        status: "captured",
-        auto_capture_scheduled_at: null // Clear scheduled time if set
-      })
-      .eq("id", payment.id);
-
-    if (updateError) {
-      console.error("[Capture] Failed to update payment status:", updateError);
-      // Don't throw - transfer succeeded, just log the error
-    }
-
-    // Keep the booking's payment fields in sync with the payment record
-    const { error: bookingSyncError } = await admin
-      .from("bookings")
-      .update({
-        payment_status: "CAPTURED",
-        payment_captured_at: new Date().toISOString(),
-      })
-      .eq("id", bookingId);
-
-    if (bookingSyncError) {
-      console.error("[Capture] Failed to sync booking payment status:", bookingSyncError);
-    }
-
-    // Auto-release deposit if no dispute and not already released/captured
     if (
       payment.stripe_deposit_intent_id &&
       !payment.dispute_reported_at &&
       !payment.deposit_released_at
     ) {
       try {
-        console.log(`[Capture] Releasing deposit ${payment.stripe_deposit_intent_id}`);
-        const depositIntent = await stripe.paymentIntents.retrieve(payment.stripe_deposit_intent_id);
-        if (depositIntent.status !== "canceled" && depositIntent.status !== "succeeded") {
+        console.log(
+          `[Capture] Releasing deposit ${payment.stripe_deposit_intent_id}`
+        );
+        const depositIntent = await stripe.paymentIntents.retrieve(
+          payment.stripe_deposit_intent_id
+        );
+        if (
+          depositIntent.status !== "canceled" &&
+          depositIntent.status !== "succeeded"
+        ) {
           await stripe.paymentIntents.cancel(payment.stripe_deposit_intent_id);
         }
-        
+
         await admin
           .from("payments")
           .update({
             deposit_released_at: new Date().toISOString(),
           })
           .eq("id", payment.id);
-        
-        console.log(`[Capture] Deposit released successfully`);
       } catch (depositError: any) {
         console.error("[Capture] Failed to release deposit:", depositError);
-        // Don't fail the whole operation if deposit release fails
       }
     }
 
-    return NextResponse.json({ 
-      success: true, 
-      paymentIntent,
+    return NextResponse.json({
+      success: true,
       transfer: {
-        id: transfer.id,
+        id: transferId,
         amount: payout.hostAmount,
-        currency: transfer.currency,
         platformFee: payout.platformFee,
         stripeFee: payout.stripeFee,
       },
-      message: "Payment captured and transferred to host successfully"
+      message: "Payment captured and transferred to host successfully",
     });
   } catch (error: any) {
     const suspended = suspendedResponse(error);

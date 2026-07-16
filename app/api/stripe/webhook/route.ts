@@ -263,35 +263,48 @@ export async function POST(request: NextRequest) {
       }
 
       case "charge.captured": {
-        // Payment was captured (manual capture completed)
+        // Charge landed on the platform account. Host payout is a separate
+        // Transfer (completeHostPayout). Do NOT mark payments.status=captured
+        // here — that caused "captured" rows with no Connect transfer, after
+        // which auto-capture skipped forever and platform auto-payout swept funds.
         const charge = event.data.object as Stripe.Charge;
-        const paymentIntentId = typeof charge.payment_intent === "string" 
-          ? charge.payment_intent 
+        const paymentIntentId = typeof charge.payment_intent === "string"
+          ? charge.payment_intent
           : charge.payment_intent?.id;
 
         if (!paymentIntentId) break;
 
-        // Retrieve PaymentIntent to get booking_id
         const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
         const bookingId = paymentIntent.metadata?.booking_id;
-        
-        if (!bookingId) break;
 
-        // Check if booking is cancelled (safety guard)
-        const { data: booking } = await supabase
-          .from("bookings")
-          .select("status, cancelled_at, payment_status")
-          .eq("id", bookingId)
-          .single();
-
-        if (booking?.cancelled_at || booking?.status === "CANCELLED") {
-          console.warn(`[Webhook] Ignoring capture for cancelled booking ${bookingId}. Manual review may be needed.`);
-          break;
+        if (bookingId) {
+          console.log(
+            `[Webhook] charge.captured for booking ${bookingId} (PI ${paymentIntentId}). Host transfer is handled by capture/auto-capture, not this webhook.`
+          );
         }
 
-        // Only update to CAPTURED if it was previously AUTHORIZED
-        if (booking?.payment_status === "AUTHORIZED") {
-          // Update payment status to CAPTURED
+        break;
+      }
+
+      case "transfer.created": {
+        // Persist Connect transfer id so we never treat charge-only as settled
+        const transfer = event.data.object as Stripe.Transfer;
+        const bookingId = transfer.metadata?.booking_id;
+
+        if (bookingId) {
+          console.log(
+            `[Webhook] Transfer created for booking ${bookingId}: ${transfer.id} (${transfer.amount} ${transfer.currency})`
+          );
+          await supabase
+            .from("payments")
+            .update({
+              status: "captured",
+              stripe_transfer_id: transfer.id,
+              auto_capture_scheduled_at: null,
+            })
+            .eq("booking_id", bookingId)
+            .is("stripe_transfer_id", null);
+
           await supabase
             .from("bookings")
             .update({
@@ -299,26 +312,6 @@ export async function POST(request: NextRequest) {
               payment_captured_at: new Date().toISOString(),
             })
             .eq("id", bookingId);
-
-          // Update payment record
-          await supabase
-            .from("payments")
-            .update({ status: "captured" })
-            .eq("stripe_payment_intent_id", paymentIntentId);
-        }
-
-        break;
-      }
-
-      case "transfer.created": {
-        // Transfer to host was created (for logging/auditing)
-        const transfer = event.data.object as Stripe.Transfer;
-        const bookingId = transfer.metadata?.booking_id;
-
-        if (bookingId) {
-          console.log(`[Webhook] Transfer created for booking ${bookingId}: ${transfer.id} (${transfer.amount} ${transfer.currency})`);
-          // Optionally log transfer to database for auditing
-          // For now, we just log it
         }
 
         break;

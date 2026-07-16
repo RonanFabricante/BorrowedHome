@@ -18,6 +18,7 @@ interface Payment {
   status: string;
   stripe_payment_intent_id: string;
   stripe_deposit_intent_id: string | null;
+  stripe_transfer_id?: string | null;
   amount: number;
   deposit_amount: number;
   currency?: string;
@@ -53,13 +54,14 @@ interface Host {
 async function findPaymentsReadyForCapture(supabase: any) {
   const now = new Date().toISOString();
 
-  const { data: readyPayments, error } = await supabase
+  const { data: authorisedReady, error } = await supabase
     .from("payments")
     .select(
       `
       id,
       booking_id,
       status,
+      stripe_transfer_id,
       review_window_ends_at,
       dispute_reported_at,
       bookings!inner(
@@ -70,6 +72,7 @@ async function findPaymentsReadyForCapture(supabase: any) {
     `
     )
     .eq("status", "authorised")
+    .is("stripe_transfer_id", null)
     .eq("bookings.status", "COMPLETED")
     .is("dispute_reported_at", null)
     .lte("review_window_ends_at", now)
@@ -77,10 +80,39 @@ async function findPaymentsReadyForCapture(supabase: any) {
 
   if (error) {
     console.error("[AutoCapture] Error finding payments:", error);
-    return [];
   }
 
-  return readyPayments || [];
+  const { data: missingTransfer, error: missError } = await supabase
+    .from("payments")
+    .select(
+      `
+      id,
+      booking_id,
+      status,
+      stripe_transfer_id,
+      review_window_ends_at,
+      dispute_reported_at,
+      bookings!inner(
+        id,
+        status,
+        end_at
+      )
+    `
+    )
+    .eq("status", "captured")
+    .is("stripe_transfer_id", null)
+    .eq("bookings.status", "COMPLETED")
+    .is("dispute_reported_at", null)
+    .limit(50);
+
+  if (missError) {
+    console.error("[AutoCapture] Error finding missing transfers:", missError);
+  }
+
+  const byId = new Map();
+  for (const row of authorisedReady || []) byId.set(row.id, row);
+  for (const row of missingTransfer || []) byId.set(row.id, row);
+  return Array.from(byId.values());
 }
 
 /**
@@ -291,19 +323,30 @@ async function captureAndTransferToHost(
 
     const transfer = await transferResponse.json();
 
-    // Update payment status in database
+    // Update payment status only after Transfer exists
     const { error: updateError } = await supabase
       .from("payments")
       .update({
         status: "captured",
+        stripe_transfer_id: transfer.id,
         auto_capture_scheduled_at: null,
       })
       .eq("id", payment.id);
 
     if (updateError) {
       console.error("[AutoCapture] Failed to update payment status:", updateError);
-      // Don't throw - transfer succeeded
+      throw new Error(
+        `Transfer ${transfer.id} created but failed to persist: ${updateError.message}`
+      );
     }
+
+    await supabase
+      .from("bookings")
+      .update({
+        payment_status: "CAPTURED",
+        payment_captured_at: new Date().toISOString(),
+      })
+      .eq("id", bookingId);
 
     // Auto-release deposit if no dispute was reported
     if (payment.stripe_deposit_intent_id && !payment.dispute_reported_at) {
@@ -393,6 +436,7 @@ async function autoCaptureWithReviewWindow(
           status,
           stripe_payment_intent_id,
           stripe_deposit_intent_id,
+          stripe_transfer_id,
           amount,
           deposit_amount,
           currency,
@@ -444,12 +488,21 @@ async function autoCaptureWithReviewWindow(
       };
     }
 
-    // Only process authorised payments
-    if (payment.status !== "authorised") {
+    // Already transferred to host
+    if (payment.stripe_transfer_id) {
+      return {
+        success: true,
+        skipped: true,
+        reason: "Host transfer already completed",
+      };
+    }
+
+    // Eligible: authorised (normal) or captured without transfer (orphan retry)
+    if (payment.status !== "authorised" && payment.status !== "captured") {
       return {
         success: false,
         skipped: true,
-        reason: `Payment not authorised (status: ${payment.status})`,
+        reason: `Payment not eligible for host payout (status: ${payment.status})`,
       };
     }
 
@@ -461,6 +514,20 @@ async function autoCaptureWithReviewWindow(
         reason: "Dispute reported - manual review required",
         error: payment.capture_hold_reason || "Dispute reported",
       };
+    }
+
+    // Orphan: charge marked captured but no Connect transfer — transfer now
+    if (payment.status === "captured") {
+      console.log(
+        `[AutoCapture] Completing missing host transfer for booking ${bookingId}`
+      );
+      return await captureAndTransferToHost(
+        supabase,
+        bookingId,
+        payment,
+        bookingData,
+        stripeSecretKey
+      );
     }
 
     // Determine review window end time
