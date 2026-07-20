@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -24,10 +24,12 @@ type LoginFormData = z.infer<typeof loginSchema>;
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const supabase = createClient();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [touched, setTouched] = useState<Record<string, boolean>>({});
+  const checkEmail = searchParams.get("signup") === "check-email";
 
   const {
     register,
@@ -76,6 +78,11 @@ export default function LoginPage() {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
+              {checkEmail && (
+                <div className="bh-status-banner bh-status-banner--info text-sm" role="status">
+                  Account created. Check your email to confirm, then log in here.
+                </div>
+              )}
               {error && (
                 <div className="bh-status-banner bh-status-banner--error text-sm" role="alert">
                   {error}

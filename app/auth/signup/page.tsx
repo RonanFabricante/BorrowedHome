@@ -73,6 +73,8 @@ export default function SignupPage() {
     setError(null);
     setLoading(true);
     try {
+      // Guest Terms are recorded by handle_new_user from this metadata
+      // (SECURITY DEFINER — works even when auth.uid() is null after signUp).
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: data.email,
         password: data.password,
@@ -80,6 +82,8 @@ export default function SignupPage() {
           data: {
             full_name: data.fullName,
             date_of_birth: data.dateOfBirth,
+            accepted_guest_terms: "true",
+            guest_terms_version: TERMS_VERSION,
           },
         },
       });
@@ -90,46 +94,33 @@ export default function SignupPage() {
         throw new Error("User creation failed");
       }
 
-      // Profile is automatically created by database trigger (handle_new_user)
-      // Wait a moment for the trigger to complete and session to be established
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // If a session exists, also record via service-role API (covers DBs
+      // that have not yet applied migration 036, and reinforces the row).
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
 
-      // Record guest terms acceptance
-      // Retry logic in case session isn't fully established yet
-      let acceptanceRecorded = false;
-      let attempts = 0;
-      let lastAcceptanceError: string | null = null;
-      while (!acceptanceRecorded && attempts < 5) {
-        const { error: acceptanceError } = await supabase
-          .from("user_legal_acceptances")
-          .insert({
-            user_id: authData.user.id,
-            doc_type: "guest_terms",
-            doc_version: TERMS_VERSION,
-            accepted_at: new Date().toISOString(),
-            metadata: {
-              signup: true,
-            },
-          });
-
-        if (!acceptanceError) {
-          acceptanceRecorded = true;
-        } else {
-          lastAcceptanceError = acceptanceError.message;
-          attempts++;
-          await new Promise((resolve) => setTimeout(resolve, 500));
+      if (session) {
+        const res = await fetch("/api/legal/accept-guest-terms", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ source: "signup" }),
+        });
+        if (!res.ok) {
+          // Account exists; booking dialog can still self-heal terms.
+          console.warn(
+            "[signup] accept-guest-terms API failed; continuing",
+            await res.text()
+          );
         }
+        router.push("/");
+        router.refresh();
+        return;
       }
 
-      if (!acceptanceRecorded) {
-        throw new Error(
-          lastAcceptanceError
-            ? `Account created but we could not record Guest Terms acceptance (${lastAcceptanceError}). Please contact hello@borrowedhome.app before booking.`
-            : "Account created but Guest Terms acceptance failed. Please contact hello@borrowedhome.app before booking."
-        );
-      }
-
-      router.push("/");
+      // Email confirmation required — no session yet. Trigger (036) should
+      // already have written acceptance from metadata.
+      router.push("/auth/login?signup=check-email");
       router.refresh();
     } catch (err: any) {
       setError(err.message || "Failed to sign up");
