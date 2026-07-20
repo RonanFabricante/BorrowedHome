@@ -1,0 +1,801 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>BorrowedHome.app — Detailed Test Plan</title>
+  <style>
+    :root {
+      --ink: #1a1f1c;
+      --muted: #5c675f;
+      --faint: #8a948c;
+      --paper: #f7f5f0;
+      --card: #ffffff;
+      --line: #e2ddd3;
+      --accent: #2f6b4f;
+      --accent-soft: #e8f2ec;
+      --p0: #9b2c2c;
+      --p0-bg: #fce8e8;
+      --p1: #9a6700;
+      --p1-bg: #fff6e0;
+      --p2: #3d5a80;
+      --p2-bg: #eaf0f7;
+      --ok: #1b6b3a;
+      --ok-bg: #e6f4ea;
+      --warn-bg: #fff8e8;
+      --radius: 10px;
+      --shadow: 0 1px 0 rgba(26, 31, 28, 0.04);
+      --font: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+      --mono: ui-monospace, "Cascadia Code", "SF Mono", Consolas, monospace;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: var(--font);
+      color: var(--ink);
+      background:
+        radial-gradient(ellipse 80% 50% at 10% -10%, #e8f0ea 0%, transparent 55%),
+        radial-gradient(ellipse 60% 40% at 100% 0%, #efe8dc 0%, transparent 50%),
+        var(--paper);
+      line-height: 1.5;
+      min-height: 100vh;
+    }
+
+    .wrap {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 40px 24px 80px;
+    }
+
+    header.hero {
+      margin-bottom: 28px;
+    }
+
+    .eyebrow {
+      display: inline-block;
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--accent);
+      font-weight: 650;
+      margin-bottom: 8px;
+    }
+
+    h1 {
+      margin: 0 0 10px;
+      font-size: clamp(1.75rem, 3vw, 2.25rem);
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      line-height: 1.2;
+    }
+
+    .lede {
+      margin: 0;
+      max-width: 62ch;
+      color: var(--muted);
+      font-size: 1.05rem;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin: 28px 0;
+    }
+
+    .stat {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 16px 18px;
+      box-shadow: var(--shadow);
+    }
+
+    .stat .n {
+      font-size: 1.75rem;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      line-height: 1;
+    }
+
+    .stat .l {
+      margin-top: 6px;
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+
+    .stat.p0 .n { color: var(--p0); }
+    .stat.p1 .n { color: var(--p1); }
+    .stat.done .n { color: var(--ok); }
+
+    .callout {
+      border: 1px solid #d9c9a0;
+      background: var(--warn-bg);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+      margin-bottom: 20px;
+    }
+
+    .callout strong {
+      display: block;
+      margin-bottom: 4px;
+      color: var(--p1);
+    }
+
+    .callout p {
+      margin: 0;
+      color: var(--ink);
+      font-size: 0.95rem;
+    }
+
+    .panel {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 18px 20px;
+      margin-bottom: 20px;
+      box-shadow: var(--shadow);
+    }
+
+    .panel h2 {
+      margin: 0 0 10px;
+      font-size: 1rem;
+      font-weight: 650;
+    }
+
+    .panel ol {
+      margin: 0;
+      padding-left: 1.2rem;
+      color: var(--muted);
+    }
+
+    .panel li { margin-bottom: 6px; }
+    .panel .note {
+      margin: 12px 0 0;
+      font-size: 0.85rem;
+      color: var(--faint);
+    }
+
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: end;
+      margin-bottom: 16px;
+      position: sticky;
+      top: 0;
+      z-index: 5;
+      padding: 12px 0;
+      background: color-mix(in srgb, var(--paper) 92%, transparent);
+      backdrop-filter: blur(8px);
+    }
+
+    .field label {
+      display: block;
+      font-size: 0.75rem;
+      font-weight: 650;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+
+    select {
+      appearance: none;
+      background: var(--card) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%235c675f' stroke-width='1.5' fill='none'/%3E%3C/svg%3E") right 12px center no-repeat;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 8px 36px 8px 12px;
+      font: inherit;
+      color: var(--ink);
+      min-width: 140px;
+    }
+
+    .toolbar .meta {
+      margin-left: auto;
+      font-size: 0.85rem;
+      color: var(--muted);
+      padding-bottom: 8px;
+    }
+
+    .btn {
+      border: 1px solid var(--line);
+      background: var(--card);
+      color: var(--ink);
+      border-radius: 8px;
+      padding: 8px 12px;
+      font: inherit;
+      font-size: 0.85rem;
+      cursor: pointer;
+    }
+
+    .btn:hover { border-color: var(--accent); color: var(--accent); }
+    .btn.primary {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+
+    .btn.primary:hover { filter: brightness(0.95); color: #fff; }
+
+    .section-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 28px 0 12px;
+    }
+
+    .section-title h2 {
+      margin: 0;
+      font-size: 1.15rem;
+      letter-spacing: -0.01em;
+    }
+
+    .count {
+      font-size: 0.75rem;
+      color: var(--muted);
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 2px 8px;
+    }
+
+    .case {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      margin-bottom: 10px;
+      overflow: hidden;
+      box-shadow: var(--shadow);
+      transition: border-color 0.15s ease, background 0.15s ease;
+    }
+
+    .case.done {
+      background: #f4faf6;
+      border-color: #c5e0cf;
+    }
+
+    .case.hidden { display: none; }
+
+    .case-head {
+      display: grid;
+      grid-template-columns: auto auto 1fr auto;
+      gap: 12px;
+      align-items: center;
+      padding: 14px 16px;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .case-head:hover { background: color-mix(in srgb, var(--accent-soft) 40%, transparent); }
+
+    .check {
+      width: 18px;
+      height: 18px;
+      accent-color: var(--accent);
+      cursor: pointer;
+    }
+
+    .id {
+      font-family: var(--mono);
+      font-size: 0.8rem;
+      font-weight: 650;
+      color: var(--muted);
+      min-width: 2.2rem;
+    }
+
+    .title {
+      font-weight: 600;
+      font-size: 0.98rem;
+    }
+
+    .badges {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .badge {
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      border-radius: 999px;
+      padding: 3px 8px;
+    }
+
+    .badge.p0 { color: var(--p0); background: var(--p0-bg); }
+    .badge.p1 { color: var(--p1); background: var(--p1-bg); }
+    .badge.p2 { color: var(--p2); background: var(--p2-bg); }
+    .badge.area { color: var(--accent); background: var(--accent-soft); }
+
+    .case-body {
+      display: none;
+      border-top: 1px solid var(--line);
+      padding: 14px 16px 16px;
+      background: #fcfbf8;
+    }
+
+    .case.open .case-body { display: block; }
+
+    .grid3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+    }
+
+    .field-block h3 {
+      margin: 0 0 6px;
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--faint);
+      font-weight: 700;
+    }
+
+    .field-block p {
+      margin: 0;
+      font-size: 0.92rem;
+      color: var(--ink);
+    }
+
+    .cheat {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-top: 28px;
+    }
+
+    .cheat ul {
+      margin: 0;
+      padding-left: 1.1rem;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    .neg table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+    }
+
+    .neg th,
+    .neg td {
+      text-align: left;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--line);
+      vertical-align: top;
+    }
+
+    .neg th {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--faint);
+      background: #faf8f4;
+    }
+
+    footer {
+      margin-top: 36px;
+      padding-top: 16px;
+      border-top: 1px solid var(--line);
+      font-size: 0.8rem;
+      color: var(--faint);
+    }
+
+    @media (max-width: 800px) {
+      .stats { grid-template-columns: repeat(2, 1fr); }
+      .grid3, .cheat { grid-template-columns: 1fr; }
+      .case-head {
+        grid-template-columns: auto 1fr;
+        grid-template-areas:
+          "check title"
+          "id badges";
+      }
+      .case-head .check { grid-area: check; }
+      .case-head .title { grid-area: title; }
+      .case-head .id { grid-area: id; }
+      .case-head .badges { grid-area: badges; justify-content: flex-start; }
+      .toolbar .meta { margin-left: 0; width: 100%; }
+    }
+
+    @media print {
+      body { background: #fff; }
+      .toolbar, .btn { display: none !important; }
+      .case-body { display: block !important; }
+      .case { break-inside: avoid; box-shadow: none; }
+      .wrap { padding: 0; max-width: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="hero">
+      <div class="eyebrow">QA · Manual test plan</div>
+      <h1>BorrowedHome.app — Detailed Test Plan</h1>
+      <p class="lede">
+        Coverage for guest, host, and admin journeys — including Stripe Separate
+        Charges &amp; Transfers, trust &amp; safety, cron jobs, and recent
+        regression fixes. Progress is saved in this browser.
+      </p>
+    </header>
+
+    <div class="stats">
+      <div class="stat">
+        <div class="n" id="stat-total">0</div>
+        <div class="l">Total cases</div>
+      </div>
+      <div class="stat p0">
+        <div class="n" id="stat-p0">0</div>
+        <div class="l">P0 critical</div>
+      </div>
+      <div class="stat p1">
+        <div class="n" id="stat-p1">0</div>
+        <div class="l">P1 important</div>
+      </div>
+      <div class="stat done">
+        <div class="n" id="stat-done">0/0</div>
+        <div class="l">Checked off</div>
+      </div>
+    </div>
+
+    <div class="callout">
+      <strong>Payment settlement invariant</strong>
+      <p>
+        A booking is only fully settled when <code>payments.stripe_transfer_id</code>
+        is set (Connect Transfer to the host). Stripe charge capture on the
+        platform alone is <em>not</em> host payout — cases R2, P3, and P5 must
+        pass before production release.
+      </p>
+    </div>
+
+    <div class="panel">
+      <h2>Suggested run order</h2>
+      <ol>
+        <li>Auth A1–A2 → Listings L1–L2 → Bookings B1–B2 → Payments P1–P2 (happy path end-to-end in Stripe test mode).</li>
+        <li>Expiry B5 + Cron C1–C3 (scheduler / <code>CRON_SECRET</code>).</li>
+        <li>Trust T1 + Regression R1–R4 (guest terms self-heal + privilege / payout hardening).</li>
+        <li>Admin AD1–AD2, dispute P8, messaging M1, cancel B6.</li>
+      </ol>
+      <p class="note">
+        Environments: Vercel preview or local with Stripe test keys, Supabase
+        linked project, migrations 033–035 applied, Edge Functions deployed.
+        Use two browsers (guest + host) plus a superadmin session.
+      </p>
+    </div>
+
+    <div class="toolbar">
+      <div class="field">
+        <label for="filter-area">Area</label>
+        <select id="filter-area">
+          <option value="All">All</option>
+          <option>Auth</option>
+          <option>Listings</option>
+          <option>Bookings</option>
+          <option>Payments</option>
+          <option>Messaging</option>
+          <option>Trust</option>
+          <option>Admin</option>
+          <option>Cron</option>
+          <option>Regression</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="filter-priority">Priority</label>
+        <select id="filter-priority">
+          <option value="All">All</option>
+          <option>P0</option>
+          <option>P1</option>
+          <option>P2</option>
+        </select>
+      </div>
+      <button class="btn" type="button" id="btn-expand">Expand all</button>
+      <button class="btn" type="button" id="btn-collapse">Collapse all</button>
+      <button class="btn" type="button" id="btn-reset">Reset checks</button>
+      <button class="btn primary" type="button" onclick="window.print()">Print</button>
+      <div class="meta" id="filter-meta">Showing 0</div>
+    </div>
+
+    <div id="cases"></div>
+
+    <div class="cheat">
+      <div class="panel">
+        <h2>Booking time (Australia/Sydney)</h2>
+        <ul>
+          <li>Same calendar day only — no overnight</li>
+          <li>Start ≥ 07:00 · end ≤ 21:00</li>
+          <li>Latest start 19:00 for min 2h duration</li>
+          <li>Minimum duration 2 hours</li>
+          <li>Lead time ≥ 4 hours before start</li>
+          <li>Payment window 4 hours after accept</li>
+        </ul>
+      </div>
+      <div class="panel">
+        <h2>Money</h2>
+        <ul>
+          <li>Platform fee 10% of base (DB source of truth)</li>
+          <li>Manual capture PaymentIntents</li>
+          <li>Review window: <code>end_at + 24h</code> before auto-capture</li>
+          <li>Host net = total − platform fee − Stripe processing fee</li>
+          <li>Deposit = separate PI; release if no dispute</li>
+          <li>Settled only with <code>stripe_transfer_id</code> on payments</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="panel neg" style="margin-top: 12px">
+      <h2>Critical negative tests</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Threat</th>
+            <th>Attack / misuse</th>
+            <th>Must fail closed</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Privilege escalation</td>
+            <td>Client PATCH <code>profiles.is_superadmin</code> / <code>is_suspended</code></td>
+            <td>Trigger rejects; only SQL/admin ops</td>
+          </tr>
+          <tr>
+            <td>Stripe spoofing</td>
+            <td>Client sets <code>hosts.stripe_*</code> flags / account id</td>
+            <td><code>enforce_host_stripe_columns</code> + live Stripe checks on accept</td>
+          </tr>
+          <tr>
+            <td>Payout forgery</td>
+            <td>Client writes <code>payments.stripe_transfer_id</code></td>
+            <td><code>enforce_payment_update_rules</code> (mig 035)</td>
+          </tr>
+          <tr>
+            <td>Suspended publish</td>
+            <td>Suspended host toggles published</td>
+            <td>UI + <code>enforce_listing_publish_not_suspended</code></td>
+          </tr>
+          <tr>
+            <td>Premature messaging</td>
+            <td>Send message on REQUESTED booking</td>
+            <td>API rejects until CONFIRMED</td>
+          </tr>
+          <tr>
+            <td>Address leak</td>
+            <td>Scrape listing detail pre-confirm</td>
+            <td>Full address withheld until CONFIRMED</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <footer>
+      P0 = release blocker · P1 = should pass before marketing push · P2 = ops polish ·
+      Unit coverage also exists under <code>lib/__tests__</code> and <code>lib/legal/__tests__</code>.
+      Open this file locally or serve from <code>docs/test-plan.html</code>.
+    </footer>
+  </div>
+
+  <script>
+    const CASES = [
+      { id: "A1", area: "Auth", priority: "P0", title: "Guest signup records Guest Terms", preconditions: "Fresh email; TERMS_VERSION = 2026-01-08-au-v1", steps: "Sign up with DOB ≥18, accept Guest Terms, complete signup", expect: "Account created; row in user_legal_acceptances (guest_terms, current version); can browse listings" },
+      { id: "A2", area: "Auth", priority: "P0", title: "Login / logout session", preconditions: "Existing account", steps: "Log in → navigate protected pages → log out", expect: "Session cookie works; logout clears access to /my-bookings, /host/*" },
+      { id: "A3", area: "Auth", priority: "P1", title: "Password reset", preconditions: "Known email", steps: "Request reset → open email link → set new password → log in", expect: "New password works; old password fails" },
+      { id: "A4", area: "Auth", priority: "P0", title: "Suspended user blocked on mutations", preconditions: "Admin has suspended the user", steps: "Try booking request, message send, report listing, publish listing", expect: "All return 403 / suspension error; browse still allowed" },
+      { id: "A5", area: "Auth", priority: "P1", title: "Under-18 signup rejected", preconditions: "None", steps: "Attempt signup with DOB making age < 18", expect: "Blocked client-side and/or server-side; no auth user created" },
+
+      { id: "L1", area: "Listings", priority: "P0", title: "Host onboard → unpublished listing", preconditions: "Logged-in user; Stripe Connect can be deferred until publish", steps: "Complete host wizard: details, rates, spaces, photos, availability 07:00–21:00, address", expect: "Listing exists unpublished; address stored in listing_addresses; is_host set" },
+      { id: "L2", area: "Listings", priority: "P0", title: "Publish requires declaration + Stripe ready", preconditions: "Listing draft; host declaration modal; Connect charges+payouts enabled, no currently_due", steps: "Accept host declaration → complete Stripe onboarding → toggle publish", expect: "Listing published publicly; host_declaration_* set; without Stripe/declaration publish blocked" },
+      { id: "L3", area: "Listings", priority: "P1", title: "Edit listing + photo storage RLS", preconditions: "Own published listing", steps: "Edit rates/policies/availability; upload/replace/delete photo; try another host's photo path", expect: "Own edits succeed; other host's storage objects rejected by RLS" },
+      { id: "L4", area: "Listings", priority: "P0", title: "Address privacy until CONFIRMED", preconditions: "Published listing; guest viewing as REQUESTED / PAYMENT_PENDING", steps: "Open listing detail and booking confirm before payment; pay to CONFIRMED; re-check", expect: "Full street address hidden until CONFIRMED; suburb/area may show; after confirm address visible" },
+      { id: "L5", area: "Listings", priority: "P1", title: "Search / browse filters", preconditions: "Several published listings across space types", steps: "Search by date/location/space type; open detail", expect: "Only published listings; filters match; unpublished never appear" },
+      { id: "L6", area: "Listings", priority: "P1", title: "Suspended host cannot publish", preconditions: "Host suspended with unpublished listing", steps: "Try publish toggle on edit form", expect: "Blocked by UI and DB trigger enforce_listing_publish_not_suspended" },
+
+      { id: "B1", area: "Bookings", priority: "P0", title: "Happy path: request → accept → pay → confirm", preconditions: "Published listing; guest with terms; host Stripe ready; slot free; ≥4h lead time", steps: "Guest books with toilet/consumables/terms acks → host accepts → guest pays on /confirm", expect: "REQUESTED → PAYMENT_PENDING (4h deadline, slot locked) → CONFIRMED; emails sent; messaging unlocks" },
+      { id: "B2", area: "Bookings", priority: "P0", title: "Time rules (Sydney wall-clock)", preconditions: "Listing available weekdays 07–21", steps: "Try overnight, end after 21:00, start before 07:00, start after 19:00 for 2h, duration <2h, lead <4h", expect: "All rejected with clear errors; valid same-day 07–21 ≥2h ≥4h lead accepted (Australia/Sydney)" },
+      { id: "B3", area: "Bookings", priority: "P0", title: "Slot locking", preconditions: "Two guests targeting same slot", steps: "Guest A REQUESTED only; Guest B requests same slot; then accept A; B retries; A expires unpaid", expect: "REQUESTED does not lock; PAYMENT_PENDING/CONFIRMED lock; after EXPIRED slot free again" },
+      { id: "B4", area: "Bookings", priority: "P0", title: "Host decline / reject", preconditions: "REQUESTED booking", steps: "Host declines from dashboard", expect: "DECLINED/REJECTED; slot free; guest notified; no PaymentIntent hold" },
+      { id: "B5", area: "Bookings", priority: "P0", title: "Payment deadline expiry", preconditions: "ACCEPTED → PAYMENT_PENDING", steps: "Do not pay; wait past payment_deadline_at (or trigger expire-bookings)", expect: "EXPIRED; Stripe holds canceled; slot free; expiry email path works" },
+      { id: "B6", area: "Bookings", priority: "P1", title: "Cancel before start", preconditions: "CONFIRMED booking before start_at", steps: "Guest cancel; separately host cancel on another booking", expect: "CANCELLED; PaymentIntent voided/released; emails; slot free; policy messaging shown" },
+      { id: "B7", area: "Bookings", priority: "P1", title: "Complete → review", preconditions: "CONFIRMED booking past end_at", steps: "Run complete-bookings cron → guest submits review", expect: "COMPLETED; one review per booking; listing rating updates; second review blocked" },
+      { id: "B8", area: "Bookings", priority: "P0", title: "Accept requires live Stripe ready", preconditions: "Host Connect incomplete (currently_due or payouts disabled)", steps: "Host tries accept", expect: "Blocked with requireHostStripeReady; booking stays REQUESTED" },
+
+      { id: "P1", area: "Payments", priority: "P0", title: "Authorize (manual capture) confirms booking", preconditions: "PAYMENT_PENDING within deadline", steps: "Initiate → confirm card on PaymentForm → authorize", expect: "Booking CONFIRMED; payment status authorised; charge not captured yet; deposit PI separate if deposit > 0" },
+      { id: "P2", area: "Payments", priority: "P0", title: "Capture + Connect transfer settles host", preconditions: "COMPLETED; review_window_ends_at past; no dispute hold; host Connect ready", steps: "Trigger auto-capture or admin retryCaptureAndTransfer", expect: "Stripe Transfer to connected account; payments.stripe_transfer_id set; status captured; booking payment_status CAPTURED; hostAmount = total − platform fee − Stripe fee" },
+      { id: "P3", area: "Payments", priority: "P0", title: "Charge alone is not settlement", preconditions: "PaymentIntent succeeded/captured on platform without transfer", steps: "Inspect DB + Stripe; run auto-capture orphan path", expect: "Do not treat as done without stripe_transfer_id; cron/admin retries transfer; platform balance does not permanently keep host share" },
+      { id: "P4", area: "Payments", priority: "P0", title: "Transfer idempotency", preconditions: "Booking already paid out once", steps: "Re-run capture/transfer / auto-capture / webhook transfer.created", expect: "Idempotency key booking-payout-{id}-v2; no double transfer; unique stripe_transfer_id" },
+      { id: "P5", area: "Payments", priority: "P0", title: "Webhook charge.captured does not mark captured", preconditions: "Stripe test mode; capture event without transfer", steps: "Force charge.captured webhook; check payments row", expect: "payments.status not flipped to final captured solely by charge.captured; transfer path owns settlement" },
+      { id: "P6", area: "Payments", priority: "P1", title: "Platform fee is 10%", preconditions: "Known base price booking", steps: "Create booking; compare UI estimate, booking.platform_fee_amount, Stripe amounts", expect: "Fee = ROUND(base * 0.10); guest total = base + fee; ignore unused 12% constant in lib/stripe/server.ts" },
+      { id: "P7", area: "Payments", priority: "P1", title: "Deposit release (no dispute)", preconditions: "COMPLETED with deposit PI; review window passed; no dispute", steps: "Auto-release or host/admin release-deposit", expect: "Deposit PI canceled/released; guest not charged; booking deposit fields updated" },
+      { id: "P8", area: "Payments", priority: "P1", title: "Dispute hold blocks rental capture", preconditions: "COMPLETED booking inside/near review window", steps: "Host report-dispute → attempt capture/auto-capture → admin clear or capture-deposit", expect: "Rental capture blocked while hold active; deposit capture allowed after dispute path; admin can clear" },
+      { id: "P9", area: "Payments", priority: "P1", title: "Connect onboarding UI", preconditions: "New host", steps: "Create Express account → onboard → return → check-status", expect: "stripe_account_id set via service role; charges_enabled/payouts_enabled refreshed from live Stripe; client cannot forge flags" },
+
+      { id: "M1", area: "Messaging", priority: "P0", title: "Messages only after CONFIRMED", preconditions: "Same guest/host booking in REQUESTED then CONFIRMED", steps: "Try send pre-confirm; send post-confirm; try >2000 chars; suspended user send", expect: "Blocked until CONFIRMED; works after; length validated; suspended blocked" },
+
+      { id: "T1", area: "Trust", priority: "P0", title: "Guest terms self-heal on booking", preconditions: "Existing account with NO user_legal_acceptances row", steps: "Open book dialog → tick house rules/Guest Terms (+ other acks) → Request Booking", expect: "Acceptance upserted (metadata.source=booking_request); booking created; without checkbox → GUEST_TERMS_REQUIRED 403" },
+      { id: "T2", area: "Trust", priority: "P0", title: "Report listing → admin action", preconditions: "Guest account; published listing", steps: "Submit report (fraud) → admin reviews → unpublish and/or suspend host", expect: "Report stored; duplicate open report blocked; listing unpublished; host suspended if chosen; audit logged" },
+      { id: "T3", area: "Trust", priority: "P1", title: "Anti-fraud copy visible", preconditions: "None", steps: "Open booking dialog and payment form", expect: "On-platform pay/message warning shown on both surfaces" },
+      { id: "T4", area: "Trust", priority: "P1", title: "Legal pages + FAQ", preconditions: "None", steps: "Visit /terms, /terms/guest-au, /terms/host-au, /faq; footer links", expect: "Pages render; Guest Terms link from booking checkbox; Host Agreement linked; FAQ covers cancel/insurance/report" },
+      { id: "T5", area: "Trust", priority: "P1", title: "Policy acknowledgements required", preconditions: "Listing with toilet_access + consumables flags", steps: "Submit booking without toilet or consumables ack", expect: "Client validation fails; API rejects if forced; CONFIRMED only after acks persisted" },
+
+      { id: "AD1", area: "Admin", priority: "P0", title: "Superadmin gate", preconditions: "Normal user vs is_superadmin=true", steps: "Visit /admin and call /api/admin/overview", expect: "Non-admin redirected/403; admin sees overview KPIs including open reports" },
+      { id: "AD2", area: "Admin", priority: "P0", title: "Payments console: sync + retry transfer", preconditions: "Orphan payment (succeeded charge, no stripe_transfer_id)", steps: "Admin sync from Stripe; retry capture+transfer", expect: "Transfer completes; stripe_transfer_id set; booking CAPTURED; action audited" },
+      { id: "AD3", area: "Admin", priority: "P1", title: "Force booking status", preconditions: "Stuck booking", steps: "Force COMPLETED / CANCELLED / EXPIRED with reason", expect: "Status updates; audit row with reason; side effects documented for tester" },
+      { id: "AD4", area: "Admin", priority: "P1", title: "Hosts: suspend / unsuspend", preconditions: "Host with published listings", steps: "Suspend → verify listings unpublished + APIs blocked → unsuspend", expect: "is_suspended toggled via admin API only; client cannot self-set privilege columns" },
+      { id: "AD5", area: "Admin", priority: "P1", title: "Listings publish/unpublish + audit trail", preconditions: "Superadmin", steps: "Toggle listing; open /admin/audit", expect: "Change applied; admin_actions entry present" },
+
+      { id: "C1", area: "Cron", priority: "P0", title: "expire-bookings", preconditions: "PAYMENT_PENDING past deadline; CRON_SECRET or Edge schedule", steps: "Invoke expire-bookings (Edge or API)", expect: "EXPIRED; Stripe cancel; slot free" },
+      { id: "C2", area: "Cron", priority: "P0", title: "complete-bookings", preconditions: "CONFIRMED with end_at in past", steps: "Invoke complete-bookings", expect: "COMPLETED; review_window_ends_at ≈ end_at + 24h" },
+      { id: "C3", area: "Cron", priority: "P0", title: "auto-capture-payments", preconditions: "COMPLETED; review window ended; authorised payment; host ready", steps: "Invoke auto-capture-payments (Edge and/or Vercel cron)", expect: "Capture + transfer; stripe_transfer_id; also retries captured-without-transfer orphans" },
+      { id: "C4", area: "Cron", priority: "P2", title: "payment-deadline-reminders", preconditions: "PAYMENT_PENDING near deadline", steps: "Invoke reminder function", expect: "Reminder email sent once; no duplicate spam on re-run if designed so" },
+
+      { id: "R1", area: "Regression", priority: "P0", title: "Guest terms: no more permanent lockout", preconditions: "Pre-terms or failed-signup acceptance account", steps: "Book with checkbox; also try without checkbox", expect: "Self-heal path works; error copy tells user to tick checkbox (not sign out/in)" },
+      { id: "R2", area: "Regression", priority: "P0", title: "Payout integrity: transfer before done", preconditions: "Stripe test booking through completion", steps: "Watch Stripe Dashboard: charge on platform → Transfer to Connect → host balance", expect: "Host Connect account receives transfer; platform keeps fee only; DB has stripe_transfer_id" },
+      { id: "R3", area: "Regression", priority: "P0", title: "Privilege hardening (mig 034)", preconditions: "User JWT (not service role)", steps: "Client update profiles.is_superadmin / is_suspended; forge hosts.stripe_*; publish while suspended", expect: "Triggers reject; RPCs assert_profile_not_suspended; Stripe fields only via admin client paths" },
+      { id: "R4", area: "Regression", priority: "P0", title: "stripe_transfer_id client immutable (mig 035)", preconditions: "User JWT on payments row", steps: "Attempt client update of stripe_transfer_id / capture fields", expect: "enforce_payment_update_rules blocks; only service-role payout helpers write transfer id" },
+      { id: "R5", area: "Regression", priority: "P1", title: "Sydney TZ booking validation", preconditions: "Server/deploy in UTC (Vercel)", steps: "Book a valid Sydney evening slot that would be wrong if using server local TZ", expect: "Accepted when valid in Australia/Sydney; rejected when invalid in Sydney even if UTC looks fine" }
+    ];
+
+    const STORAGE_KEY = "bh-test-plan-v1";
+    const AREA_ORDER = ["Auth", "Listings", "Bookings", "Payments", "Messaging", "Trust", "Admin", "Cron", "Regression"];
+
+    function loadDone() {
+      try {
+        return JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
+      } catch {
+        return {};
+      }
+    }
+
+    function saveDone(done) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(done));
+    }
+
+    let done = loadDone();
+
+    const root = document.getElementById("cases");
+    const byArea = AREA_ORDER.map((area) => ({
+      area,
+      cases: CASES.filter((c) => c.area === area),
+    })).filter((g) => g.cases.length);
+
+    function render() {
+      root.innerHTML = "";
+      byArea.forEach((group) => {
+        const section = document.createElement("section");
+        section.dataset.area = group.area;
+
+        const heading = document.createElement("div");
+        heading.className = "section-title";
+        heading.innerHTML = `<h2>${group.area}</h2><span class="count">${group.cases.length}</span>`;
+        section.appendChild(heading);
+
+        group.cases.forEach((c) => {
+          const el = document.createElement("article");
+          el.className = "case" + (done[c.id] ? " done" : "");
+          el.dataset.id = c.id;
+          el.dataset.area = c.area;
+          el.dataset.priority = c.priority;
+
+          el.innerHTML = `
+            <div class="case-head">
+              <input class="check" type="checkbox" ${done[c.id] ? "checked" : ""} aria-label="Mark ${c.id} done" />
+              <span class="id">${c.id}</span>
+              <span class="title">${escapeHtml(c.title)}</span>
+              <div class="badges">
+                <span class="badge ${c.priority.toLowerCase()}">${c.priority}</span>
+                <span class="badge area">${c.area}</span>
+              </div>
+            </div>
+            <div class="case-body">
+              <div class="grid3">
+                <div class="field-block">
+                  <h3>Preconditions</h3>
+                  <p>${escapeHtml(c.preconditions)}</p>
+                </div>
+                <div class="field-block">
+                  <h3>Steps</h3>
+                  <p>${escapeHtml(c.steps)}</p>
+                </div>
+                <div class="field-block">
+                  <h3>Expected result</h3>
+                  <p>${escapeHtml(c.expect)}</p>
+                </div>
+              </div>
+            </div>
+          `;
+
+          const head = el.querySelector(".case-head");
+          const check = el.querySelector(".check");
+
+          head.addEventListener("click", (e) => {
+            if (e.target === check) return;
+            el.classList.toggle("open");
+          });
+
+          check.addEventListener("click", (e) => e.stopPropagation());
+          check.addEventListener("change", () => {
+            done[c.id] = check.checked;
+            if (!check.checked) delete done[c.id];
+            saveDone(done);
+            el.classList.toggle("done", check.checked);
+            updateStats();
+          });
+
+          section.appendChild(el);
+        });
+
+        root.appendChild(section);
+      });
+
+      applyFilters();
+      updateStats();
+    }
+
+    function escapeHtml(s) {
+      return String(s)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    function applyFilters() {
+      const area = document.getElementById("filter-area").value;
+      const priority = document.getElementById("filter-priority").value;
+      let shown = 0;
+      let shownDone = 0;
+
+      document.querySelectorAll(".case").forEach((el) => {
+        const okArea = area === "All" || el.dataset.area === area;
+        const okPri = priority === "All" || el.dataset.priority === priority;
+        const visible = okArea && okPri;
+        el.classList.toggle("hidden", !visible);
+        if (visible) {
+          shown += 1;
+          if (done[el.dataset.id]) shownDone += 1;
+        }
+      });
+
+      document.querySelectorAll("section").forEach((sec) => {
+        const any = [...sec.querySelectorAll(".case")].some(
+          (c) => !c.classList.contains("hidden")
+        );
+        sec.style.display = any ? "" : "none";
+      });
+
+      document.getElementById("filter-meta").textContent =
+        `Showing ${shown} · ${shownDone} done`;
+    }
+
+    function updateStats() {
+      const total = CASES.length;
+      const p0 = CASES.filter((c) => c.priority === "P0").length;
+      const p1 = CASES.filter((c) => c.priority === "P1").length;
+      const doneCount = CASES.filter((c) => done[c.id]).length;
+      document.getElementById("stat-total").textContent = String(total);
+      document.getElementById("stat-p0").textContent = String(p0);
+      document.getElementById("stat-p1").textContent = String(p1);
+      document.getElementById("stat-done").textContent = `${doneCount}/${total}`;
+    }
+
+    document.getElementById("filter-area").addEventListener("change", applyFilters);
+    document.getElementById("filter-priority").addEventListener("change", applyFilters);
+
+    document.getElementById("btn-expand").addEventListener("click", () => {
+      document.querySelectorAll(".case:not(.hidden)").forEach((el) => el.classList.add("open"));
+    });
+    document.getElementById("btn-collapse").addEventListener("click", () => {
+      document.querySelectorAll(".case").forEach((el) => el.classList.remove("open"));
+    });
+    document.getElementById("btn-reset").addEventListener("click", () => {
+      if (!confirm("Clear all checked-off cases?")) return;
+      done = {};
+      saveDone(done);
+      render();
+    });
+
+    render();
+  </script>
+</body>
+</html>
