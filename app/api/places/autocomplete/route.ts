@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
+export const dynamic = "force-dynamic";
+
 // In-memory cache (simple MVP - use Redis/KV in production)
 interface CacheEntry {
   data: any;

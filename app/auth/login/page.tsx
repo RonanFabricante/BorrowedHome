@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -22,7 +22,7 @@ const loginSchema = z.object({
 
 type LoginFormData = z.infer<typeof loginSchema>;
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const supabase = createClient();
@@ -65,76 +65,93 @@ export default function LoginPage() {
   };
 
   return (
+    <Card className="w-full max-w-md shadow-elevated">
+      <CardHeader>
+        <div className="flex justify-center mb-4">
+          <Logo size="lg" href={null} />
+        </div>
+        <CardTitle className="text-center">Log in</CardTitle>
+        <CardDescription>Sign in to your BorrowedHome account</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
+          {checkEmail && (
+            <div className="bh-status-banner bh-status-banner--info text-sm" role="status">
+              Account created. Check your email to confirm, then log in here.
+            </div>
+          )}
+          {error && (
+            <div className="bh-status-banner bh-status-banner--error text-sm" role="alert">
+              {error}
+            </div>
+          )}
+          <div className="space-y-1.5">
+            <Label htmlFor="email">Email</Label>
+            <Input
+              id="email"
+              type="email"
+              autoFocus
+              autoComplete="email"
+              {...register("email", {
+                onBlur: () => setTouched((t) => ({ ...t, email: true })),
+              })}
+            />
+            {showFieldError("email") && (
+              <p className="bh-form-error" role="alert">{errors.email?.message}</p>
+            )}
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="password">Password</Label>
+            <Input
+              id="password"
+              type="password"
+              autoComplete="current-password"
+              {...register("password", {
+                onBlur: () => setTouched((t) => ({ ...t, password: true })),
+              })}
+            />
+            {showFieldError("password") && (
+              <p className="bh-form-error" role="alert">{errors.password?.message}</p>
+            )}
+          </div>
+          <div className="text-right">
+            <Link href="/auth/reset-password" className="text-sm text-primary hover:underline">
+              Forgot password?
+            </Link>
+          </div>
+          <Button type="submit" className="w-full" aria-busy={loading}>
+            {loading ? "Signing in…" : "Sign in"}
+          </Button>
+        </form>
+        <p className="mt-4 text-center text-sm text-muted-foreground">
+          Don&apos;t have an account?{" "}
+          <Link href="/auth/signup" className="text-primary hover:underline">
+            Sign up
+          </Link>
+        </p>
+        <SupportContact compact />
+      </CardContent>
+    </Card>
+  );
+}
+
+export default function LoginPage() {
+  return (
     <div className="min-h-screen bg-background">
       <Nav />
       <div className="flex items-center justify-center p-4 py-12">
-        <Card className="w-full max-w-md shadow-elevated">
-          <CardHeader>
-            <div className="flex justify-center mb-4">
-              <Logo size="lg" href={null} />
-            </div>
-            <CardTitle className="text-center">Log in</CardTitle>
-            <CardDescription>Sign in to your BorrowedHome account</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
-              {checkEmail && (
-                <div className="bh-status-banner bh-status-banner--info text-sm" role="status">
-                  Account created. Check your email to confirm, then log in here.
-                </div>
-              )}
-              {error && (
-                <div className="bh-status-banner bh-status-banner--error text-sm" role="alert">
-                  {error}
-                </div>
-              )}
-              <div className="space-y-1.5">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  autoFocus
-                  autoComplete="email"
-                  {...register("email", {
-                    onBlur: () => setTouched((t) => ({ ...t, email: true })),
-                  })}
-                />
-                {showFieldError("email") && (
-                  <p className="bh-form-error" role="alert">{errors.email?.message}</p>
-                )}
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="password">Password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  autoComplete="current-password"
-                  {...register("password", {
-                    onBlur: () => setTouched((t) => ({ ...t, password: true })),
-                  })}
-                />
-                {showFieldError("password") && (
-                  <p className="bh-form-error" role="alert">{errors.password?.message}</p>
-                )}
-              </div>
-              <div className="text-right">
-                <Link href="/auth/reset-password" className="text-sm text-primary hover:underline">
-                  Forgot password?
-                </Link>
-              </div>
-              <Button type="submit" className="w-full" aria-busy={loading}>
-                {loading ? "Signing in…" : "Sign in"}
-              </Button>
-            </form>
-            <p className="mt-4 text-center text-sm text-muted-foreground">
-              Don&apos;t have an account?{" "}
-              <Link href="/auth/signup" className="text-primary hover:underline">
-                Sign up
-              </Link>
-            </p>
-            <SupportContact compact />
-          </CardContent>
-        </Card>
+        <Suspense
+          fallback={
+            <Card className="w-full max-w-md shadow-elevated">
+              <CardHeader>
+                <CardTitle className="text-center">Log in</CardTitle>
+                <CardDescription>Loading…</CardDescription>
+              </CardHeader>
+            </Card>
+          }
+        >
+          <LoginForm />
+        </Suspense>
       </div>
     </div>
   );
