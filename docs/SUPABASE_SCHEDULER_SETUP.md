@@ -158,7 +158,18 @@ LIMIT 20;
 
 ## Testing
 
-### Manual Invocation via cURL
+### Manual Invocation via Next.js backup (recommended if Edge cron is down)
+
+```bash
+curl -X GET \
+  'https://borrowedhome.app/api/cron/expire-bookings' \
+  -H 'Authorization: Bearer YOUR_CRON_SECRET'
+```
+
+This calls the same `expire_unpaid_bookings` RPC and then `/api/bookings/expire-notifications`.
+Use this to unblock stuck `PAYMENT_PENDING` rows immediately.
+
+### Manual Invocation via cURL (Edge Functions)
 
 Test each function manually using cURL:
 

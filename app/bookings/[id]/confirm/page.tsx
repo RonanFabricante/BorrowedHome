@@ -74,6 +74,29 @@ export default async function BookingConfirmPage({
     notFound();
   }
 
+  // Opportunistic expiry: if payment window already passed, flip status now
+  // so the UI does not stay stuck on "Payment pending" when cron is down.
+  if (
+    booking.status === "PAYMENT_PENDING" &&
+    booking.payment_deadline_at &&
+    new Date(booking.payment_deadline_at) < new Date()
+  ) {
+    try {
+      const { expireIfPastPaymentDeadline } = await import(
+        "@/lib/bookings/expireUnpaid"
+      );
+      await expireIfPastPaymentDeadline({
+        id: booking.id,
+        status: booking.status,
+        payment_deadline_at: booking.payment_deadline_at,
+      });
+      booking.status = "EXPIRED";
+      booking.expired_at = new Date().toISOString();
+    } catch (err) {
+      console.error("[BookingConfirm] Failed to expire past-deadline booking:", err);
+    }
+  }
+
   // Address is private; only reveal after CONFIRMED/COMPLETED via RPC.
   let addressText: string | null = null;
   if (booking.status === "CONFIRMED" || booking.status === "COMPLETED") {

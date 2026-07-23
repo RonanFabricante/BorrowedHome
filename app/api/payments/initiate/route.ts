@@ -66,6 +66,28 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // If the payment window already elapsed, expire now (don't wait for cron).
+    if (status === "PAYMENT_PENDING" && booking.payment_deadline_at) {
+      const deadline = new Date(booking.payment_deadline_at);
+      if (deadline < new Date()) {
+        const { expireIfPastPaymentDeadline } = await import(
+          "@/lib/bookings/expireUnpaid"
+        );
+        await expireIfPastPaymentDeadline({
+          id: booking.id,
+          status: booking.status,
+          payment_deadline_at: booking.payment_deadline_at,
+        });
+        return NextResponse.json(
+          {
+            error: "Payment deadline has passed. This booking has expired.",
+            code: "PAYMENT_DEADLINE_PASSED",
+          },
+          { status: 410 }
+        );
+      }
+    }
+
     if (process.env.NODE_ENV !== "production") {
       console.log("[Payment Initiate] Booking loaded:", {
         bookingId,

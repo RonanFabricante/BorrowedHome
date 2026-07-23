@@ -25,7 +25,11 @@ export function BookingConfirmation({ booking, isHost = false }: { booking: any;
   const isPending = booking.status === "PENDING" || booking.status === "REQUESTED"; // Support both for backward compatibility
   const isPaymentPending = booking.status === "PAYMENT_PENDING";
   const isDeclined = booking.status === "DECLINED" || booking.status === "REJECTED";
-  const isExpired = booking.status === "EXPIRED";
+  const deadlinePassed =
+    isPaymentPending &&
+    booking.payment_deadline_at &&
+    new Date(booking.payment_deadline_at).getTime() <= Date.now();
+  const isExpired = booking.status === "EXPIRED" || Boolean(deadlinePassed);
   const isCancelled = booking.status === "CANCELLED";
   const isCompleted = booking.status === "COMPLETED";
   const canShowAddress =
