@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
  * Backup for the Supabase Edge Function `expire-bookings` (pg_cron).
  * Configure in Vercel Dashboard:
  * - Path: /api/cron/expire-bookings
- * - Schedule: */5 * * * * (every 5 minutes)
+ * - Schedule: every 5 minutes (cron: star-slash-5 * * * *)
  * - Authorization: Bearer {CRON_SECRET}
  */
 export async function GET(request: NextRequest) {
